@@ -1,0 +1,42 @@
+[
+  {
+    "id": "cjAgz",
+    "title": "Trapped in the Center",
+    "rating": 2140,
+    "themes": ["middlegame", "tactics", "advantage"],
+    "fen": "r2qk2r/3b1pp1/1pQ1pB1p/p2p4/2nPP3/2N2N2/PP3PPP/R3KB1R b KQkq - 0 1",
+    "lastMove": "h4f6",
+    "solution": ["g7f6", "c6b7", "c4d6", "b7a8", "d8a8"],
+    "category": "tactics"
+  },
+  {
+    "id": "backrank1",
+    "title": "Basic Back-Rank Mate",
+    "rating": 950,
+    "themes": ["endgame", "mate", "backRankMate"],
+    "fen": "4r1k1/5ppp/8/8/8/8/2Q2PPP/6K1 b - - 0 1",
+    "lastMove": "c1c2",
+    "solution": ["e8e1"],
+    "category": "endgame"
+  },
+  {
+    "id": "smother1",
+    "title": "Smothered Mate",
+    "rating": 1450,
+    "themes": ["middlegame", "mate", "smotheredMate"],
+    "fen": "r1bR2nk/1p4pp/p7/4N3/P7/8/1P3PPP/6K1 w - - 0 1",
+    "lastMove": "d8a8",
+    "solution": ["e5f7"],
+    "category": "mixed"
+  },
+  {
+    "id": "queenTrap",
+    "title": "Queen Trap",
+    "rating": 1820,
+    "themes": ["middlegame", "trappedPiece"],
+    "fen": "r1b1kbnr/pppp1ppp/8/4p3/1n2P1Qq/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+    "lastMove": "h4g4",
+    "solution": ["g1f3", "g4g5", "f3g5"],
+    "category": "opening"
+  }
+]

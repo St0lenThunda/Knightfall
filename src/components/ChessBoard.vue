@@ -1,0 +1,363 @@
+<template>
+  <div class="board-wrapper">
+    <!-- Rank labels left -->
+    <div class="rank-labels">
+      <span v-for="r in displayRanks" :key="r">{{ r }}</span>
+    </div>
+
+    <div class="board-container">
+      <!-- Squares -->
+      <div class="chess-board">
+        <div
+          v-for="(row, rowIdx) in displayBoard"
+          :key="rowIdx"
+          class="board-row"
+        >
+          <div
+            v-for="(cell, colIdx) in row"
+            :key="colIdx"
+            class="board-square"
+            :class="squareClasses(rowIdx, colIdx)"
+            :data-square="squareId(rowIdx, colIdx)"
+            @click="handleSquareClick(rowIdx, colIdx)"
+            @dragover.prevent
+            @drop="handleDrop(rowIdx, colIdx)"
+          >
+            <!-- File label (bottom row only) -->
+            <span class="file-label" v-if="rowIdx === 7">{{ displayFiles[colIdx] }}</span>
+
+            <!-- Last move / selected highlight -->
+            <div class="sq-highlight" v-if="isLastMove(rowIdx, colIdx)" style="background: var(--sq-last); opacity: 0.6;"></div>
+            <div class="sq-highlight" v-if="isSelected(rowIdx, colIdx)" style="background: rgba(103,232,249,0.3);"></div>
+            <div class="sq-check" v-if="isKingInCheck(rowIdx, colIdx)"></div>
+
+            <!-- Legal move dot -->
+            <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot" :class="{ 'legal-capture': !!cell }"></div>
+
+            <!-- Piece -->
+            <div
+              v-if="cell"
+              class="piece"
+              :class="['piece-' + cell.color, { 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }]"
+              draggable="true"
+              @dragstart="handleDragStart(rowIdx, colIdx)"
+              @dragend="handleDragEnd"
+            >
+              {{ pieceUnicode(cell) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promotion dialog -->
+      <Transition name="fade-up">
+        <div class="promotion-overlay" v-if="store.promotionPending">
+          <div class="promotion-dialog glass">
+            <div class="label" style="margin-bottom: 8px;">Promote pawn</div>
+            <div class="promo-pieces">
+              <button
+                v-for="p in promotionPieces"
+                :key="p.symbol"
+                class="promo-btn"
+                @click="store.completePromotion(p.symbol)"
+              >
+                {{ p.unicode }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </div>
+
+    <!-- File labels bottom -->
+    <div class="file-labels-row">
+      <span v-for="f in displayFiles" :key="f">{{ f }}</span>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useGameStore } from '../stores/gameStore'
+import type { Color, PieceSymbol } from 'chess.js'
+import type { Square } from 'chess.js'
+
+const store = useGameStore()
+
+const props = defineProps<{
+  flipped?: boolean
+}>()
+
+const dragFrom = ref<string | null>(null)
+
+const PIECE_UNICODE: Record<string, string> = {
+  wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
+  bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
+}
+
+const files = ['a','b','c','d','e','f','g','h']
+const ranks = ['8','7','6','5','4','3','2','1']
+
+const displayRanks = computed(() => props.flipped ? [...ranks].reverse() : ranks)
+const displayFiles  = computed(() => props.flipped ? [...files].reverse()  : files)
+
+const displayBoard = computed(() => {
+  const b = store.board
+  return props.flipped ? [...b].reverse().map(row => [...row].reverse()) : b
+})
+
+function squareId(rowIdx: number, colIdx: number): Square {
+  const f = displayFiles.value[colIdx]
+  const r = displayRanks.value[rowIdx]
+  return `${f}${r}` as Square
+}
+
+function pieceUnicode(cell: { type: PieceSymbol; color: Color } | null) {
+  if (!cell) return ''
+  return PIECE_UNICODE[`${cell.color}${cell.type.toUpperCase()}`] || ''
+}
+
+function squareClasses(rowIdx: number, colIdx: number) {
+  const light = (rowIdx + colIdx) % 2 === 0
+  return {
+    'sq-light': light,
+    'sq-dark': !light,
+    'sq-selected': isSelected(rowIdx, colIdx),
+  }
+}
+
+function isSelected(rowIdx: number, colIdx: number) {
+  return store.selectedSquare === squareId(rowIdx, colIdx)
+}
+
+function isLegalMove(rowIdx: number, colIdx: number) {
+  return store.legalMoveSquares.includes(squareId(rowIdx, colIdx))
+}
+
+function isLastMove(rowIdx: number, colIdx: number) {
+  if (!store.lastMove) return false
+  const sq = squareId(rowIdx, colIdx)
+  return sq === store.lastMove.from || sq === store.lastMove.to
+}
+
+function isKingInCheck(rowIdx: number, colIdx: number) {
+  if (!store.isCheck) return false
+  const cell = displayBoard.value[rowIdx][colIdx]
+  if (!cell || cell.type !== 'k') return false
+  return cell.color === store.turn
+}
+
+function handleSquareClick(rowIdx: number, colIdx: number) {
+  if (store.isThinking) return
+  store.selectSquare(squareId(rowIdx, colIdx))
+  // Trigger computer move after player move
+  if (store.mode === 'vs-computer' && store.turn !== store.playerColor && !store.isGameOver) {
+    store.computerMove()
+  }
+}
+
+function handleDragStart(rowIdx: number, colIdx: number) {
+  const sq = squareId(rowIdx, colIdx)
+  const cell = displayBoard.value[rowIdx][colIdx]
+  if (!cell) return
+  dragFrom.value = sq
+  store.selectedSquare = sq
+  store.legalMoveSquares = store.chess.moves({ square: sq, verbose: true }).map(m => m.to as Square)
+}
+
+function handleDragEnd() {
+  dragFrom.value = null
+}
+
+function handleDrop(rowIdx: number, colIdx: number) {
+  if (!dragFrom.value) return
+  const to = squareId(rowIdx, colIdx)
+  store.selectSquare(to)
+  if (store.mode === 'vs-computer' && store.turn !== store.playerColor && !store.isGameOver) {
+    store.computerMove()
+  }
+  dragFrom.value = null
+}
+
+const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
+  { symbol: 'q', unicode: store.turn === 'w' ? '♕' : '♛' },
+  { symbol: 'r', unicode: store.turn === 'w' ? '♖' : '♜' },
+  { symbol: 'b', unicode: store.turn === 'w' ? '♗' : '♝' },
+  { symbol: 'n', unicode: store.turn === 'w' ? '♘' : '♞' },
+]
+</script>
+
+<style scoped>
+.board-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.rank-labels {
+  position: absolute;
+  left: -20px;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: space-around;
+}
+
+.board-container {
+  position: relative;
+}
+
+.chess-board {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 3px rgba(255,255,255,0.07);
+  width: min(480px, 90vw);
+  aspect-ratio: 1;
+}
+
+.board-row {
+  display: flex;
+  flex: 1;
+}
+
+.board-square {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: filter 0.1s ease;
+}
+.board-square:hover .piece { transform: scale(1.08); }
+
+.sq-light { background: var(--sq-light); }
+.sq-dark  { background: var(--sq-dark); }
+.sq-selected { filter: brightness(1.15); outline: 3px solid rgba(103,232,249,0.5); outline-offset: -3px; }
+
+.sq-highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sq-check {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(220,20,60,0.8) 0%, rgba(220,20,60,0) 70%);
+  pointer-events: none;
+}
+
+.legal-dot {
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  background: rgba(0,0,0,0.25);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+.legal-capture {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border-radius: 0;
+  border: 4px solid rgba(0,0,0,0.22);
+  border-radius: 50%;
+}
+
+.piece {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1;
+  z-index: 3;
+  position: relative;
+  cursor: grab;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+.piece-w {
+  color: #fff;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.6);
+}
+.piece-b {
+  color: #1e1e2e;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+.piece:active { cursor: grabbing; }
+.piece-dragging { opacity: 0.3; }
+
+.file-label {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+.sq-dark .file-label { color: rgba(255,255,255,0.25); }
+
+.rank-labels, .file-labels-row {
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.rank-labels {
+  flex-direction: column;
+  justify-content: space-around;
+  height: min(480px, 90vw);
+  padding: 4px 0;
+}
+.file-labels-row {
+  width: min(480px, 90vw);
+  justify-content: space-around;
+}
+.file-labels-row span, .rank-labels span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* Promotion modal */
+.promotion-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+}
+.promotion-dialog {
+  padding: var(--space-6);
+  text-align: center;
+}
+.promo-pieces {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.promo-btn {
+  font-size: 2.5rem;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-primary);
+}
+.promo-btn:hover { background: var(--accent-dim); border-color: var(--accent); transform: scale(1.1); }
+
+.fade-up-enter-active, .fade-up-leave-active { transition: all 0.2s ease; }
+.fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: scale(0.95); }
+</style>
