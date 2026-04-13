@@ -1,72 +1,90 @@
 <template>
   <div class="board-wrapper">
-    <!-- Rank labels left -->
-    <div class="rank-labels">
-      <span v-for="r in displayRanks" :key="r">{{ r }}</span>
-    </div>
-
-    <div class="board-container">
-      <!-- Squares -->
-      <div class="chess-board">
-        <div
-          v-for="(row, rowIdx) in displayBoard"
-          :key="rowIdx"
-          class="board-row"
-        >
-          <div
-            v-for="(cell, colIdx) in row"
-            :key="colIdx"
-            class="board-square"
-            :class="squareClasses(rowIdx, colIdx)"
-            :data-square="squareId(rowIdx, colIdx)"
-            @click="handleSquareClick(rowIdx, colIdx)"
-            @dragover.prevent
-            @drop="handleDrop(rowIdx, colIdx)"
-          >
-            <!-- File label (bottom row only) -->
-            <span class="file-label" v-if="rowIdx === 7">{{ displayFiles[colIdx] }}</span>
-
-            <!-- Last move / selected highlight -->
-            <div class="sq-highlight" v-if="isLastMove(rowIdx, colIdx)" style="background: var(--sq-last); opacity: 0.6;"></div>
-            <div class="sq-highlight" v-if="isSelected(rowIdx, colIdx)" style="background: rgba(103,232,249,0.3);"></div>
-            <div class="sq-check" v-if="isKingInCheck(rowIdx, colIdx)"></div>
-
-            <!-- Legal move dot -->
-            <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot" :class="{ 'legal-capture': !!cell }"></div>
-
-            <!-- Piece -->
-            <div
-              v-if="cell"
-              class="piece"
-              :class="['piece-' + cell.color, { 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }]"
-              draggable="true"
-              @dragstart="handleDragStart(rowIdx, colIdx)"
-              @dragend="handleDragEnd"
-            >
-              {{ pieceUnicode(cell) }}
-            </div>
-          </div>
-        </div>
+    <div class="board-inner">
+      <!-- Rank labels left -->
+      <div class="rank-labels">
+        <span v-for="r in displayRanks" :key="r">{{ r }}</span>
       </div>
 
-      <!-- Promotion dialog -->
-      <Transition name="fade-up">
-        <div class="promotion-overlay" v-if="store.promotionPending">
-          <div class="promotion-dialog glass">
-            <div class="label" style="margin-bottom: 8px;">Promote pawn</div>
-            <div class="promo-pieces">
-              <button
-                v-for="p in promotionPieces"
-                :key="p.symbol"
-                class="promo-btn"
-                @click="store.completePromotion(p.symbol)"
+      <div class="board-container">
+        <!-- Squares -->
+        <div class="chess-board">
+          <div
+            v-for="(row, rowIdx) in displayBoard"
+            :key="rowIdx"
+            class="board-row"
+          >
+            <div
+              v-for="(cell, colIdx) in row"
+              :key="colIdx"
+              class="board-square"
+              :class="squareClasses(rowIdx, colIdx)"
+              :data-square="squareId(rowIdx, colIdx)"
+              @click="handleSquareClick(rowIdx, colIdx)"
+              @dragover.prevent
+              @drop="handleDrop(rowIdx, colIdx)"
+            >
+              <!-- Labels on squares removed as per request -->
+
+              <!-- Last move / selected highlight -->
+              <div class="sq-highlight" v-if="isLastMove(rowIdx, colIdx)" style="background: var(--sq-last); opacity: 0.6;"></div>
+              <div class="sq-highlight" v-if="isSelected(rowIdx, colIdx)" style="background: rgba(103,232,249,0.3);"></div>
+              <div class="sq-check" v-if="isKingInCheck(rowIdx, colIdx)"></div>
+
+              <!-- Legal move dot -->
+              <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot" :class="{ 'legal-capture': !!cell }"></div>
+
+              <!-- Hint Highlights -->
+              <div class="sq-highlight" v-if="(highlights || []).includes(squareId(rowIdx, colIdx))" style="background: rgba(251,191,36,0.4); border: 2px solid var(--gold);"></div>
+
+              <!-- Piece -->
+              <div
+                v-if="cell"
+                class="piece"
+                :class="['piece-' + cell.color, { 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }]"
+                draggable="true"
+                @dragstart="handleDragStart(rowIdx, colIdx)"
+                @dragend="handleDragEnd"
               >
-                {{ p.unicode }}
-              </button>
+                {{ pieceUnicode(cell) }}
+              </div>
             </div>
           </div>
         </div>
-      </Transition>
+
+        <!-- Arrow Overlay -->
+        <svg v-if="arrows && arrows.length > 0" class="board-arrows" viewBox="0 0 80 80">
+          <defs>
+            <marker id="arrowhead" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+              <polygon points="0 0, 4 2, 0 4" fill="rgba(251,191,36,0.8)" />
+            </marker>
+          </defs>
+          <line v-for="(arr, i) in arrows" :key="i"
+                :x1="getCoords(arr.from).x" :y1="getCoords(arr.from).y"
+                :x2="getCoords(arr.to).x"   :y2="getCoords(arr.to).y"
+                stroke="rgba(251,191,36,0.8)" stroke-width="1.5"
+                marker-end="url(#arrowhead)" stroke-linecap="round" />
+        </svg>
+
+        <!-- Promotion dialog -->
+        <Transition name="fade-up">
+          <div class="promotion-overlay" v-if="store.promotionPending">
+            <div class="promotion-dialog glass">
+              <div class="label" style="margin-bottom: 8px;">Promote pawn</div>
+              <div class="promo-pieces">
+                <button
+                  v-for="p in promotionPieces"
+                  :key="p.symbol"
+                  class="promo-btn"
+                  @click="store.completePromotion(p.symbol)"
+                >
+                  {{ p.unicode }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <!-- File labels bottom -->
@@ -86,9 +104,21 @@ const store = useGameStore()
 
 const props = defineProps<{
   flipped?: boolean
+  arrows?: { from: string, to: string }[]
+  highlights?: string[]
 }>()
 
 const dragFrom = ref<string | null>(null)
+
+function getCoords(sq: string) {
+  const file = sq[0]; const rank = sq[1]
+  let col = file.charCodeAt(0) - 97
+  let row = 8 - parseInt(rank)
+  if (props.flipped) { col = 7 - col; row = 7 - row }
+  
+  // Calculate vector to slightly shorten the line so it doesn't overlap the arrowhead with the center
+  return { x: col * 10 + 5, y: row * 10 + 5 }
+}
 
 const PIECE_UNICODE: Record<string, string> = {
   wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
@@ -192,18 +222,26 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   user-select: none;
+  padding: 10px;
+}
+
+.board-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .rank-labels {
-  position: absolute;
-  left: -20px;
-  top: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: min(480px, 90vw);
   justify-content: space-around;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .board-container {
@@ -301,29 +339,24 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
 }
 .sq-dark .file-label { color: rgba(255,255,255,0.25); }
 
-.rank-labels, .file-labels-row {
+.file-labels-row {
   display: flex;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-muted);
   font-family: var(--font-mono);
-}
-.rank-labels {
-  flex-direction: column;
-  justify-content: space-around;
-  height: min(480px, 90vw);
-  padding: 4px 0;
-}
-.file-labels-row {
   width: min(480px, 90vw);
   justify-content: space-around;
+  padding-left: 36px; /* Offset for rank labels width + gap */
 }
-.file-labels-row span, .rank-labels span {
+
+.file-labels-row span {
+  flex: 1;
+  text-align: center;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
 }
 
 /* Promotion modal */
@@ -340,6 +373,17 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
 .promotion-dialog {
   padding: var(--space-6);
   text-align: center;
+}
+.file-labels-row span {
+  flex: 1; text-align: center;
+}
+
+.board-arrows {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 10;
 }
 .promo-pieces {
   display: flex;

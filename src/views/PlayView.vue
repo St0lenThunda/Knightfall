@@ -42,17 +42,36 @@
 
           <!-- Color select (vs computer) -->
           <Transition name="fade-up">
-            <div class="setup-section" v-if="selectedMode === 'vs-computer'">
-              <div class="label" style="margin-bottom: var(--space-3);">Play as</div>
-              <div class="color-picker">
-                <button
-                  v-for="c in colors" :key="c.value"
-                  class="color-btn"
-                  :class="{ active: selectedColor === c.value }"
-                  @click="selectedColor = c.value"
-                >
-                  {{ c.icon }} {{ c.label }}
-                </button>
+            <div class="vs-computer-settings" v-if="selectedMode === 'vs-computer'">
+              <div class="setup-section">
+                <div class="label" style="margin-bottom: var(--space-3);">Choose Opponent</div>
+                <div class="bot-list">
+                  <div
+                    v-for="bot in BOTS" :key="bot.id"
+                    class="bot-card glass-sm"
+                    :class="{ active: store.activeBot.id === bot.id }"
+                    @click="store.activeBot = bot"
+                  >
+                    <img :src="bot.avatar" class="bot-avatar" />
+                    <div class="bot-info">
+                      <div class="bot-name">{{ bot.name }} <span class="badge badge-accent">{{ bot.rating }}</span></div>
+                      <div class="bot-desc muted">{{ bot.description }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="setup-section">
+                <div class="label" style="margin-bottom: var(--space-3);">Play as</div>
+                <div class="color-picker">
+                  <button
+                    v-for="c in colors" :key="c.value"
+                    class="color-btn"
+                    :class="{ active: selectedColor === c.value }"
+                    @click="selectedColor = c.value"
+                  >
+                    {{ c.icon }} {{ c.label }}
+                  </button>
+                </div>
               </div>
             </div>
           </Transition>
@@ -103,6 +122,29 @@
 
         <ChessBoard :flipped="flipped" />
 
+        <Transition name="fade-up">
+          <div class="game-over-banner glass" v-if="store.isGameOver && !store.isCheaterBusted">
+            <h3 style="color: var(--accent-bright);">Game Over</h3>
+            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-2);">{{ store.gameResult }}</p>
+            <div style="display: flex; gap: var(--space-2); justify-content: center;">
+              <button class="btn btn-primary" @click="showSetup = true">New Game</button>
+              <button class="btn btn-ghost" @click="reviewGame">Review Game</button>
+            </div>
+          </div>
+        </Transition>
+
+        <Transition name="fade-up">
+          <div class="game-over-banner cheat-busted glass" v-if="store.isCheaterBusted" style="border-color: rgba(244,63,94,0.4); background: rgba(244,63,94,0.05);">
+            <h3 style="color: var(--rose); font-size: 1.5rem; text-transform: uppercase;">Anti-Cheat Triggered</h3>
+            <p style="font-weight: 600; font-size: 1rem; margin-bottom: var(--space-2);">Suspicious behavior detected.</p>
+            <div class="muted" style="margin-bottom: var(--space-3); font-size: 0.85rem; max-width: 300px; text-align: center;">
+              Your Suspicion Score reached <b style="color: var(--rose)">{{ store.suspicionScore.toFixed(0) }}%</b>. 
+              <br>Window Blurs: {{ store.cheatMetrics.blurCount }}
+            </div>
+            <button class="btn btn-danger" @click="showSetup = true, store.newGame()">Accept Defeat</button>
+          </div>
+        </Transition>
+
         <!-- Player info bottom -->
         <PlayerBar
           :name="flipped ? opponentName : playerName"
@@ -116,8 +158,8 @@
 
       <!-- Right: move history + eval -->
       <div class="side-panel glass">
-        <!-- Eval bar -->
-        <div class="eval-section">
+        <!-- Eval bar ( hidden in local pass & play to prevent cheating ) -->
+        <div class="eval-section" v-if="store.mode === 'vs-computer'">
           <div class="eval-bar-vertical">
             <div class="eval-white-fill" :style="{ height: evalPercent + '%' }"></div>
           </div>
@@ -128,7 +170,7 @@
             <div class="label" style="font-size: 0.65rem;">EVAL</div>
           </div>
         </div>
-        <div class="divider"></div>
+        <div class="divider" v-if="store.mode === 'vs-computer'"></div>
         <MoveHistory />
       </div>
     </div>
@@ -136,9 +178,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue'
-import { useGameStore, TIME_CONTROLS } from '../stores/gameStore'
+import { ref, computed, onUnmounted, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useGameStore, TIME_CONTROLS, BOTS } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
+import { useUserStore } from '../stores/userStore'
 import type { GameMode, TimeControl } from '../stores/gameStore'
 import type { Color } from 'chess.js'
 import ChessBoard from '../components/ChessBoard.vue'
@@ -151,6 +195,14 @@ engineStore.init()
 
 const flipped = ref(false)
 const showSetup = ref(true)
+
+const router = useRouter()
+
+function reviewGame() {
+  store.mode = 'analysis'
+  store.viewIndex = -1 // Show the final position
+  router.push('/analysis')
+}
 
 const selectedMode = ref<GameMode>('local')
 const selectedColor = ref<Color>('w')
@@ -166,12 +218,14 @@ const colors: { value: Color; icon: string; label: string }[] = [
   { value: 'w', icon: '♔', label: 'White side' },
 ]
 
-const playerName    = 'GrandMaster_G'
-const playerRating  = 1487
-const playerAvatar  = 'G'
-const opponentName  = computed(() => selectedMode.value === 'vs-computer' ? 'Engine Lv.1' : 'Player 2')
-const opponentRating= 1500
-const opponentAvatar = '🤖'
+const userStore = useUserStore()
+
+const playerName    = computed(() => userStore.profile?.username || 'Guest')
+const playerRating  = computed(() => userStore.profile?.rating || 1200)
+const playerAvatar  = computed(() => userStore.profile?.username?.charAt(0).toUpperCase() || '?')
+const opponentName  = computed(() => selectedMode.value === 'vs-computer' ? store.activeBot.name : 'Player 2')
+const opponentRating= computed(() => selectedMode.value === 'vs-computer' ? store.activeBot.rating : 1500)
+const opponentAvatar = computed(() => selectedMode.value === 'vs-computer' ? store.activeBot.avatar : '👤')
 
 const modeLabel = computed(() => {
   if (selectedMode.value === 'vs-computer') return 'You vs Computer · ' + selectedTc.value.label
@@ -188,10 +242,16 @@ function startClock() {
     if (!store.gameStarted || store.isGameOver || store.isThinking) return
     if (store.turn === 'w') {
       if (store.whiteTime > 0) store.whiteTime--
-      else { clearInterval(clockInterval!); /* handle flag */ }
+      else { 
+        clearInterval(clockInterval!)
+        store.handleFlag('w')
+      }
     } else {
       if (store.blackTime > 0) store.blackTime--
-      else { clearInterval(clockInterval!); }
+      else { 
+        clearInterval(clockInterval!)
+        store.handleFlag('b')
+      }
     }
   }, 1000)
 }
@@ -200,24 +260,33 @@ function startGame() {
   store.newGame(selectedMode.value, selectedColor.value, selectedTc.value)
   showSetup.value = false
   startClock()
-  engineStore.analyze(store.fen, 14) // Kick off initial analysis
-  if (selectedMode.value === 'vs-computer' && selectedColor.value === 'b') {
-    flipped.value = true
-    store.computerMove()
+  
+  if (selectedMode.value === 'vs-computer') {
+    engineStore.analyze(store.fen, 14)
+    if (selectedColor.value === 'b') {
+      flipped.value = true
+      store.computerMove()
+    } else {
+      flipped.value = false
+    }
   } else {
-    flipped.value = false
+    flipped.value = false // Pass & play always starts on White
   }
 }
 
 function resign() {
-  showSetup.value = true
+  store.resign(flipped.value ? 'b' : 'w')
   if (clockInterval) clearInterval(clockInterval)
 }
 
-// Watch FEN for analysis trigger
+// Watch FEN for analysis trigger and pass & play camera flipping
 watch(() => store.fen, (newFen) => {
   if (gameActive.value) {
-    engineStore.analyze(newFen, 14)
+    if (store.mode === 'vs-computer') {
+      engineStore.analyze(newFen, 14)
+    } else if (store.mode === 'local') {
+      flipped.value = store.turn === 'b'
+    }
   }
 })
 
@@ -225,9 +294,25 @@ watch(() => store.fen, (newFen) => {
 const evalNumber = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
+function handleWindowBlur() {
+  store.registerBlur()
+}
+
+onMounted(() => {
+  window.addEventListener('blur', handleWindowBlur)
+})
+
 onUnmounted(() => { 
+  window.removeEventListener('blur', handleWindowBlur)
   if (clockInterval) clearInterval(clockInterval)
   engineStore.stop()
+})
+
+// Watch for busted state to force resignation
+watch(() => store.isCheaterBusted, (busted) => {
+  if (busted && !store.isGameOver) {
+    store.resign(store.playerColor)
+  }
 })
 </script>
 
@@ -303,6 +388,15 @@ onUnmounted(() => {
 }
 .color-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent-bright); }
 
+.bot-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.bot-card { width: 100%; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer; transition: all 0.2s ease; background: var(--bg-elevated); }
+.bot-card:hover { border-color: rgba(255,255,255,0.2); }
+.bot-card.active { border-color: var(--accent); background: var(--accent-dim); }
+.bot-avatar { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+.bot-info { flex: 1; text-align: left; }
+.bot-name { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px; }
+.bot-desc { font-size: 0.75rem; line-height: 1.3; }
+
 .tc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 .tc-btn {
   padding: var(--space-2);
@@ -325,6 +419,16 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--space-2);
   align-items: center;
+}
+
+.game-over-banner {
+  margin-top: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* Thinking indicator */

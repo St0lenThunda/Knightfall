@@ -9,16 +9,28 @@ import PlayView from './views/PlayView.vue'
 import AnalysisView from './views/AnalysisView.vue'
 import PuzzlesView from './views/PuzzlesView.vue'
 import ProfileView from './views/ProfileView.vue'
+import LibraryView from './views/LibraryView.vue'
+import { supabase } from './api/supabaseClient'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: HomeView },
-    { path: '/play', component: PlayView },
+    { path: '/',         component: HomeView },
+    { path: '/play',     component: PlayView },
     { path: '/analysis', component: AnalysisView },
-    { path: '/puzzles', component: PuzzlesView },
-    { path: '/profile', component: ProfileView },
+    { path: '/puzzles',  component: PuzzlesView },
+    { path: '/profile',  component: ProfileView, meta: { requiresAuth: true } },
+    { path: '/library',  component: LibraryView },
   ],
+})
+
+router.beforeEach(async (to) => {
+  if (to.meta.requiresAuth) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return { path: '/' }
+    }
+  }
 })
 
 const pinia = createPinia()

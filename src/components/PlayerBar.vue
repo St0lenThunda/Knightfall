@@ -1,7 +1,8 @@
 <template>
   <div class="player-bar" :class="{ 'player-active': active }">
     <div class="player-avatar-sm" :style="avatarStyle">
-      {{ typeof avatar === 'string' ? avatar : '' }}
+      <img v-if="avatar.includes('.png')" :src="avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+      <span v-else>{{ typeof avatar === 'string' ? avatar : '' }}</span>
     </div>
     <div class="player-details">
       <div class="player-name">{{ name }}</div>

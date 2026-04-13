@@ -10,22 +10,32 @@
     </div>
 
     <!-- User card -->
-    <div class="sidenav-user" v-show="!collapsed">
+    <div class="sidenav-user" v-show="!collapsed" v-if="userStore.session">
       <div class="user-avatar">
-        <span>G</span>
+        <span>{{ userStore.profile?.username?.charAt(0).toUpperCase() || '?' }}</span>
         <div class="online-dot"></div>
       </div>
-      <div class="user-info">
-        <div class="user-name">GrandMaster_G</div>
+      <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
+        <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
         <div class="user-rating">
-          <span class="badge badge-gold">♔ 1487</span>
+          <span class="badge badge-gold">♔ {{ userStore.profile?.rating || 1200 }}</span>
         </div>
       </div>
     </div>
+    
+    <div class="sidenav-user" v-show="!collapsed" v-else>
+      <div style="display: flex; gap: var(--space-2); width: 100%;">
+        <button class="btn btn-primary btn-sm" style="flex: 1;" @click="handleLogin">Login</button>
+        <button class="btn btn-ghost btn-sm" style="flex: 1;" @click="handleSignup">Sign Up</button>
+      </div>
+    </div>
     <div class="avatar-collapsed" v-show="collapsed">
-      <div class="user-avatar">
-        <span>G</span>
+      <div class="user-avatar" v-if="userStore.session" @click="handleLogout" style="cursor: pointer;" data-tooltip="Sign out">
+        <span>{{ userStore.profile?.username?.charAt(0).toUpperCase() || '?' }}</span>
         <div class="online-dot"></div>
+      </div>
+      <div class="user-avatar" v-else @click="handleLogin" style="cursor: pointer;" data-tooltip="Login">
+        <span>?</span>
       </div>
     </div>
 
@@ -45,34 +55,85 @@
 
     <!-- Bottom actions -->
     <div class="sidenav-bottom" v-show="!collapsed">
-      <div class="daily-challenge glass-sm">
-        <div class="label" style="color: var(--gold)">Daily Puzzle</div>
-        <div style="font-size: 0.85rem; margin-top: 4px; color: var(--text-secondary)">Tactics: Pin & Win</div>
-        <RouterLink to="/puzzles" class="btn btn-gold btn-sm" style="margin-top: 8px; width: 100%; justify-content: center;">
-          Solve Now
-        </RouterLink>
+      <div class="quick-settings glass-sm" style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);">
+        <div class="label">Quick Settings</div>
+        <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+          <label style="font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span class="muted">Board Theme</span>
+            <select v-model="settings.boardTheme" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); padding: 2px 4px; border-radius: 4px; outline: none;">
+              <option value="classic">Classic</option>
+              <option value="wood">Wood</option>
+              <option value="obsidian">Obsidian</option>
+            </select>
+          </label>
+          <label style="font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span class="muted">Sound Effects</span>
+            <input type="checkbox" v-model="settings.soundEnabled" style="accent-color: var(--accent)" />
+          </label>
+        </div>
       </div>
       <div class="sidenav-footer">
         <span class="muted" style="font-size: 0.75rem;">v0.1.0 prototype</span>
       </div>
     </div>
+    <Teleport to="body">
+      <AuthModal 
+        v-if="showAuthModal" 
+        :initialMode="authMode" 
+        @close="showAuthModal = false"
+      />
+      <LogoutModal
+        v-if="showLogoutModal"
+        @close="showLogoutModal = false"
+      />
+    </Teleport>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useSettingsStore } from '../stores/settingsStore'
+import { useUserStore } from '../stores/userStore'
+import AuthModal from './AuthModal.vue'
+import LogoutModal from './LogoutModal.vue'
+
+const settings = useSettingsStore()
+const userStore = useUserStore()
+
+const showAuthModal = ref(false)
+const showLogoutModal = ref(false)
+const authMode = ref<'login' | 'signup'>('login')
+
+function handleLogin() {
+  authMode.value = 'login'
+  showAuthModal.value = true
+}
+
+function handleSignup() {
+  authMode.value = 'signup'
+  showAuthModal.value = true
+}
+
+async function handleLogout() {
+  showLogoutModal.value = true
+}
 
 const route = useRoute()
 const collapsed = ref(false)
 
-const navItems = [
-  { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null },
-  { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE' },
-  { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3' },
-  { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null },
-  { path: '/profile',   icon: '👤', label: 'Profile',     badge: null },
+const allNavItems = [
+  { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
+  { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE', auth: false },
+  { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3',    auth: false },
+  { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: false },
+  { path: '/library',   icon: '⬡',  label: 'Archive',     badge: null,   auth: false },
+  { path: '/profile',   icon: '👤', label: 'Profile',     badge: null,   auth: true  },
 ]
+
+const navItems = computed(() =>
+  allNavItems.filter(item => !item.auth || !!userStore.session)
+)
 </script>
 
 <style scoped>

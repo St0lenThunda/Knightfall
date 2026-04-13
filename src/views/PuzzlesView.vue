@@ -44,47 +44,37 @@
             </div>
           </div>
 
-          <div class="puzzle-turn-indicator" :class="puzzle.toMove">
-            {{ puzzle.toMove === 'white' ? '♔' : '♚' }}
-            <span>{{ puzzle.toMove === 'white' ? 'White' : 'Black' }} to move</span>
+          <div class="puzzle-turn-indicator" :class="puzzle.toMove" style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              {{ puzzle.toMove === 'white' ? '♔' : '♚' }}
+              <span>{{ puzzle.toMove === 'white' ? 'White' : 'Black' }} to move</span>
+            </div>
+            <span v-if="isMatePuzzle" class="badge badge-rose">Mate in {{ movesToSolve }}</span>
+            <span v-else class="badge badge-accent">{{ movesToSolve }} Move{{ movesToSolve !== 1 ? 's' : '' }}</span>
           </div>
 
           <!-- Real puzzle board -->
           <div class="puzzle-board-wrapper">
-            <ChessBoard :flipped="puzzleColor === 'b'" />
+            <ChessBoard 
+              :flipped="puzzleColor === 'b'" 
+              :highlights="hintSquares"
+              :arrows="hintArrows"
+            />
           </div>
-
-          <!-- Feedback -->
-          <Transition name="fade-up">
-            <div v-if="feedback" class="puzzle-feedback" :class="feedback.type">
-              <span class="feedback-icon">{{ feedback.icon }}</span>
-              <div>
-                <div class="feedback-title">{{ feedback.title }}</div>
-                <div class="feedback-msg">{{ feedback.message }}</div>
-              </div>
-            </div>
-          </Transition>
 
           <!-- Controls -->
           <div class="puzzle-controls">
-            <button class="btn btn-ghost btn-sm" @click="showHint" :disabled="hintShown">
-              💡 Hint
+            <button class="btn btn-ghost btn-sm" @click="showHint" :disabled="puzzleSolved">
+              💡 {{ hintLevel === 0 ? 'Hint' : hintLevel === 1 ? 'Show Move' : 'Hint Shown' }}
             </button>
-            <button class="btn btn-ghost btn-sm" @click="loadNextPuzzle">
+            <button class="btn btn-ghost btn-sm" @click="loadNextPuzzle(true)">
               Skip →
             </button>
-            <button class="btn btn-primary btn-sm" @click="loadNextPuzzle" v-if="puzzleSolved">
+            <button class="btn btn-primary btn-sm" @click="loadNextPuzzle(false)" v-if="puzzleSolved">
               Next Puzzle →
             </button>
           </div>
         </div>
-
-        <!-- Hint box -->
-        <Transition name="fade-up">
-          <div v-if="hintShown" class="hint-box glass-sm">
-            <span style="color: var(--gold)">💡 Hint:</span> {{ puzzle.hint }}
-          </div>
-        </Transition>
       </div>
 
       <!-- Right: puzzle queue + progress -->
@@ -125,8 +115,8 @@
               <div class="queue-meta">
                 <div style="font-weight: 600; font-size:0.88rem;">{{ p.title }}</div>
                 <div style="display:flex; gap: var(--space-2); margin-top: 3px;">
-                  <span class="badge badge-accent">{{ p.theme }}</span>
-                  <span style="font-size:0.75rem; color: var(--text-muted);">⭐ {{ p.difficulty }}</span>
+                  <span class="badge badge-accent">{{ p.category || (p.themes && p.themes[0]) || 'Mixed' }}</span>
+                  <span style="font-size:0.75rem; color: var(--text-muted);">⭐ {{ p.rating }}</span>
                 </div>
               </div>
             </div>
@@ -139,7 +129,7 @@
             <h4>🧬 Targeting your weakness</h4>
           </div>
           <p class="muted" style="font-size: 0.82rem; margin-top: var(--space-2);">
-            These puzzles are selected based on your <strong style="color: var(--text-primary);">endgame technique</strong> weakness (71% miss rate).
+            These puzzles are selected based on your <strong style="color: var(--text-primary);">{{ weakness.label }}</strong> weakness ({{ weakness.missRate }}% miss rate).
           </p>
         </div>
       </div>
@@ -149,21 +139,28 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { fetchRandomPuzzle } from '../api/puzzleApi'
+import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { useGameStore } from '../stores/gameStore'
+import { useUserStore } from '../stores/userStore'
+import { useUiStore } from '../stores/uiStore'
 import ChessBoard from '../components/ChessBoard.vue'
 import type { Square, PieceSymbol } from 'chess.js'
 
 const store = useGameStore()
+const userStore = useUserStore()
+const uiStore = useUiStore()
 
-const puzzleRating = ref(1124)
-const streak = ref(7)
-const solvedToday = ref(4)
-const activeCat = ref('mixed')
-const hintShown = ref(false)
+const puzzleRating = computed(() => userStore.profile?.puzzle_rating ?? 1200)
+const streak = computed(() => userStore.currentStreak)
+const solvedToday = computed(() => userStore.solvedToday)
+const activeCat = ref(userStore.weaknessDna.category || 'mixed')
+const hintLevel = ref(0)
 const puzzleSolved = ref(false)
-const feedback = ref<{ type: string; icon: string; title: string; message: string } | null>(null)
+
+// Attempt tracking
+const puzzleStartTime = ref(Date.now())
+const attemptCount = ref(0)
 
 const categories = [
   { id: 'endgame', icon: '🏁', label: 'Endgame' },
@@ -189,74 +186,157 @@ const puzzle = computed(() => ({
   hint: 'Look for forced moves or piece targets in ' + (currentPuzzle.value?.category || 'this position')
 }))
 
+const isMatePuzzle = computed(() => {
+  return currentPuzzle.value?.themes?.includes('mate') || false
+})
+
+const movesToSolve = computed(() => {
+  if (!currentPuzzle.value) return 0
+  return Math.ceil(currentPuzzle.value.solution.length / 2)
+})
+
+const hintSquares = computed(() => {
+  if (hintLevel.value < 1 || !currentPuzzle.value) return []
+  const expected = currentPuzzle.value.solution[puzzleStep.value]
+  if (!expected) return []
+  return [expected.slice(0, 2)]
+})
+
+const hintArrows = computed(() => {
+  if (hintLevel.value < 2 || !currentPuzzle.value) return []
+  const expected = currentPuzzle.value.solution[puzzleStep.value]
+  if (!expected) return []
+  return [{ from: expected.slice(0, 2), to: expected.slice(2, 4) }]
+})
+
 watch(() => store.moveHistory.length, (newLen, oldLen) => {
   if (newLen > oldLen && currentPuzzle.value && !puzzleSolved.value && store.mode === 'puzzle') {
-    // A move was made. Wait, is it the player or computer?
-    // If it's the computer's auto-reply, let it pass.
-    // The player's move is on even puzzleSteps.
-    if (puzzleStep.value % 2 !== 0) return 
-
     const lastM = store.moveHistory[newLen - 1]
-    const uci = lastM.from + lastM.to + (lastM.san.includes('=') ? 'q' : '') // simplified promotion detection
+    const uci = lastM.from + lastM.to + (lastM.san.includes('=') ? 'q' : '') 
     const expected = currentPuzzle.value.solution[puzzleStep.value]
 
-    // Check against expected move (handle loose promotion matches)
+    // Check if the made move matches what we expected for this step
     if (uci === expected || uci.slice(0,4) === expected.slice(0,4)) {
       puzzleStep.value++
-      // If end of solution
+      
+      // Check if end of solution
       if (puzzleStep.value >= currentPuzzle.value.solution.length) {
         puzzleSolved.value = true
-        streak.value++
-        solvedToday.value++
-        puzzleRating.value += 12
-        feedback.value = { type: 'correct', icon: '★', title: 'Solved!', message: 'Excellent technique.' }
-        store.forceGameOver = true // Stop interaction
+        hintLevel.value = 0
+        
+        const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
+        userStore.submitPuzzleAttempt(
+          currentPuzzle.value.id,
+          currentPuzzle.value.rating as number,
+          true,
+          Math.max(1, attemptCount.value),
+          timeTaken,
+          hintLevel.value,
+          currentPuzzle.value.themes || []
+        )
+        
+        uiStore.addToast(`Solved! +Elo (${timeTaken}s)`, 'success')
+        store.forceGameOver = true 
       } else {
-        feedback.value = { type: 'correct', icon: '✓', title: 'Good move!', message: 'Keep going...' }
-        // Opponent auto reply
-        const oppMove = currentPuzzle.value.solution[puzzleStep.value]
-        setTimeout(() => {
-          store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
-          puzzleStep.value++
-        }, 350)
+        // If puzzleStep is now ODD, it means we just processed the player's successful move.
+        // It is now the opponent's turn. Schedule the automated reply!
+        if (puzzleStep.value % 2 !== 0) {
+          hintLevel.value = 0
+          uiStore.addToast('Good move! Keep going...', 'info', 2000)
+          
+          const oppMove = currentPuzzle.value.solution[puzzleStep.value]
+          setTimeout(() => {
+            store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
+          }, 350)
+        }
       }
     } else {
-      store.undoMove()
-      feedback.value = { type: 'wrong', icon: '✗', title: 'Incorrect', message: 'That move loses the advantage.' }
-      streak.value = 0
+      // If it's the player's turn to guess, and they guessed wrong, bounce the piece back.
+      if (puzzleStep.value % 2 === 0) {
+        store.undoMove()
+        attemptCount.value++
+        uiStore.addToast('Incorrect. That move loses the advantage.', 'error')
+      }
     }
   }
 })
 
-function showHint() { hintShown.value = true }
+function showHint() { 
+  if (hintLevel.value >= 2 || puzzleSolved.value) return
+  hintLevel.value++
+  if (hintLevel.value === 1) {
+    uiStore.addToast('💡 Hint: ' + puzzle.value.hint, 'warning', 6000)
+  }
+}
+
+const queuePuzzles = ref<Puzzle[]>([])
+const weakness = computed(() => userStore.weaknessDna)
 
 function setCat(id: string) {
   activeCat.value = id
+  queuePuzzles.value = [] // clear queue to fetch new category
   loadNextPuzzle()
 }
 
-async function loadNextPuzzle() {
-  feedback.value = null
+async function loadNextPuzzle(skipped = false) {
+  // If skipping an incomplete puzzle, record the failed attempt
+  if (skipped && currentPuzzle.value && !puzzleSolved.value) {
+    const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
+    userStore.submitPuzzleAttempt(
+      currentPuzzle.value.id,
+      currentPuzzle.value.rating as number,
+      false,
+      Math.max(1, attemptCount.value),
+      timeTaken,
+      hintLevel.value,
+      currentPuzzle.value.themes || []
+    )
+  }
+
   puzzleSolved.value = false
-  hintShown.value = false
+  hintLevel.value = 0
+  attemptCount.value = 0
+  store.forceGameOver = false
   
-  store.forceGameOver = false // ensure pieces are draggable
-  currentPuzzle.value = await fetchRandomPuzzle(activeCat.value)
+  if (queuePuzzles.value.length === 0) {
+    // Check Spaced Repetition Queue first
+    const now = new Date()
+    const due = userStore.puzzleQueue
+      .filter(q => new Date(q.next_review) <= now)
+      .sort((a, b) => new Date(a.next_review).getTime() - new Date(b.next_review).getTime())
+      .slice(0, 10)
+
+    if (due.length > 0) {
+      uiStore.addToast(`Loading ${due.length} review puzzles...`, 'info')
+      for (const item of due) {
+        const p = await fetchPuzzleById(item.puzzle_id)
+        if (p) queuePuzzles.value.push(p)
+      }
+    }
+
+    // Still empty? Fetch from batch
+    if (queuePuzzles.value.length === 0) {
+      queuePuzzles.value = await fetchPuzzleBatch(activeCat.value, 4)
+    }
+  }
+  
+  currentPuzzle.value = queuePuzzles.value.shift() || null
   if (currentPuzzle.value) {
     store.loadPosition(currentPuzzle.value.fen, 'puzzle')
   }
   puzzleStep.value = 0
+  puzzleStartTime.value = Date.now()
+
+  // Refill batch if low and NOT purely in review mode
+  if (queuePuzzles.value.length < 3) {
+    const more = await fetchPuzzleBatch(activeCat.value, 3)
+    queuePuzzles.value.push(...more)
+  }
 }
 
 onMounted(() => {
   loadNextPuzzle()
 })
-
-const queuePuzzles = [
-  { id: 1, title: 'Rook vs King', theme: 'Endgame', difficulty: 1180 },
-  { id: 2, title: 'Back Rank Mate', theme: 'Tactics', difficulty: 1050 },
-  { id: 3, title: 'Knight Fork!', theme: 'Tactics', difficulty: 1300 },
-]
 </script>
 
 <style scoped>

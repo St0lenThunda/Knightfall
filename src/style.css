@@ -73,6 +73,15 @@
 .sq-light { background: var(--sq-light); }
 .sq-dark  { background: var(--sq-dark); }
 
+[data-board-theme="wood"] {
+  --sq-light: #cd945c;
+  --sq-dark: #6b4423;
+}
+[data-board-theme="obsidian"] {
+  --sq-light: #4b5563;
+  --sq-dark: #1f2937;
+}
+
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
   font-family: var(--font-sans);

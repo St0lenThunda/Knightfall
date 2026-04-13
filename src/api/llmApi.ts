@@ -2,33 +2,41 @@ export interface CoachingRequest {
   fen: string
   evalNumber: number
   pv: string[]
+  moveSan?: string | null
+  moveNumber?: number | null
+  side?: string
+  bestMove?: string
 }
 
 const MOCK_RESPONSES = [
-  "Stockfish evaluation here indicates a solid advantage. The recommended principal variation focuses on developing the minor pieces while restricting the opponent's central breaks. If you follow this line, you solidify control of the center.",
-  "This is a sharp position! The evaluation is completely balanced, but the suggested engine move aims to create immediate tactical complications. Taking the offered pawn looks dangerous but the engine proves it's playable if you calculate precisely.",
-  "Look closely at the evaluation — it's heavily in White's favor without an immediate material advantage. This means the advantage is strictly positional. By playing the engine's suggested move, you restrict Black's counterplay and slowly squeeze them."
+  "The move you played keeps central tension alive — a solid practical choice. The engine's recommendation aims to seize outpost control on d5, which would give you a permanent structural advantage. Focus on piece activity over material here.",
+  "This was a sharp moment! The engine actually prefers a more aggressive approach here, using the pin to win a tempo. Your move is playable, but the best line capitalizes on the tactical pressure before your opponent can consolidate.",
+  "The evaluation shift here reveals a positional concession — your move released central tension too early. Holding the tension longer forces your opponent into a passive setup, giving you more long-term pressure.",
 ]
 
 export async function generateCoaching(req: CoachingRequest): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
-    // Simulate network latency if no API key is provided
     await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1000))
     return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)]
   }
 
-  // If we have an API key, call the Gemini REST API
-  const prompt = `You are a Grandmaster chess coach. Look at the following position data:
-FEN: ${req.fen}
-Evaluation: ${req.evalNumber} pawns
-Engine Recommended Moves (PV): ${req.pv.join(", ")}
+  const prompt = `You are a Grandmaster chess coach reviewing a SPECIFIC MOVE from a game with a 1200-rated student.
 
-In one short, actionable paragraph (maximum 3 sentences), explain to a 1200-rated player WHY the engine recommends this plan. Do not just restate the moves; explain the strategic idea behind them.`
+Position (FEN) before the move: ${req.fen}
+The student played: ${req.moveSan}
+The engine's best recommendation was: ${req.bestMove ?? 'unknown'}
+Engine's recommended line: ${req.pv.slice(0, 5).join(' ')}
+Evaluation after engine's best move: ${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(2)}
+
+In 2-3 concise, actionable sentences: 
+1. Directly compare the move played (${req.moveSan}) with the best move (${req.bestMove}).
+2. Explain specifically "WHY" the engine prefers its choice — what does it achieve that the student's move misses? (e.g., control of a key square, a tactical threat, or better structure).
+3. Provide a clear takeaway for the student.`
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -44,6 +52,6 @@ In one short, actionable paragraph (maximum 3 sentences), explain to a 1200-rate
     return data.candidates[0].content.parts[0].text.trim()
   } catch (err) {
     console.error("LLM Generation failed:", err)
-    return "The AI coach is currently unavailable due to network issues. Keep focusing on developing your pieces and controlling the center!"
+    return "The AI coach is currently unavailable. Focus on developing your pieces toward active squares and keeping your king safe!"
   }
 }

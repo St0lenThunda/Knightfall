@@ -1,10 +1,34 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Chess } from 'chess.js'
 import type { Square, PieceSymbol, Color } from 'chess.js'
+import nedImg from '../assets/ned.png'
+import tanyaImg from '../assets/tanya.png'
+import garyImg from '../assets/gary.png'
+import { initAudio } from '../utils/audio'
+import { useSettingsStore } from './settingsStore'
+import { useLibraryStore } from './libraryStore'
+import { useUserStore } from './userStore'
+import { supabase } from '../api/supabaseClient'
 
 export type GameMode = 'local' | 'vs-computer' | 'analysis' | 'puzzle'
 export type TimeControl = { label: string; minutes: number; increment: number }
+
+export interface Bot {
+  id: string
+  name: string
+  rating: number
+  description: string
+  avatar: string
+  depth: number
+  skillLevel: number
+}
+
+export const BOTS: Bot[] = [
+  { id: 'ned', name: 'Novice Ned', rating: 600, description: 'Friendly and chaotic. Hangs pieces often.', avatar: nedImg, depth: 1, skillLevel: 0 },
+  { id: 'tanya', name: 'Tactical Tanya', rating: 1400, description: 'Sharp and aggressive. Look out for forks.', avatar: tanyaImg, depth: 5, skillLevel: 10 },
+  { id: 'gary', name: 'Grandmaster Gary', rating: 2800, description: 'An absolute beast. Flawless positional play.', avatar: garyImg, depth: 15, skillLevel: 20 },
+]
 
 export interface HistoryEntry {
   san: string
@@ -42,6 +66,26 @@ export const useGameStore = defineStore('game', () => {
   const blackTime = ref(0)
   const gameStarted = ref(false)
   const forceGameOver = ref(false) // For puzzle completion lock
+  const timeOutWinner = ref<Color | null>(null)
+  const resignationWinner = ref<Color | null>(null)
+  const activeBot = ref<Bot>(BOTS[1])
+  const loadedGameId = ref<string | null>(null)
+  let sfx: ReturnType<typeof initAudio> | null = null
+
+  // Anti-cheat tracking
+  const cheatMetrics = ref({
+    blurCount: 0,
+    moveTimes: [] as number[],
+    lastTurnStartTimestamp: 0
+  })
+
+  let botWorker: Worker | null = null
+  function initBot() {
+    if (!botWorker) {
+      botWorker = new Worker('/engine/stockfish.js')
+      botWorker.postMessage('uci')
+    }
+  }
 
   // Derived
   const fen = computed(() => chess.value.fen())
@@ -53,11 +97,35 @@ export const useGameStore = defineStore('game', () => {
   const isStalemate = computed(() => chess.value.isStalemate())
   const isDraw = computed(() => chess.value.isDraw())
   const gameResult = computed(() => {
+    if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0 (Resignation)' : '0-1 (Resignation)'
+    if (timeOutWinner.value) return timeOutWinner.value === 'w' ? '1-0 (Timeout)' : '0-1 (Timeout)'
     if (!isGameOver.value) return null
-    if (isCheckmate.value) return turn.value === 'w' ? '0-1' : '1-0'
-    if (isDraw.value || isStalemate.value) return '½-½'
+    if (isCheckmate.value) return turn.value === 'w' ? '0-1 (Checkmate)' : '1-0 (Checkmate)'
+    if (isDraw.value || isStalemate.value) return '½-½ (Draw)'
     return null
   })
+
+  function registerBlur() {
+    if (gameStarted.value && !isGameOver.value && mode.value === 'vs-computer') {
+      if (turn.value === playerColor.value) {
+        cheatMetrics.value.blurCount += 1
+      }
+    }
+  }
+
+  const suspicionScore = computed(() => {
+    let score = cheatMetrics.value.blurCount * 26
+    const times = cheatMetrics.value.moveTimes
+    if (times.length > 4) {
+      const mean = times.reduce((a,b)=>a+b, 0) / times.length
+      const avgDeviation = times.reduce((a,b)=>a+Math.abs(b-mean), 0) / times.length
+      // If average human deviation is < 500ms over 5 moves, it's highly robotic
+      if (avgDeviation < 500) score += 40
+    }
+    return Math.min(score, 100)
+  })
+
+  const isCheaterBusted = computed(() => suspicionScore.value > 75)
 
   function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
     chess.value = new Chess()
@@ -75,11 +143,40 @@ export const useGameStore = defineStore('game', () => {
     blackTime.value = timeControl.value.minutes * 60
     gameStarted.value = false
     forceGameOver.value = false
+    timeOutWinner.value = null
+    resignationWinner.value = null
+    loadedGameId.value = null
+    cheatMetrics.value = { blurCount: 0, moveTimes: [], lastTurnStartTimestamp: 0 }
   }
 
   function loadPosition(fenStr: string, m: GameMode = 'local', tc?: TimeControl) {
     newGame(m, 'w', tc)
     chess.value = new Chess(fenStr)
+  }
+
+  function loadPgn(pgn: string, m: GameMode = 'analysis', gameId: string | null = null) {
+    newGame(m)
+    loadedGameId.value = gameId
+    chess.value.loadPgn(pgn)
+    
+    // Reconstruct move history from the loaded game
+    const history = chess.value.history({ verbose: true })
+    const tempChess = new Chess()
+    moveHistory.value = history.map((move, i) => {
+      tempChess.move(move.san)
+      return {
+        san: move.san,
+        fen: tempChess.fen(),
+        from: move.from as Square,
+        to: move.to as Square,
+        moveNumber: Math.ceil((i + 1) / 2),
+        isCapture: !!move.captured,
+        isCheck: move.san.includes('+') || move.san.includes('#')
+      }
+    })
+    
+    // Set view to the last move by default
+    viewIndex.value = moveHistory.value.length - 1
   }
 
   function selectSquare(sq: Square) {
@@ -120,9 +217,33 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function makeMove(from: Square, to: Square, promotion: PieceSymbol = 'q') {
-    if (!gameStarted.value) gameStarted.value = true
+    if (!gameStarted.value) {
+      gameStarted.value = true
+      cheatMetrics.value.lastTurnStartTimestamp = Date.now()
+    }
+
+    // Capture anti-cheat variance before moving
+    if (mode.value === 'vs-computer' && turn.value === playerColor.value && cheatMetrics.value.lastTurnStartTimestamp > 0) {
+       const delta = Date.now() - cheatMetrics.value.lastTurnStartTimestamp
+       cheatMetrics.value.moveTimes.push(delta)
+    }
+
     const result = chess.value.move({ from, to, promotion })
     if (!result) return
+    
+    // Audio SFX
+    const settings = useSettingsStore()
+    if (settings.soundEnabled) {
+      try {
+        if (!sfx) sfx = initAudio()
+        if (result.san.includes('+') || result.san.includes('#')) sfx.check()
+        else if (result.captured) sfx.capture()
+        else sfx.move()
+      } catch (e) {
+        // block user interaction audio errors silently
+      }
+    }
+
     const moveNum = Math.ceil(moveHistory.value.length / 2) + 1
     moveHistory.value.push({
       san: result.san,
@@ -137,6 +258,11 @@ export const useGameStore = defineStore('game', () => {
     selectedSquare.value = null
     legalMoveSquares.value = []
     viewIndex.value = -1
+
+    // Reset timestamp for next player
+    if (mode.value === 'vs-computer' && turn.value === playerColor.value) {
+       cheatMetrics.value.lastTurnStartTimestamp = Date.now()
+    }
   }
 
   function completePromotion(piece: PieceSymbol) {
@@ -179,29 +305,91 @@ export const useGameStore = defineStore('game', () => {
     viewIndex.value = -1
   }
 
-  // Simple random computer move
   async function computerMove() {
     if (isGameOver.value) return
     isThinking.value = true
-    await new Promise(r => setTimeout(r, 400 + Math.random() * 600))
-    const moves = chess.value.moves({ verbose: true })
-    if (moves.length > 0) {
-      // Slightly prefer captures
-      const captures = moves.filter(m => m.captured)
-      const pool = captures.length > 0 && Math.random() > 0.4 ? captures : moves
-      const m = pool[Math.floor(Math.random() * pool.length)]
-      makeMove(m.from as Square, m.to as Square)
-    }
-    isThinking.value = false
+    initBot()
+    
+    await new Promise(r => setTimeout(r, 600))
+
+    return new Promise<void>(resolve => {
+      botWorker!.onmessage = (e) => {
+        const msg = e.data
+        if (typeof msg === 'string' && msg.startsWith('bestmove')) {
+          const mainMove = msg.split(' ')[1]
+          if (mainMove && mainMove !== '(none)') {
+            const from = mainMove.substring(0, 2) as Square
+            const to = mainMove.substring(2, 4) as Square
+            const promotion = mainMove.length > 4 ? mainMove[4] as PieceSymbol : undefined
+            makeMove(from, to, promotion)
+          }
+          isThinking.value = false
+          resolve()
+        }
+      }
+      botWorker!.postMessage(`setoption name Skill Level value ${activeBot.value.skillLevel}`)
+      botWorker!.postMessage(`position fen ${fen.value}`)
+      botWorker!.postMessage(`go depth ${activeBot.value.depth}`)
+    })
   }
+
+  function resign(loser: Color) {
+    resignationWinner.value = loser === 'w' ? 'b' : 'w'
+    forceGameOver.value = true
+  }
+
+  function handleFlag(loser: Color) {
+    timeOutWinner.value = loser === 'w' ? 'b' : 'w'
+    forceGameOver.value = true
+  }
+
+  watch(isGameOver, async (over) => {
+    if (over && gameStarted.value && (mode.value === 'vs-computer' || mode.value === 'local')) {
+      const libraryStore = useLibraryStore()
+      const userStore = useUserStore()
+      
+      const isWhite = playerColor.value === 'w'
+      // Pass & Play mode: white always starts first, playerColor is 'w' by default
+      const playerName = userStore.profile?.username || 'Guest'
+      const oppName = mode.value === 'vs-computer' ? activeBot.value.name : 'Player 2'
+      
+      // Set PGN headers for the capture
+      chess.value.header(
+        'Event', mode.value === 'vs-computer' ? `Match vs ${oppName}` : 'Local Match',
+        'Site', 'Knightfall',
+        'Date', new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+        'White', (mode.value === 'local' || isWhite) ? playerName : oppName,
+        'Black', (mode.value === 'local' || isWhite) ? oppName : playerName,
+        'Result', gameResult.value || '*'
+      )
+      
+      const pgn = chess.value.pgn()
+      
+      // 1. Save to local Vault
+      await libraryStore.saveGameToLibrary(pgn, ['My Games'])
+
+      // 2. Save to cloud (vs-computer only)
+      if (mode.value === 'vs-computer') {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          await supabase.from('matches').insert({
+            white_id: isWhite ? session.user.id : null,
+            black_id: !isWhite ? session.user.id : null,
+            pgn: pgn,
+            result: gameResult.value
+          })
+        }
+      }
+    }
+  })
 
   return {
     chess, mode, selectedSquare, legalMoveSquares, lastMove,
     moveHistory, viewIndex, playerColor, isThinking, promotionPending,
     timeControl, whiteTime, blackTime, gameStarted, forceGameOver,
-    fen, turn, board, isGameOver, isCheck, isCheckmate, isStalemate,
-    isDraw, gameResult,
-    newGame, loadPosition, selectSquare, makeMove, completePromotion,
-    goToMove, stepBack, stepForward, undoMove, computerMove,
+    fen, turn, board, isGameOver, isCheck, isCheckmate, isStalemate, activeBot,
+    isDraw, gameResult, timeOutWinner, resignationWinner, cheatMetrics, suspicionScore, isCheaterBusted, loadedGameId,
+    newGame, loadPosition, loadPgn, selectSquare, makeMove, completePromotion,
+    goToMove, stepBack, stepForward, undoMove, computerMove, resign, handleFlag, registerBlur
   }
 })

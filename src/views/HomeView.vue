@@ -55,9 +55,9 @@
         </div>
         <div class="hero-board-footer">
           <div class="player-chip">
-            <div class="player-avatar" style="background: linear-gradient(135deg, var(--accent), #7c3aed);">G</div>
-            <span>GrandMaster_G</span>
-            <span class="badge badge-gold">1487</span>
+            <div class="player-avatar" style="background: linear-gradient(135deg, var(--accent), #7c3aed);">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
+            <span>{{ userStore.profile?.username || 'Player' }}</span>
+            <span class="badge badge-gold">{{ userStore.profile?.rating || 1200 }}</span>
           </div>
           <span class="badge badge-green" style="margin-left: auto;">● LIVE</span>
         </div>
@@ -68,17 +68,17 @@
     <section class="stats-row">
       <div class="stat-card">
         <div class="stat-label">Your Rating</div>
-        <div class="stat-value text-gradient">1487</div>
+        <div class="stat-value text-gradient">{{ userStore.currentRating }}</div>
         <div class="stat-delta up">▲ +23 this week</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Games Played</div>
-        <div class="stat-value">47</div>
+        <div class="stat-value">{{ userStore.pastGames.length }}</div>
         <div class="stat-delta up">▲ 8 today</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Win Rate</div>
-        <div class="stat-value" style="color: var(--green);">62%</div>
+        <div class="stat-value" style="color: var(--green);">{{ userStore.wldStats[0].pct }}%</div>
         <div class="stat-delta up">▲ +4% vs last month</div>
       </div>
       <div class="stat-card">
@@ -113,7 +113,7 @@
             <span class="badge badge-rose">AI INSIGHT</span>
           </div>
           <p class="muted" style="font-size: 0.85rem; margin: var(--space-3) 0;">
-            Based on your last 47 games, we found patterns in your mistakes:
+            Based on your last {{ userStore.pastGames.length }} games, we found patterns in your mistakes:
           </p>
           <div class="weakness-items">
             <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
@@ -153,9 +153,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { useUserStore } from '../stores/userStore'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // Mini preview board (simplified static)
 const previewBoard = [
@@ -176,20 +179,13 @@ const features = [
   { icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
 ]
 
-const weaknesses = [
-  { label: 'Endgame technique',  pct: 71, icon: '🏁', color: 'var(--rose)' },
-  { label: 'Opening theory',     pct: 44, icon: '📖', color: 'var(--gold)' },
-  { label: 'Tactical vision',    pct: 38, icon: '⚡', color: 'var(--teal)' },
-  { label: 'Time management',    pct: 22, icon: '⏱', color: 'var(--green)' },
-]
+const weaknesses = computed(() => [
+  { label: userStore.weaknessDna.label,  pct: userStore.weaknessDna.missRate, icon: '🏁', color: 'var(--rose)' },
+  { label: 'Minor Pieces',               pct: 22, icon: '♟', color: 'var(--gold)' },
+  { label: 'Time Management',            pct: 12, icon: '⏱', color: 'var(--teal)' },
+])
 
-const recentGames = [
-  { id: 1, result: 'win',  opponent: 'ChessWizard99',  control: '5+0',  opening: 'Sicilian',    score: '+12' },
-  { id: 2, result: 'loss', opponent: 'TacticalTanya',   control: '10+5', opening: 'French',      score: '-8' },
-  { id: 3, result: 'win',  opponent: 'BlitzKing2000',   control: '1+0',  opening: 'London',      score: '+15' },
-  { id: 4, result: 'draw', opponent: 'PawnStorm',        control: '10+0', opening: "King's Indian", score: '±0' },
-  { id: 5, result: 'win',  opponent: 'EndgameMaster',   control: '5+0',  opening: "Ruy López",   score: '+9' },
-]
+const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5))
 </script>
 
 <style scoped>

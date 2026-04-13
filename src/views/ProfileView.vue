@@ -2,34 +2,82 @@
   <div class="page profile-page">
     <div class="profile-header">
       <div class="profile-hero glass">
-        <div class="profile-avatar">G</div>
+        <div class="profile-avatar">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
         <div class="profile-info">
-          <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap;">
-            <h2>GrandMaster_G</h2>
-            <span class="badge badge-gold">✦ PRO</span>
-          </div>
-          <p class="muted" style="font-size: 0.9rem; margin-top: var(--space-1);">Joined April 2024 · New York, USA</p>
-          <div class="profile-badges">
-            <span class="tag">🔥 7-day streak</span>
-            <span class="tag">⚡ Speed Demon</span>
-            <span class="tag">♟ 47 games</span>
-          </div>
+
+          <!-- View Mode -->
+          <template v-if="!isEditing">
+            <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2);">
+              <h2 style="margin: 0;">{{ userStore.profile?.username || 'Player' }}</h2>
+              <span class="title-badge" :style="{ color: userStore.badges.title.color, borderColor: userStore.badges.title.color }">
+                {{ userStore.badges.title.symbol }} {{ userStore.badges.title.label }}
+              </span>
+              <!-- Edit button — always visible, route guard ensures auth -->
+              <button
+                class="btn-edit-inline"
+                @click="startEdit"
+                title="Edit username"
+              >✎</button>
+            </div>
+            <p class="muted" style="font-size: 0.9rem; margin-bottom: var(--space-3);">
+              Joined {{ joinedDate }}<span v-if="userStore.profile?.location"> · {{ userStore.profile.location }}</span>
+            </p>
+            <div class="profile-badges">
+              <span v-for="b in userStore.badges.badges.filter(x => x.earned).slice(0, 5)" :key="b.id" class="tag">
+                {{ b.icon }} {{ b.label }}
+              </span>
+              <span class="tag muted" v-if="userStore.badges.badges.filter(x => x.earned).length === 0">No badges yet — start playing!</span>
+            </div>
+          </template>
+
+          <!-- Edit Mode -->
+          <template v-else>
+            <div style="display:flex; align-items:center; gap: var(--space-3); margin-bottom: var(--space-3);">
+              <h2 style="margin: 0; opacity: 0.4;">{{ userStore.profile?.username }}</h2>
+              <span style="font-size:0.8rem; color: var(--accent); font-weight: 600;">← Editing</span>
+            </div>
+            <form @submit.prevent="saveProfile" style="display:flex; flex-direction: column; gap: var(--space-3); max-width: 280px;">
+              <div>
+                <label class="label" style="font-size: 0.8rem; margin-bottom: var(--space-1); display:block; color: rgba(255,255,255,0.5);">New Username</label>
+                <input
+                  type="text"
+                  class="input"
+                  v-model="editUsername"
+                  placeholder="Enter username..."
+                  required
+                  autofocus
+                />
+              </div>
+              <div>
+                <label class="label" style="font-size: 0.8rem; margin-bottom: var(--space-1); display:block; color: rgba(255,255,255,0.5);">Location <span class="muted">(optional)</span></label>
+                <input
+                  type="text"
+                  class="input"
+                  v-model="editLocation"
+                  placeholder="e.g. New York, USA"
+                />
+              </div>
+              <div style="display: flex; gap: var(--space-2);">
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="isSaving">
+                  {{ isSaving ? 'Saving...' : '✓ Save Changes' }}
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="isEditing = false" :disabled="isSaving">Cancel</button>
+              </div>
+            </form>
+          </template>
         </div>
         <div class="profile-rating-showcase">
           <div class="rating-big">
             <div class="label">Rapid Rating</div>
-            <div class="rating-num text-gradient">1487</div>
-            <div class="stat-delta up">▲ +23 this month</div>
-          </div>
-          <div class="rating-big">
-            <div class="label">Blitz Rating</div>
-            <div class="rating-num" style="color: var(--teal);">1312</div>
-            <div class="stat-delta up">▲ +41 this month</div>
+            <div class="rating-num text-gradient">{{ userStore.currentRating }}</div>
           </div>
           <div class="rating-big">
             <div class="label">Puzzle Rating</div>
-            <div class="rating-num" style="color: var(--gold);">1124</div>
-            <div class="stat-delta up">▲ +87 this month</div>
+            <div class="rating-num" style="color: var(--gold);">{{ userStore.profile?.puzzle_rating ?? 1200 }}</div>
+          </div>
+          <div class="rating-big">
+            <div class="label">Badges</div>
+            <div class="rating-num" style="color: var(--teal);">{{ userStore.badges.earnedCount }}<span style="font-size:1rem; opacity:0.5;">/{{ userStore.badges.totalCount }}</span></div>
           </div>
         </div>
       </div>
@@ -47,16 +95,16 @@
                 <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
                 <!-- Win arc ~62% -->
                 <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green)" stroke-width="12"
-                  stroke-dasharray="155.9 95.8" stroke-dashoffset="251.3" stroke-linecap="round"/>
-                <!-- Loss arc ~24% -->
+                  :stroke-dasharray="`${(wldData[0].pct / 100) * 251.3} 251.3`" stroke-dashoffset="251.3" stroke-linecap="round"/>
+                <!-- Loss arc -->
                 <circle cx="50" cy="50" r="40" fill="none" stroke="var(--rose)" stroke-width="12"
-                  stroke-dasharray="60.4 191.3" stroke-dashoffset="95.4" stroke-linecap="round"/>
-                <!-- Draw arc ~14% -->
+                  :stroke-dasharray="`${(wldData[1].pct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - (wldData[0].pct / 100) * 251.3" stroke-linecap="round"/>
+                <!-- Draw arc -->
                 <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="12"
-                  stroke-dasharray="35.2 216.5" stroke-dashoffset="34.5" stroke-linecap="round"/>
+                  :stroke-dasharray="`${(wldData[2].pct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - ((wldData[0].pct + wldData[1].pct) / 100) * 251.3" stroke-linecap="round"/>
               </svg>
               <div class="wld-center">
-                <div class="wld-pct">62%</div>
+                <div class="wld-pct">{{ wldData[0].pct }}%</div>
                 <div class="label">Win rate</div>
               </div>
             </div>
@@ -74,14 +122,10 @@
         <!-- Opening repertoire -->
         <div class="glass opening-card">
           <div class="card-header" style="margin-bottom: var(--space-4);">
-            <h4>Opening Repertoire</h4>
-            <div class="tabs-mini">
-              <button class="tab-mini" :class="{ active: openTab === 'white' }" @click="openTab='white'">♔ White</button>
-              <button class="tab-mini" :class="{ active: openTab === 'black' }" @click="openTab='black'">♚ Black</button>
-            </div>
+            <h4>Top Openings Played</h4>
           </div>
           <div class="opening-list">
-            <div v-for="o in (openTab === 'white' ? whiteOpenings : blackOpenings)" :key="o.name" class="opening-row">
+            <div v-for="o in openingStats.slice(0, 4)" :key="o.name" class="opening-row">
               <div class="opening-info">
                 <div class="opening-name">{{ o.name }}</div>
                 <div class="opening-meta muted">{{ o.games }} games</div>
@@ -93,6 +137,34 @@
                   <div class="mini-wld-bar" :style="{ width: o.lossPct + '%', background: 'var(--rose)' }"></div>
                 </div>
                 <span style="font-size:0.8rem; font-weight:700; color: var(--green);">{{ o.winPct }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Badge Collection -->
+        <div class="glass badge-showcase-card">
+          <div class="card-header" style="margin-bottom: var(--space-4);">
+            <h4>Badges</h4>
+            <span class="muted" style="font-size:0.8rem;">{{ userStore.badges.earnedCount }} / {{ userStore.badges.totalCount }} earned</span>
+          </div>
+
+          <div v-for="pillar in badgePillars" :key="pillar.id" style="margin-bottom: var(--space-5);">
+            <div class="badge-pillar-label">{{ pillar.icon }} {{ pillar.label }}</div>
+            <div class="badge-grid">
+              <div
+                v-for="b in userStore.badges.badges.filter(x => x.pillar === pillar.id)"
+                :key="b.id"
+                class="badge-item"
+                :class="{ 'badge-earned': b.earned, 'badge-locked': !b.earned }"
+                :data-tooltip="b.description"
+              >
+                <div class="badge-icon">{{ b.icon }}</div>
+                <div class="badge-name">{{ b.label }}</div>
+                <div v-if="!b.earned && b.progress !== undefined" class="badge-progress-bar">
+                  <div class="badge-progress-fill" :style="{ width: (b.progress * 100) + '%' }"></div>
+                </div>
+                <div v-if="!b.earned && b.progressLabel" class="badge-progress-label">{{ b.progressLabel }}</div>
               </div>
             </div>
           </div>
@@ -145,7 +217,7 @@
         <div class="glass activity-card">
           <div class="card-header" style="margin-bottom: var(--space-4);">
             <h4>Activity — Last 12 Weeks</h4>
-            <span class="badge badge-green">47 games</span>
+            <span class="badge badge-green">{{ userStore.pastGames.length }} games</span>
           </div>
           <div class="heatmap">
             <div v-for="(week, wi) in heatmapData" :key="wi" class="heatmap-col">
@@ -161,6 +233,61 @@
             <span class="muted" style="font-size:0.75rem;">Less</span>
             <div v-for="i in 5" :key="i" class="heat-cell" :style="{ background: heatColor(i * 2) }"></div>
             <span class="muted" style="font-size:0.75rem;">More</span>
+          </div>
+        </div>
+
+        <!-- Weakness DNA Radar Chart -->
+        <div class="glass radar-card">
+          <div class="card-header" style="margin-bottom: var(--space-4);">
+            <h4>Weakness DNA</h4>
+            <span class="badge" :class="dnaCategory === 'tactics' ? 'badge-rose' : dnaCategory === 'endgame' ? 'badge-teal' : dnaCategory === 'opening' ? 'badge-accent' : 'badge-gold'">
+              {{ userStore.weaknessDna.label }}
+            </span>
+          </div>
+          <div class="radar-container">
+            <svg viewBox="0 0 200 200" class="radar-svg">
+              <defs>
+                <radialGradient id="radarGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="rgba(139,92,246,0.5)"/>
+                  <stop offset="100%" stop-color="rgba(139,92,246,0.05)"/>
+                </radialGradient>
+              </defs>
+              <!-- Background rings -->
+              <polygon v-for="lvl in [0.25, 0.5, 0.75, 1]" :key="lvl"
+                :points="radarRing(lvl)"
+                fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/>
+              <!-- Axis lines -->
+              <line v-for="(ax, i) in radarAxes" :key="'ax'+i"
+                x1="100" y1="100"
+                :x2="ax.outerX" :y2="ax.outerY"
+                stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+              <!-- Data polygon -->
+              <polygon :points="radarDataPoints"
+                fill="url(#radarGrad)" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"
+                style="transition: all 0.6s ease;"/>
+              <!-- Data dots -->
+              <circle v-for="(ax, i) in radarAxes" :key="'dot'+i"
+                :cx="ax.dataX" :cy="ax.dataY" r="3"
+                :fill="ax.isWeakest ? 'var(--rose)' : 'var(--accent)'"
+                stroke="var(--bg-card)" stroke-width="1.5"/>
+              <!-- Labels -->
+              <text v-for="(ax, i) in radarAxes" :key="'lbl'+i"
+                :x="ax.labelX" :y="ax.labelY"
+                text-anchor="middle" dominant-baseline="middle"
+                font-size="8" font-family="Inter, sans-serif"
+                :fill="ax.isWeakest ? 'var(--rose)' : 'rgba(255,255,255,0.5)'">
+                {{ ax.label }}
+              </text>
+            </svg>
+            <div class="radar-legend">
+              <div v-for="ax in radarAxes" :key="ax.label" class="radar-legend-row">
+                <div class="radar-legend-dot" :style="{ background: ax.isWeakest ? 'var(--rose)' : 'var(--accent)' }"></div>
+                <span :style="{ color: ax.isWeakest ? 'var(--rose)' : 'rgba(255,255,255,0.7)', fontWeight: ax.isWeakest ? '700' : '400' }">
+                  {{ ax.label }}
+                </span>
+                <span class="muted" style="margin-left: auto; font-size: 0.78rem;">{{ Math.round(ax.value * 100) }}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -186,39 +313,98 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '../stores/userStore'
+import { useUiStore } from '../stores/uiStore'
+import { supabase } from '../api/supabaseClient'
 
-const openTab = ref<'white' | 'black'>('white')
+const userStore = useUserStore()
+const uiStore = useUiStore()
+
 const activePeriod = ref('1M')
 const periods = ['1W', '1M', '3M', 'All']
 
-const wldData = [
-  { label: 'Wins',   color: 'var(--green)', count: 29, pct: 62 },
-  { label: 'Losses', color: 'var(--rose)',  count: 11, pct: 24 },
-  { label: 'Draws',  color: 'var(--gold)',  count: 7,  pct: 14 },
+const badgePillars = [
+  { id: 'milestone', label: 'Milestones', icon: '🏅' },
+  { id: 'mastery',   label: 'DNA Mastery', icon: '🧬' },
+  { id: 'ritual',    label: 'Streaks & Rituals', icon: '🔥' },
 ]
 
-const whiteOpenings = [
-  { name: "London System",    games: 14, winPct: 71, drawPct: 14, lossPct: 15 },
-  { name: "King's Gambit",    games: 8,  winPct: 62, drawPct: 12, lossPct: 26 },
-  { name: "Italian Game",     games: 6,  winPct: 50, drawPct: 16, lossPct: 34 },
-]
-const blackOpenings = [
-  { name: "Sicilian Defense", games: 11, winPct: 63, drawPct: 18, lossPct: 19 },
-  { name: "French Defense",   games: 6,  winPct: 50, drawPct: 16, lossPct: 34 },
-  { name: "King's Indian",    games: 4,  winPct: 75, drawPct: 0,  lossPct: 25 },
-]
+const isEditing = ref(false)
+const editUsername = ref('')
+const editLocation = ref('')
+const isSaving = ref(false)
+
+const joinedDate = computed(() => {
+  const raw = (userStore.session as any)?.user?.created_at ?? null
+  if (!raw) return 'recently'
+  try {
+    return new Date(raw).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  } catch {
+    return 'recently'
+  }
+})
+
+// Ensure profile is populated on page load (user may already be logged in)
+onMounted(() => {
+  userStore.fetchUserData()
+})
+
+async function startEdit() {
+  if (!userStore.profile) {
+    await userStore.fetchUserData()
+  }
+  editUsername.value = userStore.profile?.username ?? ''
+  editLocation.value = (userStore.profile as any)?.location ?? ''
+  isEditing.value = true
+}
+
+async function saveProfile() {
+  const trimmed = editUsername.value.trim()
+  if (!trimmed) {
+    uiStore.addToast('Username cannot be empty.', 'error')
+    return
+  }
+
+  // Guarantee we have a session and profile
+  if (!userStore.session) {
+    uiStore.addToast('You must be logged in to update your profile.', 'error')
+    return
+  }
+
+  const userId = userStore.session.user.id
+  isSaving.value = true
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ username: trimmed, location: editLocation.value.trim() || null })
+    .eq('id', userId)
+
+  isSaving.value = false
+
+  if (error) {
+    console.error('[saveProfile] Supabase error:', error)
+    uiStore.addToast('Save failed: ' + error.message, 'error')
+  } else {
+    isEditing.value = false
+    uiStore.addToast('Username updated!', 'success')
+    await userStore.fetchUserData()
+  }
+}
+
+const wldData = computed(() => userStore.wldStats)
+const openingStats = computed(() => userStore.openingStats)
 
 // Chart
 const chartW = 500
 const chartH = 120
-const ratingData = [1380, 1395, 1402, 1388, 1415, 1430, 1418, 1445, 1460, 1452, 1470, 1487]
-const minR = 1360
-const maxR = 1510
+const ratingData = computed(() => userStore.ratingHistory)
+const minR = computed(() => Math.min(...ratingData.value) - 10)
+const maxR = computed(() => Math.max(...ratingData.value) + 10)
 
-const chartPoints = computed(() => ratingData.map((r, i) => ({
-  x: (i / (ratingData.length - 1)) * chartW,
-  y: chartH - ((r - minR) / (maxR - minR)) * chartH,
+const chartPoints = computed(() => ratingData.value.map((r, i) => ({
+  x: (i / (Math.max(1, ratingData.value.length - 1))) * chartW,
+  y: chartH - ((r - minR.value) / (maxR.value - minR.value)) * chartH,
 })))
 
 const linePath = computed(() =>
@@ -231,15 +417,16 @@ const areaPath = computed(() => {
   return `${line} L${chartW},${chartH} L0,${chartH} Z`
 })
 
-const gridLines = [1400, 1440, 1480].map(r => ({
-  rating: r,
-  y: chartH - ((r - minR) / (maxR - minR)) * chartH,
-}))
+const gridLines = computed(() => {
+  const diff = maxR.value - minR.value
+  return [minR.value + diff*0.2, minR.value + diff*0.5, minR.value + diff*0.8].map(r => ({
+    rating: Math.round(r),
+    y: chartH - ((r - minR.value) / (maxR.value - minR.value)) * chartH,
+  }))
+})
 
-// Heatmap (12 weeks x 7 days)
-const heatmapData = Array.from({ length: 12 }, () =>
-  Array.from({ length: 7 }, () => Math.random() > 0.5 ? Math.floor(Math.random() * 8) : 0)
-)
+// Heatmap
+const heatmapData = computed(() => userStore.activityHeatmap)
 function heatColor(count: number) {
   if (count === 0) return 'rgba(255,255,255,0.04)'
   if (count <= 2)  return 'rgba(139,92,246,0.25)'
@@ -248,16 +435,226 @@ function heatColor(count: number) {
   return 'rgba(139,92,246,1)'
 }
 
-const recentGames = [
-  { id: 1, result: 'win',  opponent: 'ChessWizard99',  control: '5+0',  opening: 'Sicilian',      score: '+12' },
-  { id: 2, result: 'loss', opponent: 'TacticalTanya',  control: '10+5', opening: 'French',        score: '-8'  },
-  { id: 3, result: 'win',  opponent: 'BlitzKing2000',  control: '1+0',  opening: 'London',        score: '+15' },
-  { id: 4, result: 'draw', opponent: 'PawnStorm',      control: '10+0', opening: "King's Indian", score: '±0'  },
+const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5))
+
+// ---- Radar Chart ----
+const dnaCategory = computed(() => userStore.weaknessDna.category)
+
+// 6 axes: the 4 weakness categories + puzzle solve rate + game win rate
+const radarAxisDefs = [
+  { key: 'opening',  label: 'Opening' },
+  { key: 'tactics',  label: 'Tactics' },
+  { key: 'endgame',  label: 'Endgame' },
+  { key: 'mixed',    label: 'Positional' },
+  { key: 'puzzles',  label: 'Puzzles' },
+  { key: 'games',    label: 'Win Rate' },
 ]
+
+const radarValues = computed(() => {
+  const dna = userStore.weaknessDna as any
+  const breakdown: { cat: string; score: number }[] = dna.breakdown || []
+  const totalScore = breakdown.reduce((s: number, b: any) => s + b.score, 0) || 1
+
+  // Invert scores: high failure score → low radar value (weakness = depressed axis)
+  const catValue = (key: string) => {
+    const b = breakdown.find((x: any) => x.cat === key)
+    const rawScore = b ? b.score : 0
+    return Math.max(0.1, 1 - (rawScore / totalScore) * 4) // clamp between 0.1-1
+  }
+
+  const puzzleRate = userStore.puzzleAttempts.length
+    ? userStore.puzzleAttempts.filter(a => a.solved).length / userStore.puzzleAttempts.length
+    : 0.5
+  const wld = userStore.wldStats
+  const total = (wld[0].count + wld[1].count + wld[2].count) || 1
+  const winRate = wld[0].count / total
+
+  return {
+    opening:  catValue('opening'),
+    tactics:  catValue('tactics'),
+    endgame:  catValue('endgame'),
+    mixed:    catValue('mixed'),
+    puzzles:  Math.max(0.1, puzzleRate),
+    games:    Math.max(0.1, winRate),
+  } as Record<string, number>
+})
+
+const cx = 100, cy = 100, r = 70
+
+function radarPoint(axisIndex: number, value: number, total: number) {
+  const angle = (Math.PI * 2 * axisIndex / total) - Math.PI / 2
+  return {
+    x: cx + r * value * Math.cos(angle),
+    y: cy + r * value * Math.sin(angle),
+  }
+}
+
+const radarAxes = computed(() => {
+  const vals = radarValues.value
+  const weakest = dnaCategory.value
+  const n = radarAxisDefs.length
+  return radarAxisDefs.map((def, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2
+    const outer = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+    const data  = radarPoint(i, vals[def.key] ?? 0.5, n)
+    const label = { x: cx + (r + 18) * Math.cos(angle), y: cy + (r + 18) * Math.sin(angle) }
+    return {
+      label: def.label,
+      value: vals[def.key] ?? 0.5,
+      outerX: outer.x, outerY: outer.y,
+      dataX: data.x,   dataY: data.y,
+      labelX: label.x, labelY: label.y,
+      isWeakest: def.key === weakest,
+    }
+  })
+})
+
+const radarDataPoints = computed(() =>
+  radarAxes.value.map(ax => `${ax.dataX},${ax.dataY}`).join(' ')
+)
+
+function radarRing(scale: number) {
+  const n = radarAxisDefs.length
+  return radarAxisDefs.map((_, i) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2
+    return `${cx + r * scale * Math.cos(angle)},${cy + r * scale * Math.sin(angle)}`
+  }).join(' ')
+}
 </script>
 
 <style scoped>
 .profile-page { padding-top: var(--space-6); }
+
+/* Chess Title Badge */
+/* Inline edit button */
+.btn-edit-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.btn-edit-inline:hover {
+  background: rgba(139,92,246,0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+/* Chess Title Badge */
+.title-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.05);
+}
+
+/* Badge Showcase */
+.badge-showcase-card { padding: var(--space-5); margin-top: var(--space-4); }
+.badge-pillar-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: var(--space-3);
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-3);
+}
+.badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  gap: var(--space-1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.badge-item:hover { transform: translateY(-2px); }
+.badge-earned {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.1);
+}
+.badge-locked {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  opacity: 0.6;
+  filter: grayscale(0.4);
+}
+.badge-icon { font-size: 1.6rem; line-height: 1; }
+.badge-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgba(255,255,255,0.8);
+}
+.badge-locked .badge-name { color: rgba(255,255,255,0.4); }
+.badge-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin-top: var(--space-1);
+  overflow: hidden;
+}
+.badge-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+.badge-progress-label {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Radar Chart */
+.radar-card { padding: var(--space-5); margin-bottom: var(--space-4); }
+.radar-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+.radar-svg {
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 12px rgba(139,92,246,0.25));
+}
+.radar-legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.radar-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+}
+.radar-legend-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 /* Hero */
 .profile-hero {

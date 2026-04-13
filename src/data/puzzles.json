@@ -38,5 +38,205 @@
     "lastMove": "h4g4",
     "solution": ["g1f3", "g4g5", "f3g5"],
     "category": "opening"
+  },
+  {
+    "id": "fork1",
+    "title": "Knight Fork",
+    "rating": 1100,
+    "themes": ["middlegame", "tactics", "fork"],
+    "fen": "r1bqkb1r/ppp2ppp/2np1n2/4p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
+    "lastMove": "d7d6",
+    "solution": ["c4f7", "e8f7", "f3g5", "f7g8", "g5e6"],
+    "category": "tactics"
+  },
+  {
+    "id": "pin1",
+    "title": "Exploiting the Pin",
+    "rating": 1250,
+    "themes": ["middlegame", "tactics", "pin"],
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQ1RK1 w kq - 8 6",
+    "lastMove": "c5b6",
+    "solution": ["f3g5", "e8g8", "c3d5"],
+    "category": "tactics"
+  },
+  {
+    "id": "skewer1",
+    "title": "Absolute Skewer",
+    "rating": 1300,
+    "themes": ["endgame", "tactics", "skewer"],
+    "fen": "8/8/8/8/8/k7/2R5/K6r w - - 0 1",
+    "lastMove": "a3b3",
+    "solution": ["c2c3"],
+    "category": "tactics"
+  },
+  {
+    "id": "discovered1",
+    "title": "Discovered Check",
+    "rating": 1400,
+    "themes": ["middlegame", "tactics", "discoveredAttack"],
+    "fen": "rn1qk2r/pbpp1ppp/1p2pn2/8/1bPP4/2N1PN2/PP1B1PPP/R2QKB1R w KQkq - 1 6",
+    "lastMove": "b4c3",
+    "solution": ["d2c3"],
+    "category": "tactics"
+  },
+  {
+    "id": "deflection1",
+    "title": "Deflection Sacrifice",
+    "rating": 1650,
+    "themes": ["middlegame", "tactics", "deflection"],
+    "fen": "rn1qkb1r/pbpp1ppp/1p2pn2/8/2PP4/2N1PN2/PP1B1PPP/R2QKB1R b KQkq - 1 6",
+    "lastMove": "f1d3",
+    "solution": ["f6e4"],
+    "category": "tactics"
+  },
+  {
+    "id": "undermining1",
+    "title": "Remove the Defender",
+    "rating": 1550,
+    "themes": ["middlegame", "tactics", "undermining"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 1 5",
+    "lastMove": "e4e5",
+    "solution": ["f3g5"],
+    "category": "tactics"
+  },
+  {
+    "id": "decoy1",
+    "title": "Decoy into Mate",
+    "rating": 1900,
+    "themes": ["middlegame", "tactics", "decoy", "mate"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
+    "lastMove": "e7e5",
+    "solution": ["f6e4"],
+    "category": "tactics"
+  },
+  {
+    "id": "pawnrace1",
+    "title": "Pawn Race",
+    "rating": 1200,
+    "themes": ["endgame", "pawnEndgame"],
+    "fen": "8/k7/8/8/8/8/7P/K7 w - - 0 1",
+    "lastMove": "a7b7",
+    "solution": ["h2h4", "b7c7", "h4h5", "c7d7", "h5h6", "d7e7", "h6h7"],
+    "category": "endgame"
+  },
+  {
+    "id": "opposition1",
+    "title": "King Opposition",
+    "rating": 1400,
+    "themes": ["endgame", "pawnEndgame", "opposition"],
+    "fen": "8/8/8/8/3k4/8/3K4/8 w - - 0 1",
+    "lastMove": "d4e4",
+    "solution": ["d2e2"],
+    "category": "endgame"
+  },
+  {
+    "id": "lucena1",
+    "title": "Lucena Position",
+    "rating": 2100,
+    "themes": ["endgame", "rookEndgame", "lucena"],
+    "fen": "2K5/P7/8/1r6/8/8/k7/8 w - - 0 1",
+    "lastMove": "b5e5",
+    "solution": ["a7a8q"],
+    "category": "endgame"
+  },
+  {
+    "id": "philidor1",
+    "title": "Philidor Defense",
+    "rating": 1900,
+    "themes": ["endgame", "rookEndgame", "philidor"],
+    "fen": "8/8/8/4k3/8/5K2/r7/8 w - - 0 1",
+    "lastMove": "a2e2",
+    "solution": ["f3e2"],
+    "category": "endgame"
+  },
+  {
+    "id": "knightpawn1",
+    "title": "Knight vs Pawn",
+    "rating": 1600,
+    "themes": ["endgame", "knightEndgame"],
+    "fen": "8/8/8/8/8/k7/1N5p/K7 w - - 0 1",
+    "lastMove": "h2h1q",
+    "solution": ["b2c4", "a3b3", "c4d2", "b3c3", "d2f1"],
+    "category": "endgame"
+  },
+  {
+    "id": "bishoppawn1",
+    "title": "Bishop vs Pawn",
+    "rating": 1500,
+    "themes": ["endgame", "bishopEndgame"],
+    "fen": "8/8/8/8/8/k7/1B5p/K7 w - - 0 1",
+    "lastMove": "h2h1q",
+    "solution": ["b2e5"],
+    "category": "endgame"
+  },
+  {
+    "id": "overworked1",
+    "title": "Overworked Piece",
+    "rating": 1750,
+    "themes": ["middlegame", "tactics", "deflector"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
+    "lastMove": "e7e5",
+    "solution": ["f6e4"],
+    "category": "endgame"
+  },
+  {
+    "id": "scholar1",
+    "title": "Scholar's Mate Defense",
+    "rating": 800,
+    "themes": ["opening", "mate", "defense"],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+    "lastMove": "f3g3",
+    "solution": ["g8f6"],
+    "category": "opening"
+  },
+  {
+    "id": "legal1",
+    "title": "Legal's Mate",
+    "rating": 1500,
+    "themes": ["opening", "mate", "sacrifice"],
+    "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1P3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R b KQkq - 1 5",
+    "lastMove": "f3e5",
+    "solution": ["d8e7"],
+    "category": "opening"
+  },
+  {
+    "id": "fools1",
+    "title": "Fool's Mate Defense",
+    "rating": 700,
+    "themes": ["opening", "mate", "defense"],
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/5PP1/8/PPPPP2P/RNBQKBNR b KQkq - 0 2",
+    "lastMove": "g2g4",
+    "solution": ["d8h4"],
+    "category": "opening"
+  },
+  {
+    "id": "intermediate1",
+    "title": "Zwischenzug",
+    "rating": 1850,
+    "themes": ["middlegame", "tactics", "intermezzo"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
+    "lastMove": "e7e5",
+    "solution": ["f6e4"],
+    "category": "mixed"
+  },
+  {
+    "id": "clearance1",
+    "title": "Clearance Sacrifice",
+    "rating": 1700,
+    "themes": ["middlegame", "tactics", "clearance"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
+    "lastMove": "e7e5",
+    "solution": ["f6e4"],
+    "category": "mixed"
+  },
+  {
+    "id": "xray1",
+    "title": "X-Ray Attack",
+    "rating": 1600,
+    "themes": ["middlegame", "tactics", "xrayAttack"],
+    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
+    "lastMove": "e7e5",
+    "solution": ["f6e4"],
+    "category": "mixed"
   }
 ]
