@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { Chess } from 'chess.js'
 import JSZip from 'jszip'
+import { supabase } from '../api/supabaseClient'
 
 export interface LibraryGame {
   id: string
@@ -15,6 +16,8 @@ export interface LibraryGame {
   movesCount: number
   addedAt: number
   isCurated?: boolean
+  whiteElo?: string
+  blackElo?: string
   tags?: string[]
   analysisCache?: Record<string, string> // FEN -> Analysis Text
 }
@@ -110,7 +113,7 @@ export const useLibraryStore = defineStore('library', () => {
                 movesCount: chess.history().length,
                 addedAt: Date.now(),
                 isCurated,
-                tags: extraTags
+                tags: extraTags.length > 0 ? extraTags : ['Imported']
             }
             newGames.push(game)
         } catch (e) {
@@ -204,6 +207,8 @@ export const useLibraryStore = defineStore('library', () => {
         eco: headers['ECO'] || '',
         movesCount: (chess.history() || []).length,
         addedAt: Date.now(),
+        whiteElo: headers['WhiteElo'] ?? undefined,
+        blackElo: headers['BlackElo'] ?? undefined,
         tags: [...new Set(['My Games', ...tags])]
       }
       
@@ -213,7 +218,8 @@ export const useLibraryStore = defineStore('library', () => {
       store.put(game)
       
       transaction.oncomplete = () => {
-        games.value.push(game)
+        // Use spread to avoid proxy issues, but JSON clone is safer for nested data
+        games.value.push(JSON.parse(JSON.stringify(game)))
         generateOpeningTree()
       }
     } catch (e) {
@@ -232,28 +238,169 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
+  async function syncCloudGames() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const { data: matches, error } = await supabase
+      .from('matches')
+      .select('*')
+      .or(`white_id.eq.${session.user.id},black_id.eq.${session.user.id}`)
+    
+    if (error || !matches) return
+
+    const chess = new Chess()
+    const syncedGames: LibraryGame[] = []
+    const existingIds = new Set(games.value.map(g => g.id))
+    
+    for (const m of matches) {
+      // Avoid duplicates: check if ID exists locally (O(1) with Set)
+      if (existingIds.has(m.id)) continue
+
+      try {
+        chess.loadPgn(m.pgn)
+        const headers = chess.header()
+        
+        const game: LibraryGame = {
+          id: m.id, // Use Supabase UUID as local ID for stability
+          pgn: m.pgn,
+          white: headers['White'] || 'Unknown',
+          black: headers['Black'] || 'Unknown',
+          result: m.result || headers['Result'] || '*',
+          date: headers['Date'] || m.created_at?.split('T')[0] || '?',
+          event: headers['Event'] || 'Online Game',
+          eco: headers['ECO'] || '',
+          movesCount: chess.history().length,
+          addedAt: Date.now(),
+          whiteElo: headers['WhiteElo'] ?? undefined,
+          blackElo: headers['BlackElo'] ?? undefined,
+          tags: ['My Games', 'Synced']
+        }
+        syncedGames.push(game)
+      } catch (e) {
+        console.error('Failed to sync game', m.id, e)
+      }
+    }
+
+    if (syncedGames.length > 0) {
+      if (!db) await initDb()
+      const transaction = db!.transaction(['games'], 'readwrite')
+      const store = transaction.objectStore('games')
+      syncedGames.forEach(g => store.put(g))
+      
+      transaction.oncomplete = () => {
+        games.value = [...games.value, ...syncedGames]
+        generateOpeningTree()
+      }
+    }
+  }
+
+  async function repairVaultMetadata() {
+    if (games.value.length === 0) return
+    if (!db) await initDb()
+
+    const chess = new Chess()
+    const updatedGames: LibraryGame[] = []
+    
+    const CHUNK_SIZE = 50
+    for (let i = 0; i < games.value.length; i++) {
+        const g = games.value[i]
+        // Repair if metadata is missing or looks like "Unknown"
+        const isMissingElo = !g.whiteElo || !g.blackElo
+        const isMissingInfo = g.white === 'Unknown' || g.date === '?'
+        
+        if (isMissingElo || isMissingInfo) {
+            try {
+                chess.loadPgn(g.pgn)
+                const headers = chess.getHeaders()
+                
+                let changed = false
+                if (headers['White'] && g.white === 'Unknown') { g.white = headers['White']!; changed = true }
+                if (headers['Black'] && g.black === 'Unknown') { g.black = headers['Black']!; changed = true }
+                if (headers['WhiteElo'] && !g.whiteElo) { g.whiteElo = headers['WhiteElo']!; changed = true }
+                if (headers['BlackElo'] && !g.blackElo) { g.blackElo = headers['BlackElo']!; changed = true }
+                
+                // Fallback for Date if missing
+                if (g.date === '?' || !g.date) {
+                    g.date = headers['Date'] || new Date(g.addedAt).toISOString().split('T')[0].replace(/-/g, '.')
+                    changed = true
+                }
+
+                if (changed) {
+                    updatedGames.push(g)
+                }
+            } catch (e) {
+                console.warn('[repairVaultMetadata] Failed to parse PGN for game:', g.id, e)
+            }
+        }
+
+        // Yield to main thread every CHUNK_SIZE games to prevent UI lockup
+        if (i > 0 && i % CHUNK_SIZE === 0) {
+            await new Promise(r => setTimeout(r, 0))
+        }
+    }
+
+    if (updatedGames.length > 0) {
+        const transaction = db!.transaction(['games'], 'readwrite')
+        const store = transaction.objectStore('games')
+        
+        updatedGames.forEach(g => {
+            // We must clone the reactive object to avoid proxy issues with IDB
+            store.put(JSON.parse(JSON.stringify(g)))
+        })
+        
+        transaction.oncomplete = () => {
+             console.log(`[repairVaultMetadata] Successfully repaired ${updatedGames.length} games.`)
+             generateOpeningTree()
+        }
+    }
+  }
+
   async function updateGameAnalysis(id: string, fen: string, text: string) {
-    const game = games.value.find(g => g.id === id)
+    const game = gamesMap.value.get(id)
     if (!game) return
 
     if (!game.analysisCache) game.analysisCache = {}
     game.analysisCache[fen] = text
 
     // Persist to IDB
-    if (!db) await initDb()
     const transaction = db!.transaction(['games'], 'readwrite')
     const store = transaction.objectStore('games')
-    store.put({ ...game }) // Spread to ensure plain object
+    // Deep clone to strip Proxy wrappers which cause DataCloneError in IndexedDB
+    store.put(JSON.parse(JSON.stringify(game)))
   }
 
   // --- Filter Engine Logic ---
-  const allTags = computed(() => {
-    const tags = new Set<string>()
-    games.value.forEach(g => {
-        if (g.tags) g.tags.forEach(t => tags.add(t))
-    })
-    return Array.from(tags).sort()
+  const allTags = ref<string[]>(['My Games'])
+  
+  // Optimized Tag Tally: We calculate this only once games are loaded or significantly changed
+  const gamesMap = computed(() => {
+    const map = new Map<string, LibraryGame>()
+    for (let i = 0; i < games.value.length; i++) {
+        map.set(games.value[i].id, games.value[i])
+    }
+    return map
   })
+
+  function updateTagCloud() {
+    const tagsSet = new Set<string>(['My Games'])
+    for (let i = 0; i < games.value.length; i++) {
+        const g = games.value[i]
+        if (g.tags) {
+            for (let j = 0; j < g.tags.length; j++) {
+                tagsSet.add(g.tags[j])
+            }
+        }
+    }
+    allTags.value = Array.from(tagsSet).sort()
+  }
+
+  // Watch for game list changes but debounce the heavy tag scanning
+  let tagDebounce: any = null
+  watch(() => games.value.length, () => {
+      if (tagDebounce) clearTimeout(tagDebounce)
+      tagDebounce = setTimeout(updateTagCloud, 1000)
+  }, { immediate: true })
 
   const filteredGames = computed(() => {
     let result = games.value.filter(g => {
@@ -274,6 +421,7 @@ export const useLibraryStore = defineStore('library', () => {
             case 'date': valA = a.date; valB = b.date; break
             case 'movesCount': valA = a.movesCount; valB = b.movesCount; break
             case 'player': valA = a.white; valB = b.white; break
+            case 'opening': valA = a.eco; valB = b.eco; break
             default: valA = a.addedAt; valB = b.addedAt
         }
         if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
@@ -299,17 +447,34 @@ export const useLibraryStore = defineStore('library', () => {
   })
 
   // --- The Opening Constellation Logic ---
+  let lastProcessedFingerprint = ''
+  
+  const isConstellationActive = ref(false)
+  
   // Transforms the flat game list into a recursive trie asynchronously
   async function generateOpeningTree() {
-    if (isGeneratingTree.value) return 
-    isGeneratingTree.value = true
+    if (!isConstellationActive.value) return
+
+    // SUSPEND while in Analysis View to save CPU for the engine
+    if (window.location.pathname.includes('/analysis')) {
+        console.log('[Library] Constellation generation suspended (Analysis Lab active)')
+        return
+    }
     
-    const root: OpeningNode = { san: 'Root', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', weight: filteredGames.value.length, children: {} }
+    const currentGames = filteredGames.value
+    const fingerprint = `${currentGames.length}-${currentGames[0]?.id || ''}-${searchQuery.value}-${selectedTag.value}`
+    
+    if (fingerprint === lastProcessedFingerprint) return
+    if (isGeneratingTree.value) return 
+    
+    isGeneratingTree.value = true
+    lastProcessedFingerprint = fingerprint
+    
+    const root: OpeningNode = { san: 'Root', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', weight: currentGames.length, children: {} }
     const chess = new Chess()
     
     // Process in chunks to keep the UI snappy
-    const CHUNK_SIZE = 50
-    const currentGames = filteredGames.value
+    const CHUNK_SIZE = 100
     const total = currentGames.length
 
     for (let i = 0; i < total; i++) {
@@ -345,7 +510,8 @@ export const useLibraryStore = defineStore('library', () => {
   }
 
   return { 
-    games, 
+    games,
+    gamesMap,
     isImporting, 
     importProgress, 
     loadGames, 
@@ -356,7 +522,10 @@ export const useLibraryStore = defineStore('library', () => {
     saveGameToLibrary,
     deleteGame,
     updateGameAnalysis,
+    syncCloudGames,
+    repairVaultMetadata,
     generateOpeningTree,
+    isConstellationActive,
     isGeneratingTree,
     openingTree,
     searchQuery,

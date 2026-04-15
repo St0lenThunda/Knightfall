@@ -19,9 +19,15 @@
 
     <div class="card-info">
       <div class="player-row">
-        <span class="player-name white">{{ game.white }}</span>
+        <div class="player-bundle white">
+          <span class="player-name">{{ game.white }}</span>
+          <span class="rating-label" v-if="game.whiteElo">({{ game.whiteElo }})</span>
+        </div>
         <span class="vs">vs</span>
-        <span class="player-name black">{{ game.black }}</span>
+        <div class="player-bundle black">
+          <span class="player-name">{{ game.black }}</span>
+          <span class="rating-label" v-if="game.blackElo">({{ game.blackElo }})</span>
+        </div>
       </div>
       
       <div class="meta-row">
@@ -176,8 +182,10 @@ const finalFen = computed(() => {
   font-weight: 700;
   font-size: 0.88rem;
 }
-.vs { color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; }
-.player-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs { color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; margin: 0 4px; }
+.player-bundle { flex: 1; display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.player-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rating-label { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 500; flex-shrink: 0; }
 
 .meta-row {
   display: flex;

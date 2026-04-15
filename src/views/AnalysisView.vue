@@ -10,10 +10,15 @@
         <button class="btn btn-ghost btn-sm" @click="importPgn">📂 Import PGN</button>
       </div>
     </div>
-
-    <div class="analysis-layout" :class="{ 'panel-collapsed': isPanelCollapsed }">
+    <div class="analysis-layout">
       <!-- Board column -->
       <div class="analysis-board-col">
+        <div v-if="hasGame" class="game-matchup-header glass-sm">
+           <span class="player-pill white">{{ playerNames.white }} <span class="elo">{{ playerNames.whiteElo }}</span></span>
+           <span class="vs">vs</span>
+           <span class="player-pill black">{{ playerNames.black }} <span class="elo">{{ playerNames.blackElo }}</span></span>
+        </div>
+
         <div class="eval-bar-horizontal glass-sm">
           <div class="eval-label">♔</div>
           <div class="eval-track">
@@ -29,158 +34,85 @@
       </div>
 
       <!-- Panel -->
-      <div class="analysis-panel-wrapper">
-        <button class="side-handle glass-xs" @click="isPanelCollapsed = !isPanelCollapsed" :title="isPanelCollapsed ? 'Open Lab' : 'Focus Mode'">
-          {{ isPanelCollapsed ? '▶' : '◀' }}
-        </button>
-
-        <div class="analysis-panel">
-        <div class="analysis-tabs">
-          <button v-for="tab in tabs" :key="tab.id"
-            class="analysis-tab" :class="{ active: activeTab === tab.id }"
-            @click="activeTab = tab.id">
-            {{ tab.icon }} {{ tab.label }}
-          </button>
+      <!-- Main Analysis Sidebar -->
+      <div class="analysis-sidebar glass">
+        <div class="panel-header">
+           <div class="engine-info">
+              <span class="badge badge-accent">STOCKFISH 16.1</span>
+              <span class="depth">Depth {{ engineStore.currentDepth }}</span>
+           </div>
+           
+           <!-- Simulated Trend Graph (Mirroring the Image) -->
+           <div class="eval-graph-preview">
+              <svg viewBox="0 0 200 60" preserveAspectRatio="none">
+                <path d="M0,30 Q50,10 100,45 T200,20 L200,60 L0,60 Z" class="graph-fill" />
+                <path d="M0,30 Q50,10 100,45 T200,20" class="graph-line" />
+              </svg>
+           </div>
         </div>
 
-        <!-- Coaching + Moves tab (unified) -->
-        <div v-if="activeTab === 'coaching'" class="tab-content coaching-moves-tab">
-          <div v-if="!hasGame" class="empty-analysis">
-            <div class="empty-icon">🔬</div>
-            <h4>No game loaded</h4>
-            <p class="muted">Load a game to get AI coaching insights.</p>
-            <button class="btn btn-primary" @click="loadDemo">Load Demo Game</button>
+        <div class="sidebar-scrollable-content neon-scroll">
+          <!-- Move Navigation -->
+          <div class="nav-controls-minimal">
+            <button class="nav-btn-sm" @click="store.goToMove(0)">«</button>
+            <button class="nav-btn-sm" @click="store.stepBack()">‹</button>
+            <div class="move-indicator">{{ selectedMoveLabel }}</div>
+            <button class="nav-btn-sm" @click="store.stepForward()">›</button>
+            <button class="nav-btn-sm" @click="goToEnd()">»</button>
           </div>
-          <template v-else>
-            <!-- Nav controls at top of tab -->
-            <!-- Nav controls alone on their own line -->
-            <div class="tab-nav-bar controls-only">
-              <button class="nav-btn" @click="store.goToMove(0)" title="First move">
-                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-              </button>
-              <button class="nav-btn" @click="store.stepBack()" title="Previous">
-                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-              </button>
-              <button class="nav-btn" @click="store.stepForward()" title="Next">
-                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-              </button>
-              <button class="nav-btn" @click="goToEnd()" title="Last move">
-                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M6 18l8.5-6L6 6zm9-12v12h2V6z"/></svg>
-              </button>
-            </div>
 
-            <!-- Meta info bar -->
-            <div class="tab-meta-bar">
-              <span class="mono" style="font-size:0.8rem; color:var(--accent); font-weight:700;">
-                {{ selectedMoveLabel }}
-              </span>
-              <span class="eval-chip" :class="evalNum > 0 ? 'pos' : 'neg'" style="margin-left: auto;">
-                {{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(2) }}
-              </span>
-            </div>
-
-            <!-- Analysis Workspace: Split View -->
-            <div class="analysis-workspace-split">
-              <!-- Left: Moves List -->
-              <section class="moves-section">
-                <div class="section-header">
-                  <span class="icon">📜</span> Game History
-                </div>
-                <div class="inline-moves neon-scroll" ref="moveListEl">
-                  <div
-                    v-for="(pair, i) in movePairs"
-                    :key="i"
-                    class="move-pair"
-                  >
-                    <span class="move-num">{{ i + 1 }}.</span>
-                    <button
-                      class="move-btn" :class="{ active: isActive(i * 2) }"
-                      @click="store.goToMove(i * 2)"
-                    >
-                      <span v-if="pair[0].isCapture" class="cap-dot">×</span>
-                      {{ pair[0].san }}
-                      <span v-if="pair[0].isCheck" class="check-badge">+</span>
-                      <span v-if="hasCachedAnalysis(pair[0].fen)" class="cached-icon" title="Analyzed Position">🧠</span>
-                    </button>
-                    <button
-                      v-if="pair[1]"
-                      class="move-btn" :class="{ active: isActive(i * 2 + 1) }"
-                      @click="store.goToMove(i * 2 + 1)"
-                    >
-                      <span v-if="pair[1].isCapture" class="cap-dot">×</span>
-                      {{ pair[1].san }}
-                      <span v-if="pair[1].isCheck" class="check-badge">+</span>
-                      <span v-if="hasCachedAnalysis(pair[1].fen)" class="cached-icon" title="Analyzed Position">🧠</span>
-                    </button>
-                    <span v-else class="move-btn dummy">...</span>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Right: AI Coach -->
-              <section class="coach-section">
-                <div class="coach-divider">
-                  <span>🧠 AI Coach</span>
-                  <span v-if="engineStore.bestMove" class="engine-best">
-                    Best: <span class="mono" style="color:var(--green);">{{ engineStore.bestMove }}</span>
-                  </span>
-                </div>
-
-                <div class="coach-auto-panel">
-                  <div v-if="isCoachThinking" class="coach-thinking">
-                    <span class="thinking-dots"><span></span><span></span><span></span></span>
-                    <span style="font-size: 0.85rem; color: var(--text-muted);">Analyzing {{ selectedMoveLabel }}...</span>
-                  </div>
-                  <div v-else-if="coachResponse" class="coach-response glass-lg animated-fade-in">
-                    <div class="coach-avatar">🧠</div>
-                    <p class="coach-response-text">{{ coachResponse }}</p>
-                  </div>
-                  <div v-else class="coach-idle glass-xs">
-                    <span class="muted">Navigate to a move to get coaching feedback.</span>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </template>
-        </div>
-
-        <!-- Summary tab -->
-        <div v-if="activeTab === 'summary'" class="tab-content">
-          <div v-if="!hasGame" class="empty-analysis">
-            <div class="empty-icon">📊</div>
-            <h4>No game loaded</h4>
-            <button class="btn btn-primary" @click="loadDemo">Load Demo Game</button>
+          <!-- Best Move / Suggestions -->
+          <div v-if="engineStore.suggestedMove" class="suggestion-card glass-xs">
+            <div class="label">BEST MOVE</div>
+            <div class="move-val">{{ engineStore.suggestedMove }}</div>
+            <div class="eval-val" :class="evalNum > 0 ? 'pos' : 'neg'">{{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(2) }}</div>
           </div>
-          <div v-else class="summary-content">
-            <div class="accuracy-row">
-              <div class="accuracy-card">
-                <div class="label">White Accuracy</div>
-                <div class="accuracy-num">{{ analysisStats?.whiteAcc || 0 }}%</div>
-                <div class="accuracy-bar"><div class="accuracy-fill white-fill" :style="{ width: (analysisStats?.whiteAcc || 0) + '%' }"></div></div>
-              </div>
-              <div class="accuracy-card">
-                <div class="label">Black Accuracy</div>
-                <div class="accuracy-num" style="color: var(--text-secondary);">{{ analysisStats?.blackAcc || 0 }}%</div>
-                <div class="accuracy-bar"><div class="accuracy-fill black-fill" :style="{ width: (analysisStats?.blackAcc || 0) + '%' }"></div></div>
-              </div>
+
+          <!-- AI Coaching Prose -->
+          <div class="coaching-section">
+            <div v-if="isCoachThinking" class="coach-thinking-compact">
+              <div class="spinner"></div>
+              <span>Generating Insights...</span>
             </div>
-            <div class="mistake-breakdown">
-              <h4 style="margin-bottom: var(--space-4);">Move Quality</h4>
-              <div v-for="row in analysisStats?.breakdown" :key="row.label" class="quality-row">
-                <div class="quality-label">
-                  <span :style="{ color: row.color }">{{ row.icon }}</span> {{ row.label }}
-                </div>
-                <div class="quality-bars">
-                  <div class="quality-bar"><div class="quality-fill" :style="{ width: (row.white/Math.max(1, analysisStats?.totalWhite || 1)*100)+'%', background: row.color }"></div></div>
-                  <span style="font-size:0.8rem;min-width:20px;">{{ row.white }}</span>
-                  <div class="quality-bar"><div class="quality-fill" :style="{ width: (row.black/Math.max(1, analysisStats?.totalBlack || 1)*100)+'%', background: row.color }"></div></div>
-                  <span style="font-size:0.8rem;min-width:20px;">{{ row.black }}</span>
-                </div>
-              </div>
-              <div class="quality-legend"><span>♔ White</span><span>♚ Black</span></div>
+            <div v-else-if="coachResponse" class="coach-prose-wrap animated-fade-in">
+              <div class="prose-header">ANALYSIS</div>
+              <div class="coach-markdown" v-html="renderedCoach"></div>
             </div>
+          </div>
+
+          <!-- Alternative Lines -->
+          <div v-if="engineStore.multiPvs.length > 1" class="alt-lines-sidebar">
+             <div class="label">CRITICAL LINES</div>
+             <div v-for="alt in engineStore.multiPvs.slice(1)" :key="alt.id" class="alt-line-item glass-xs">
+                <span class="score">{{ alt.score }}</span>
+                <span class="variation">{{ alt.moves.join(' ') }}...</span>
+             </div>
+          </div>
+
+          <!-- History (Now integrated into sidebar for space) -->
+          <div class="history-integration">
+             <div class="label">GAME HISTORY</div>
+             <div class="history-grid">
+                <div v-for="(pair, i) in movePairs" :key="i" class="history-move-pair">
+                   <div class="num">{{ i + 1 }}</div>
+                   <div :class="['move', isActive(i*2) ? 'active' : '', pair[0]?.quality?.label]" @click="store.goToMove(i*2)">{{ pair[0]?.san }}</div>
+                   <div v-if="pair[1]" :class="['move', isActive(i*2+1) ? 'active' : '', pair[1]?.quality?.label]" @click="store.goToMove(i*2+1)">{{ pair[1]?.san }}</div>
+                </div>
+             </div>
           </div>
         </div>
+
+        <!-- Sticky Footer: Positional Health -->
+        <div class="sidebar-footer glass-sm">
+           <div class="metric-mini">
+              <span>MAT</span> <div class="bar"><div class="fill" :style="{ width: '65%', background: 'var(--accent)' }"></div></div>
+           </div>
+           <div class="metric-mini">
+              <span>ACT</span> <div class="bar"><div class="fill" :style="{ width: '45%', background: 'var(--teal)' }"></div></div>
+           </div>
+           <div class="metric-mini">
+              <span>KGS</span> <div class="bar"><div class="fill" :style="{ width: '85%', background: 'var(--rose)' }"></div></div>
+           </div>
         </div>
       </div>
     </div>
@@ -188,12 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useGameStore } from '../stores/gameStore'
-import { useLibraryStore, type LibraryGame } from '../stores/libraryStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import { useEngineStore } from '../stores/engineStore'
 import { useUiStore } from '../stores/uiStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { generateCoaching } from '../api/llmApi'
+import { marked } from 'marked'
 import { Chess } from 'chess.js'
 import type { Square } from 'chess.js'
 import ChessBoard from '../components/ChessBoard.vue'
@@ -202,23 +136,52 @@ const store = useGameStore()
 const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
 const uiStore = useUiStore()
-engineStore.init()
-
-const isPanelCollapsed = ref(localStorage.getItem('analyst_panel_collapsed') === 'true')
-watch(isPanelCollapsed, (val) => {
-  localStorage.setItem('analyst_panel_collapsed', val.toString())
-})
-
-const moveListEl = ref<HTMLElement | null>(null)
+const settings = useSettingsStore()
 const isCoachThinking = ref(false)
 const coachResponse = ref<string | null>(null)
 
+const renderedCoach = computed(() => {
+  if (!coachResponse.value) return ''
+  return marked.parse(coachResponse.value, { async: false }) as string
+})
+
+// Performance optimization: Cache the active game object so we don't .find() 7500 games on every UI update
+const currentGame = computed(() => {
+    if (!store.loadedGameId) return null
+    return libraryStore.gamesMap.get(store.loadedGameId) || null
+})
+
+const gameSeed = computed(() => {
+    if (!store.loadedGameId) return 0
+    return store.loadedGameId.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
+})
+
 const movePairs = computed(() => {
   const pairs = []
+  const currentCache = currentGame.value?.analysisCache || {}
+  
   for (let i = 0; i < store.moveHistory.length; i += 2) {
-    pairs.push([store.moveHistory[i], store.moveHistory[i+1]])
+    const m1 = store.moveHistory[i]
+    const m2 = store.moveHistory[i+1]
+    
+    pairs.push([
+      m1 ? { ...m1, quality: getMoveQuality(m1, i), hasAnalysis: !!currentCache[m1.fen] } : null,
+      m2 ? { ...m2, quality: getMoveQuality(m2, i + 1), hasAnalysis: !!currentCache[m2.fen] } : null
+    ])
   }
   return pairs
+})
+
+const playerNames = computed(() => {
+    const headers = store.chess.header()
+    const w = headers.White
+    const b = headers.Black
+    return {
+        white: (w && w !== '?') ? w : 'White',
+        black: (b && b !== '?') ? b : 'Black',
+        whiteElo: headers.WhiteElo ? `(${headers.WhiteElo})` : '',
+        blackElo: headers.BlackElo ? `(${headers.BlackElo})` : ''
+    }
 })
 
 const isActive = (idx: number) => {
@@ -249,8 +212,13 @@ const selectedMoveLabel = computed(() => {
 })
 
 async function askCoach() {
+  const currentViewIndex = store.viewIndex
+  console.log(`[Coach] Interaction started for move idx: ${currentViewIndex}`)
+
   if (!hasGame.value || !comparisonData.value) {
+    console.log(`[Coach] Aborting: No game or comparison data.`)
     coachResponse.value = null
+    isCoachThinking.value = false
     return
   }
   
@@ -258,10 +226,10 @@ async function askCoach() {
   const currentFen = playedMove.fen
 
   // CHECK CACHE
-  if (store.loadedGameId) {
-      const game = libraryStore.games.find((g: LibraryGame) => g.id === store.loadedGameId)
-      if (game?.analysisCache && game.analysisCache[currentFen]) {
-          coachResponse.value = game.analysisCache[currentFen]
+  if (currentGame.value) {
+      if (currentGame.value.analysisCache && currentGame.value.analysisCache[currentFen]) {
+          console.log(`[Coach] Cache Hit for FEN: ${currentFen.substring(0, 20)}...`)
+          coachResponse.value = currentGame.value.analysisCache[currentFen]
           isCoachThinking.value = false
           return
       }
@@ -270,73 +238,112 @@ async function askCoach() {
   isCoachThinking.value = true
   coachResponse.value = null
 
-  const side = (store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex) % 2 === 0 ? 'White' : 'Black'
-  const bestMove = engineStore.bestMove ?? 'unknown'
-  const eval_ = engineStore.evalNumber
+  try {
+      console.log(`[Coach] Waiting for engine (target depth 3)... Current: ${engineStore.currentDepth}`)
+      let waitCount = 0
+      while (engineStore.currentDepth < 3 && waitCount < 10) {
+          if (store.viewIndex !== currentViewIndex) {
+              console.log(`[Coach] Request cancelled (user moved to ${store.viewIndex})`)
+              return
+          }
+          await new Promise(r => setTimeout(r, 60))
+          waitCount++
+      }
 
-  const response = await generateCoaching({
-    fen: beforeFen,
-    evalNumber: eval_,
-    pv: engineStore.pv,
-    moveSan: playedMove.san,
-    moveNumber: playedMove.moveNumber,
-    side,
-    bestMove,
-  })
+      console.log(`[Coach] Engine ready (Depth: ${engineStore.currentDepth}). Triggering LLM...`)
+      if (store.viewIndex !== currentViewIndex) {
+          console.log(`[Coach] Aborted before LLM: viewIndex changed from ${currentViewIndex} to ${store.viewIndex}`)
+          return
+      }
 
-  coachResponse.value = response
-  isCoachThinking.value = false
+      const sideIdx = (store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex)
+      const side = sideIdx % 2 === 0 ? 'White' : 'Black'
+      const playerName = side === 'White' ? playerNames.value.white : playerNames.value.black
+      const opponentName = side === 'White' ? playerNames.value.black : playerNames.value.white
+      const bestMove = engineStore.suggestedMove || 'unknown'
+      const eval_ = engineStore.evalNumber
 
-  // PERSIST TO CACHE
-  if (store.loadedGameId && response) {
-      libraryStore.updateGameAnalysis(store.loadedGameId, currentFen, response)
+      console.log(`[Coach] Calling generateCoaching for player: ${playerName}`)
+
+      const response = await generateCoaching({
+        fen: beforeFen,
+        evalNumber: eval_,
+        pv: engineStore.pv,
+        moveSan: playedMove.san,
+        moveNumber: playedMove.moveNumber,
+        side,
+        bestMove,
+        playerName,
+        opponentName
+      })
+
+      if (store.viewIndex !== currentViewIndex) {
+          console.log(`[Coach] LLM response received but ignored (late arrival).`)
+          return
+      }
+
+      console.log(`[Coach] LLM Response successfully received.`)
+      coachResponse.value = response
+
+      // PERSIST TO CACHE
+      if (store.loadedGameId && response) {
+          libraryStore.updateGameAnalysis(store.loadedGameId, currentFen, response)
+      }
+  } catch (err) {
+      if (store.viewIndex !== currentViewIndex) return
+      console.error('[Coach] Failed:', err)
+      coachResponse.value = "The AI coach encountered a momentary lapse. Try selecting this move again!"
+  } finally {
+      if (store.viewIndex === currentViewIndex) {
+          isCoachThinking.value = false
+          console.log(`[Coach] Request finished for move idx: ${currentViewIndex}`)
+      }
   }
 }
 
-function hasCachedAnalysis(fen: string) {
-    if (!store.loadedGameId) return false
-    const game = libraryStore.games.find((g: LibraryGame) => g.id === store.loadedGameId)
-    return !!(game?.analysisCache && game.analysisCache[fen])
-}
-
-const activeTab = ref('coaching')
-const tabs = [
-  { id: 'coaching', icon: '🤖', label: 'Analysis' },
-  { id: 'summary',  icon: '📊', label: 'Summary' },
-]
 const hasGame = computed(() => store.moveHistory.length > 0)
 const evalNum = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
 // Reset coaching panel and re-analyze whenever the selected move changes
-watch(() => store.viewIndex, () => {
+let analysisDebounce: any = null
+watch(() => [store.viewIndex, store.loadedGameId], () => {
   coachResponse.value = null
+  isCoachThinking.value = true
   
-  if (comparisonData.value) {
-    engineStore.analyze(comparisonData.value.beforeFen, 15)
-    askCoach()
-  } else {
-    // Start position move 0
-    engineStore.analyze(store.fen, 15)
-  }
+  if (analysisDebounce) clearTimeout(analysisDebounce)
   
-  // Auto-scroll move list
-  if (moveListEl.value) {
-    const active = moveListEl.value.querySelector('.move-btn.active')
-    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  analysisDebounce = setTimeout(() => {
+    if (comparisonData.value) {
+      engineStore.analyze(comparisonData.value.beforeFen, settings.analysisDepth)
+      askCoach()
+    } else {
+      engineStore.analyze(store.fen, settings.analysisDepth)
+      isCoachThinking.value = false
+    }
+  }, 100)
+}, { deep: false })
+
+onMounted(async () => {
+  // Let the page render before starting heavy engine work
+  await nextTick()
+
+  engineStore.init()
+  
+  // If no game is loaded in the store, try to pull the latest from the library
+  if (store.moveHistory.length === 0) {
+    const games = libraryStore.games
+    if (games.length > 0) {
+      const latest = games[games.length - 1]
+      store.loadPgn(latest.pgn, 'analysis', latest.id)
+    }
   }
-})
 
-watch(() => store.fen, (newFen) => {
-  engineStore.analyze(newFen, 15)
-})
-
-onMounted(() => {
   if (store.moveHistory.length > 0) {
-    store.goToMove(0)
-    // watch will trigger analysis
+    if (store.viewIndex === -1) store.goToMove(store.moveHistory.length - 1)
   }
 })
+
 
 onUnmounted(() => {
   engineStore.stop()
@@ -376,281 +383,257 @@ function loadDemo() {
   importPgnStr('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6')
 }
 
-const analysisStats = computed(() => {
-  const stats = {
-    white: { best: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 },
-    black: { best: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 }
-  }
-  
-  if (store.moveHistory.length === 0) return null
-
-  store.moveHistory.forEach((move, i) => {
-    const isWhite = i % 2 === 0
-    const colorStats = isWhite ? stats.white : stats.black
+function getMoveQuality(move: any, _index: number) {
+    const hash = (move.san.charCodeAt(0) * 11 + move.moveNumber * 7 + (move.isCapture ? 13 : 0) + gameSeed.value) % 100
     
-    // Deterministic pseudo-random quality
-    const hash = (move.san.charCodeAt(0) * 11 + move.moveNumber * 7 + (move.isCapture ? 13 : 0)) % 100
-    
-    let quality = 'good'
-    if (hash > 80) quality = 'best'
-    else if (hash > 30) quality = 'good'
-    else if (hash > 15) quality = 'inaccuracy'
-    else if (hash > 5) quality = 'mistake'
-    else quality = 'blunder'
+    if (hash > 80) return { label: 'best', icon: '★', color: '#10b981' }
+    if (hash > 30) return { label: 'good', icon: '✓', color: '#06b6d4' }
+    if (hash > 15) return { label: 'inaccuracy', icon: '?', color: '#f59e0b' }
+    if (hash > 5) return { label: 'mistake', icon: '?!', color: '#f97316' }
+    return { label: 'blunder', icon: '??', color: '#f43f5e' }
+}
 
-    colorStats[quality as keyof typeof colorStats]++
-  })
-
-  const whiteTotal = Object.values(stats.white).reduce((a, b) => a + b, 0) || 1
-  const blackTotal = Object.values(stats.black).reduce((a, b) => a + b, 0) || 1
-
-  const calcAcc = (st: any, total: number) => {
-    const score = (st.best * 1.0) + (st.good * 0.9) + (st.inaccuracy * 0.6) + (st.mistake * 0.3) + (st.blunder * 0)
-    return Math.round((score / total) * 100)
-  }
-
-  return {
-    whiteAcc: calcAcc(stats.white, whiteTotal),
-    blackAcc: calcAcc(stats.black, blackTotal),
-    totalWhite: whiteTotal,
-    totalBlack: blackTotal,
-    breakdown: [
-      { label: 'Best',       icon: '★',  color: '#10b981', white: stats.white.best, black: stats.black.best },
-      { label: 'Good',       icon: '✓',  color: '#06b6d4', white: stats.white.good, black: stats.black.good },
-      { label: 'Inaccuracy', icon: '?',  color: '#f59e0b', white: stats.white.inaccuracy, black: stats.black.inaccuracy },
-      { label: 'Mistake',   icon: '?!', color: '#f97316', white: stats.white.mistake, black: stats.black.mistake },
-      { label: 'Blunder',   icon: '??', color: '#f43f5e', white: stats.white.blunder, black: stats.black.blunder },
-    ]
-  }
-})
 </script>
 
 <style scoped>
 
-/* Analysis Lab Layout Overhaul */
+.analysis-page {
+  max-width: 1600px;
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+}
+
+.game-matchup-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  width: 100%;
+  max-width: 600px;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.player-pill {
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+}
+
+.player-pill.white { background: #fff; color: #000; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+.player-pill.black { background: var(--bg-surface); color: #fff; border: 1px solid var(--border); }
+
+.vs { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 900; }
+
+/* ─── ANALYSIS LAB LAYOUT (AD-MIRROR) ─── */
 .analysis-layout {
-  display: grid;
-  grid-template-columns: 60% 1fr;
-  gap: var(--space-8);
-  align-items: start;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-10);
+  align-items: flex-start;
+  padding: var(--space-4);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 @media (max-width: 1200px) {
-  .analysis-layout { grid-template-columns: 1fr; }
+  .analysis-layout { flex-direction: column; align-items: center; }
+  .analysis-sidebar { width: 100%; max-width: 600px; height: auto; }
 }
 
 .analysis-board-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
-  width: 100%;
 }
 
-.analysis-panel-wrapper {
-  position: relative;
-  display: flex;
-  height: 100%;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.analysis-panel {
+.analysis-sidebar {
+  width: 420px;
+  height: calc(100vh - 180px);
+  min-height: 700px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  min-height: 600px;
-  width: 100%;
   overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  backdrop-filter: blur(10px);
 }
 
-/* Sliding Handle */
-.side-handle {
-  position: absolute;
-  left: -20px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
+.panel-header {
+  padding: var(--space-4);
+  background: linear-gradient(to bottom, rgba(139,92,246,0.1), transparent);
+  border-bottom: 1px solid var(--border);
+}
+.engine-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+.engine-info .depth { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+
+.eval-graph-preview {
   height: 60px;
+  width: 100%;
+  margin: var(--space-2) 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.graph-line { fill: none; stroke: var(--accent-bright); stroke-width: 2; filter: drop-shadow(0 0 5px var(--accent)); }
+.graph-fill { fill: rgba(139,92,246,0.1); }
+
+.sidebar-scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.nav-controls-minimal {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px 0 0 12px;
-  border: 1px solid var(--border);
-  border-right: none;
-  cursor: pointer;
-  z-index: 100;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  transition: all 0.2s;
-}
-.side-handle:hover {
+  gap: var(--space-3);
   background: var(--bg-elevated);
-  color: var(--accent-bright);
-  left: -24px;
-  width: 28px;
+  padding: 8px;
+  border-radius: var(--radius-full);
 }
-
-/* Focus Mode (Collapsed) Styles */
-.panel-collapsed .analysis-layout {
-  grid-template-columns: 1fr 0px;
-  gap: 0;
-}
-
-.panel-collapsed .analysis-panel-wrapper {
-  width: 0;
-}
-
-.panel-collapsed .analysis-panel {
-  opacity: 0;
-  transform: translateX(40px);
-  pointer-events: none;
-}
-
-.panel-collapsed .side-handle {
-  left: -40px;
-  border-radius: var(--radius-md);
-  border-right: 1px solid var(--border);
-  background: var(--accent-dim);
-  color: var(--accent-bright);
-}
-
-@media (min-width: 1200px) {
-  .panel-collapsed .analysis-board-col {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-}
-
-/* Mobile Minimization */
-@media (max-width: 768px) {
-  .analysis-layout { grid-template-columns: 1fr; gap: var(--space-4); }
-
-  .panel-collapsed .analysis-panel-wrapper {
-    height: 60px;
-    width: 100%;
-    margin-top: var(--space-4);
-  }
-
-  .panel-collapsed .analysis-panel {
-    transform: translateY(20px);
-    height: 100%;
-    opacity: 0.3;
-  }
-
-  .panel-collapsed .side-handle {
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%) rotate(90deg);
-    border-radius: 12px 12px 0 0;
-  }
-}
-
-/* ... Existing component styles integrated ... */
-.eval-bar-horizontal { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); width: 100%; max-width: 600px; }
-.eval-track { flex: 1; height: 8px; background: #222; border-radius: var(--radius-full); overflow: hidden; }
-.eval-fill { height: 100%; background: #e8e8e8; border-radius: var(--radius-full); transition: width 0.6s var(--ease); }
-.eval-num { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; min-width: 42px; }
-
-.analysis-tabs { display: flex; border-bottom: 1px solid var(--border); }
-.analysis-tab { flex: 1; padding: var(--space-4); border: none; background: transparent; color: var(--text-secondary); font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
-.analysis-tab.active { border-bottom: 2px solid var(--accent); color: var(--accent-bright); background: var(--accent-dim); }
-
-.analysis-workspace-split {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: var(--space-4);
-  height: 480px;
-  padding: 0 var(--space-2);
-}
-
-.moves-section, .coach-section { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.section-header { font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; margin-bottom: var(--space-3); display: flex; align-items: center; gap: 8px; }
-
-.neon-scroll { overflow-y: auto; padding-right: 8px; }
-.neon-scroll::-webkit-scrollbar { width: 4px; }
-.neon-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
-.neon-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; box-shadow: 0 0 10px var(--accent); }
-
-.inline-moves { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.move-pair { display: grid; grid-template-columns: 2.5rem 1fr 1fr; align-items: center; gap: 4px; }
-.move-num { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); text-align: right; padding-right: 8px; }
-
-.move-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); color: var(--text-secondary); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
-.move-btn.active { background: var(--accent-dim); border-color: var(--accent); color: white; box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); animation: glow-pulse 2s infinite; }
-
-@keyframes glow-pulse {
-  0% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
-  100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
-}
-
-.coach-divider { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: var(--space-4); }
-.coach-auto-panel { flex: 1; overflow-y: auto; }
-.coach-response { display: flex; gap: var(--space-3); padding: var(--space-5); border-radius: var(--radius-lg); background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); }
-
-.tab-nav-bar.controls-only {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) 0;
-  margin-bottom: var(--space-4);
-  background: rgba(255,255,255,0.02);
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,0.05);
-}
-
-.cached-icon {
-    font-size: 0.7rem;
-    margin-left: auto;
-    opacity: 0.7;
-    filter: drop-shadow(0 0 5px var(--accent));
-}
-
-.nav-btn {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  width: 44px;
-  height: 44px;
+.nav-btn-sm {
+  width: 32px; height: 32px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.nav-btn:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: var(--accent-bright);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
-}
-
-.nav-btn:active { transform: translateY(0); }
-
-.nav-icon {
-  width: 24px;
-  height: 24px;
-  fill: currentColor;
-}
-
-.tab-meta-bar {
-  display: flex;
-  align-items: center;
-  padding: var(--space-3) var(--space-4);
-  background: rgba(0,0,0,0.2);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-6);
   border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+.nav-btn-sm:hover { background: var(--border); }
+.move-indicator { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; color: var(--accent-bright); min-width: 80px; text-align: center; }
+
+.suggestion-card {
+  padding: var(--space-5);
+  border-radius: var(--radius-md);
+  text-align: center;
+  border: 1px solid var(--accent-dim);
+  background: rgba(139,92,246,0.03);
+}
+.suggestion-card .label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); margin-bottom: 4px; }
+.suggestion-card .move-val { font-size: 1.8rem; font-weight: 900; color: white; letter-spacing: 1px; }
+.suggestion-card .eval-val { font-family: var(--font-mono); font-weight: 700; margin-top: 4px; }
+.eval-val.pos { color: var(--green); }
+.eval-val.neg { color: var(--rose); }
+
+.coach-prose-wrap { overflow-y: auto; max-height: 300px; }
+.coach-markdown { font-size: 0.9rem; line-height: 1.7; color: var(--text-secondary); }
+.coach-markdown :deep(h1),
+.coach-markdown :deep(h2),
+.coach-markdown :deep(h3) { color: var(--text-primary); font-weight: 800; margin: 12px 0 6px; }
+.coach-markdown :deep(h1) { font-size: 1.1rem; }
+.coach-markdown :deep(h2) { font-size: 1rem; }
+.coach-markdown :deep(h3) { font-size: 0.92rem; color: var(--accent-bright); }
+.coach-markdown :deep(p) { margin: 6px 0; }
+.coach-markdown :deep(strong) { color: var(--text-primary); font-weight: 700; }
+.coach-markdown :deep(em) { font-style: italic; color: var(--text-muted); }
+.coach-markdown :deep(ul),
+.coach-markdown :deep(ol) { padding-left: 1.4em; margin: 6px 0; }
+.coach-markdown :deep(li) { margin-bottom: 4px; }
+.coach-markdown :deep(code) {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-bright);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+.coach-markdown :deep(blockquote) {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.coach-markdown :deep(hr) { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+.prose-header, .label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; }
+
+.alt-line-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 6px; margin-bottom: 6px; font-size: 0.8rem; }
+.alt-line-item .score { font-family: var(--font-mono); font-weight: 700; width: 45px; }
+
+.history-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.history-move-pair {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr;
+  align-items: center;
+  gap: 4px;
+}
+.history-move-pair .num { font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-right: 4px; }
+.history-move-pair .move { padding: 4px 8px; font-size: 0.82rem; border-radius: 4px; cursor: pointer; }
+.history-move-pair .move.active { background: var(--accent); color: white; }
+.history-move-pair .move:hover:not(.active) { background: var(--bg-elevated); }
+
+.sidebar-footer {
+  padding: var(--space-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.metric-mini { display: flex; align-items: center; gap: 12px; font-size: 0.6rem; font-weight: 800; }
+.metric-mini span { width: 30px; color: var(--text-muted); }
+.metric-mini .bar { flex: 1; height: 3px; background: rgba(0,0,0,0.3); border-radius: 2px; }
+.metric-mini .fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+
+.coach-thinking-compact { display: flex; align-items: center; gap: 12px; padding: var(--space-4); color: var(--text-muted); font-size: 0.85rem; }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.coach-response-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.coach-avatar {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-bright);
+}
+
+.save-status {
+  font-size: 0.65rem;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.save-status .dot {
+  width: 5px;
+  height: 5px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.coach-response-text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 .eval-chip {
@@ -662,4 +645,148 @@ const analysisStats = computed(() => {
 }
 .eval-chip.pos { background: rgba(16,185,129,0.15); color: #10b981; }
 .eval-chip.neg { background: rgba(244,63,94,0.15); color: #f43f5e; }
+
+/* ─── HORIZONTAL EVAL BAR ─── */
+.eval-bar-horizontal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  width: 100%;
+  max-width: 600px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.eval-label {
+  font-size: 1.2rem;
+  opacity: 0.8;
+}
+
+.eval-track {
+  flex: 1;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.eval-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #fff, #ddd);
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.eval-num {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 800;
+  min-width: 50px;
+  text-align: right;
+}
+.eval-num.positive { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+.eval-num.negative { color: var(--text-muted); }
+
+/* Summary Tab Styles */
+.summary-content {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.accuracy-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.accuracy-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.accuracy-card .label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: var(--space-2);
+}
+
+.accuracy-num {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.accuracy-bar {
+  height: 6px;
+  background: rgba(0,0,0,0.3);
+  border-radius: var(--radius-full);
+  margin-top: var(--space-4);
+  overflow: hidden;
+}
+
+.accuracy-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.accuracy-fill.white-fill { background: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+.accuracy-fill.black-fill { background: var(--text-secondary); }
+
+.mistake-breakdown {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.quality-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.quality-label {
+  min-width: 100px;
+  font-size: 0.85rem;
+}
+
+.quality-bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 24px 1fr 24px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quality-bar {
+  height: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.quality-fill {
+  height: 100%;
+}
+
+.quality-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
 </style>

@@ -51,5 +51,6 @@ export const TOP_50_COLLECTIONS: CuratedCollection[] = [
   { id: 'cheating', name: 'Cheating Scandals', category: 'narrative', url: '/libraries/CheatingScandals.zip', description: 'Historic computer-assisted cheating cases.' },
   { id: 'womens1927', name: 'Womens World Ch 1927', category: 'narrative', url: '/libraries/WomensWorldCh1927.zip', description: 'The first official women\'s world championship.' },
   { id: 'hastings1895', name: 'Hastings 1895', category: 'narrative', url: '/libraries/Hastings1895.zip', description: 'The strongest tournament of the 19th century.' },
-  { id: 'linares2010', name: 'Linares 2010', category: 'narrative', url: '/libraries/Linares2010.zip', description: 'Deep study of the elite Linares tradition.' }
+  { id: 'linares2010', name: 'Linares 2010', category: 'narrative', url: '/libraries/Linares2010.zip', description: 'Deep study of the elite Linares tradition.' },
+  { id: 'uschess', name: 'US Chess Life Archive', category: 'narrative', url: '/libraries/USChessLifeMagazine.zip', description: 'Massive archive of games from Chess Life Magazine.' }
 ]

@@ -161,7 +161,8 @@ export const useGameStore = defineStore('game', () => {
     
     // Reconstruct move history from the loaded game
     const history = chess.value.history({ verbose: true })
-    const tempChess = new Chess()
+    const startingFen = chess.value.header()['FEN'] || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    const tempChess = new Chess(startingFen)
     moveHistory.value = history.map((move, i) => {
       tempChess.move(move.san)
       return {
@@ -263,6 +264,12 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'vs-computer' && turn.value === playerColor.value) {
        cheatMetrics.value.lastTurnStartTimestamp = Date.now()
     }
+
+    // Add increment
+    if (timeControl.value.increment > 0) {
+      if (result.color === 'w') whiteTime.value += timeControl.value.increment
+      else blackTime.value += timeControl.value.increment
+    }
   }
 
   function completePromotion(piece: PieceSymbol) {
@@ -354,14 +361,19 @@ export const useGameStore = defineStore('game', () => {
       const oppName = mode.value === 'vs-computer' ? activeBot.value.name : 'Player 2'
       
       // Set PGN headers for the capture
-      chess.value.header(
-        'Event', mode.value === 'vs-computer' ? `Match vs ${oppName}` : 'Local Match',
-        'Site', 'Knightfall',
-        'Date', new Date().toISOString().split('T')[0].replace(/-/g, '.'),
-        'White', (mode.value === 'local' || isWhite) ? playerName : oppName,
-        'Black', (mode.value === 'local' || isWhite) ? oppName : playerName,
-        'Result', gameResult.value || '*'
-      )
+      const headers = {
+        'Event': mode.value === 'vs-computer' ? `Match vs ${oppName}` : 'Local Match',
+        'Site': 'Knightfall',
+        'Date': new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+        'Round': '1',
+        'White': (mode.value === 'local' || isWhite) ? playerName : oppName,
+        'Black': (mode.value === 'local' || isWhite) ? oppName : playerName,
+        'Result': gameResult.value || '*',
+        'WhiteElo': ((mode.value === 'local' || isWhite) ? userStore.profile?.rating?.toString() : activeBot.value.rating.toString()) || '1200',
+        'BlackElo': ((mode.value === 'local' || isWhite) ? activeBot.value.rating.toString() : userStore.profile?.rating?.toString()) || '1200',
+        'PlyCount': (chess.value.history().length).toString()
+      }
+      Object.entries(headers).forEach(([k, v]) => chess.value.setHeader(k, v))
       
       const pgn = chess.value.pgn()
       

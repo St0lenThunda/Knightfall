@@ -17,9 +17,15 @@
         <div class="info-side">
           <header class="game-header">
             <div class="p-row">
-              <span class="p-name white">{{ game.white }}</span>
+              <div class="p-bundle white">
+                <span class="p-name">{{ game.white }}</span>
+                <span class="p-rating" v-if="game.whiteElo">({{ game.whiteElo }})</span>
+              </div>
               <span class="vs">vs</span>
-              <span class="p-name black">{{ game.black }}</span>
+              <div class="p-bundle black">
+                <span class="p-name">{{ game.black }}</span>
+                <span class="p-rating" v-if="game.blackElo">({{ game.blackElo }})</span>
+              </div>
             </div>
             <div class="result-row">
                 <span class="result-badge" :class="resultClass">{{ game.result }}</span>
@@ -176,9 +182,11 @@ const finalFen = computed(() => {
   font-size: 1.5rem;
   font-weight: 800;
 }
+.p-bundle { display: flex; align-items: baseline; gap: 8px; }
 .vs { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
-.white { color: white; }
-.black { color: var(--text-secondary); }
+.white .p-name { color: white; }
+.black .p-name { color: var(--text-secondary); }
+.p-rating { font-size: 1rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 500; }
 
 .result-badge {
   display: inline-block;

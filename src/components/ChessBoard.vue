@@ -24,8 +24,6 @@
               @dragover.prevent
               @drop="handleDrop(rowIdx, colIdx)"
             >
-              <!-- Labels on squares removed as per request -->
-
               <!-- Last move / selected highlight -->
               <div class="sq-highlight" v-if="isLastMove(rowIdx, colIdx)" style="background: var(--sq-last); opacity: 0.6;"></div>
               <div class="sq-highlight" v-if="isSelected(rowIdx, colIdx)" style="background: rgba(103,232,249,0.3);"></div>
@@ -37,9 +35,21 @@
               <!-- Hint Highlights -->
               <div class="sq-highlight" v-if="(highlights || []).includes(squareId(rowIdx, colIdx))" style="background: rgba(251,191,36,0.4); border: 2px solid var(--gold);"></div>
 
-              <!-- Piece -->
+              <!-- Piece: Image mode -->
               <div
-                v-if="cell"
+                v-if="cell && useImages"
+                class="piece piece-img-wrap"
+                :class="{ 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }"
+                draggable="true"
+                @dragstart="handleDragStart(rowIdx, colIdx)"
+                @dragend="handleDragEnd"
+              >
+                <img :src="pieceImgSrc(cell)" class="piece-img" draggable="false" />
+              </div>
+
+              <!-- Piece: Unicode mode (fast default) -->
+              <div
+                v-else-if="cell"
                 class="piece"
                 :class="['piece-' + cell.color, { 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }]"
                 draggable="true"
@@ -78,7 +88,8 @@
                   class="promo-btn"
                   @click="store.completePromotion(p.symbol)"
                 >
-                  {{ p.unicode }}
+                  <img v-if="useImages" :src="promoImgSrc(p.symbol)" class="piece-img" style="width: 40px; height: 40px;" />
+                  <span v-else>{{ p.unicode }}</span>
                 </button>
               </div>
             </div>
@@ -95,12 +106,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useGameStore } from '../stores/gameStore'
-import type { Color, PieceSymbol } from 'chess.js'
+import { useSettingsStore } from '../stores/settingsStore'
+import type { PieceSymbol, Color } from 'chess.js'
 import type { Square } from 'chess.js'
 
 const store = useGameStore()
+const settings = useSettingsStore()
 
 const props = defineProps<{
   flipped?: boolean
@@ -110,13 +123,29 @@ const props = defineProps<{
 
 const dragFrom = ref<string | null>(null)
 
+// Use image-based pieces when theme is NOT 'classic' (unicode default)
+const useImages = computed(() => settings.pieceTheme !== 'classic')
+
+// Preload all 12 piece images for the active theme on mount
+const preloaded = ref(false)
+onMounted(() => {
+  if (useImages.value) {
+    const theme = settings.pieceTheme
+    const pieces = ['wp','wr','wn','wb','wq','wk','bp','br','bn','bb','bq','bk']
+    let loaded = 0
+    pieces.forEach(p => {
+      const img = new Image()
+      img.src = `/pieces/${theme}/${p}.png`
+      img.onload = () => { if (++loaded === pieces.length) preloaded.value = true }
+    })
+  }
+})
+
 function getCoords(sq: string) {
   const file = sq[0]; const rank = sq[1]
   let col = file.charCodeAt(0) - 97
   let row = 8 - parseInt(rank)
   if (props.flipped) { col = 7 - col; row = 7 - row }
-  
-  // Calculate vector to slightly shorten the line so it doesn't overlap the arrowhead with the center
   return { x: col * 10 + 5, y: row * 10 + 5 }
 }
 
@@ -145,6 +174,14 @@ function squareId(rowIdx: number, colIdx: number): Square {
 function pieceUnicode(cell: { type: PieceSymbol; color: Color } | null) {
   if (!cell) return ''
   return PIECE_UNICODE[`${cell.color}${cell.type.toUpperCase()}`] || ''
+}
+
+function pieceImgSrc(cell: { type: string; color: string }) {
+  return `/pieces/${settings.pieceTheme}/${cell.color}${cell.type}.png`
+}
+
+function promoImgSrc(symbol: string) {
+  return `/pieces/${settings.pieceTheme}/${store.turn}${symbol}.png`
 }
 
 function squareClasses(rowIdx: number, colIdx: number) {
@@ -180,7 +217,6 @@ function isKingInCheck(rowIdx: number, colIdx: number) {
 function handleSquareClick(rowIdx: number, colIdx: number) {
   if (store.isThinking) return
   store.selectSquare(squareId(rowIdx, colIdx))
-  // Trigger computer move after player move
   if (store.mode === 'vs-computer' && store.turn !== store.playerColor && !store.isGameOver) {
     store.computerMove()
   }
@@ -210,10 +246,10 @@ function handleDrop(rowIdx: number, colIdx: number) {
 }
 
 const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
-  { symbol: 'q', unicode: store.turn === 'w' ? '♕' : '♛' },
-  { symbol: 'r', unicode: store.turn === 'w' ? '♖' : '♜' },
-  { symbol: 'b', unicode: store.turn === 'w' ? '♗' : '♝' },
-  { symbol: 'n', unicode: store.turn === 'w' ? '♘' : '♞' },
+  { symbol: 'q', unicode: '♛' },
+  { symbol: 'r', unicode: '♜' },
+  { symbol: 'b', unicode: '♝' },
+  { symbol: 'n', unicode: '♞' },
 ]
 </script>
 
@@ -317,6 +353,20 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
   cursor: grab;
   transition: transform 0.1s ease, filter 0.1s ease;
 }
+.piece-img-wrap {
+  width: 85%;
+  height: 85%;
+  font-size: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.piece-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
 .piece-w {
   color: #fff;
   text-shadow: 0 2px 5px rgba(0,0,0,0.6);
@@ -347,7 +397,7 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
   font-family: var(--font-mono);
   width: min(480px, 90vw);
   justify-content: space-around;
-  padding-left: 36px; /* Offset for rank labels width + gap */
+  padding-left: 36px;
 }
 
 .file-labels-row span {
@@ -373,9 +423,6 @@ const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
 .promotion-dialog {
   padding: var(--space-6);
   text-align: center;
-}
-.file-labels-row span {
-  flex: 1; text-align: center;
 }
 
 .board-arrows {

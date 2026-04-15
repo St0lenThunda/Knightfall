@@ -10,6 +10,7 @@ import AnalysisView from './views/AnalysisView.vue'
 import PuzzlesView from './views/PuzzlesView.vue'
 import ProfileView from './views/ProfileView.vue'
 import LibraryView from './views/LibraryView.vue'
+import SettingsView from './views/SettingsView.vue'
 import { supabase } from './api/supabaseClient'
 
 const router = createRouter({
@@ -17,10 +18,11 @@ const router = createRouter({
   routes: [
     { path: '/',         component: HomeView },
     { path: '/play',     component: PlayView },
-    { path: '/analysis', component: AnalysisView },
+    { path: '/analysis', component: AnalysisView, meta: { requiresAuth: true } },
     { path: '/puzzles',  component: PuzzlesView },
     { path: '/profile',  component: ProfileView, meta: { requiresAuth: true } },
-    { path: '/library',  component: LibraryView },
+    { path: '/library',  component: LibraryView, meta: { requiresAuth: true } },
+    { path: '/settings', component: SettingsView },
   ],
 })
 

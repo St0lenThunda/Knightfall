@@ -64,91 +64,165 @@
       </div>
     </section>
 
-    <!-- Stats row -->
-    <section class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Your Rating</div>
-        <div class="stat-value text-gradient">{{ userStore.currentRating }}</div>
-        <div class="stat-delta up">▲ +23 this week</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Games Played</div>
-        <div class="stat-value">{{ userStore.pastGames.length }}</div>
-        <div class="stat-delta up">▲ 8 today</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Win Rate</div>
-        <div class="stat-value" style="color: var(--green);">{{ userStore.wldStats[0].pct }}%</div>
-        <div class="stat-delta up">▲ +4% vs last month</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Puzzle Streak</div>
-        <div class="stat-value text-gold-gradient">🔥 7</div>
-        <div class="stat-delta" style="color: var(--gold);">Best: 12 days</div>
-      </div>
-    </section>
-
-    <!-- Two column: Feature cards + Activity -->
-    <section class="home-grid">
-      <!-- Feature spotlight cards -->
-      <div class="feature-cards">
-        <h3 style="margin-bottom: var(--space-4);">What's waiting for you</h3>
-        <div class="feature-card glass" v-for="f in features" :key="f.title"
-          @click="router.push(f.path)" style="cursor: pointer;">
-          <div class="feature-icon" :style="{ background: f.bg }">{{ f.icon }}</div>
-          <div class="feature-body">
-            <div class="feature-title">{{ f.title }}</div>
-            <div class="feature-desc muted">{{ f.desc }}</div>
-          </div>
-          <div class="feature-arrow">›</div>
+    <!-- Logged in view: Dashboard -->
+    <template v-if="userStore.session && userStore.profile">
+      <!-- Stats row -->
+      <section class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Your Rating</div>
+          <div class="stat-value text-gradient">{{ userStore.currentRating }}</div>
+          <div class="stat-delta up">▲ +23 this week</div>
         </div>
-      </div>
+        <div class="stat-card">
+          <div class="stat-label">Games Played</div>
+          <div class="stat-value">{{ userStore.pastGames.length }}</div>
+          <div class="stat-delta up">▲ 8 today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value" style="color: var(--green);">{{ userStore.wldStats[0].pct }}%</div>
+          <div class="stat-delta up">▲ +4% vs last month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Puzzle Streak</div>
+          <div class="stat-value text-gold-gradient">🔥 7</div>
+          <div class="stat-delta" style="color: var(--gold);">Best: 12 days</div>
+        </div>
+      </section>
 
-      <!-- Recent activity + Weakness report -->
-      <div class="right-column">
-        <!-- Weakness DNA -->
-        <div class="glass weakness-card">
-          <div class="card-header">
-            <h4>🧬 Weakness DNA</h4>
-            <span class="badge badge-rose">AI INSIGHT</span>
+      <!-- Two column: Feature cards + Activity -->
+      <section class="home-grid">
+        <!-- Feature spotlight cards -->
+        <div class="feature-cards">
+          <h3 style="margin-bottom: var(--space-4);">What's waiting for you</h3>
+          <div class="feature-card glass" v-for="f in features" :key="f.title"
+            @click="f.id === 'analysis' ? handleQuickAnalysis() : router.push(f.path)" style="cursor: pointer;">
+            <div class="feature-icon" :style="{ background: f.bg }">{{ f.icon }}</div>
+            <div class="feature-body">
+              <div class="feature-title">{{ f.title }}</div>
+              <div class="feature-desc muted">{{ f.desc }}</div>
+            </div>
+            <div class="feature-arrow">›</div>
           </div>
-          <p class="muted" style="font-size: 0.85rem; margin: var(--space-3) 0;">
-            Based on your last {{ userStore.pastGames.length }} games, we found patterns in your mistakes:
-          </p>
-          <div class="weakness-items">
-            <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
-              <div class="weakness-label">
-                <span>{{ w.icon }} {{ w.label }}</span>
-                <span style="font-size: 0.8rem; color: var(--text-muted);">{{ w.pct }}%</span>
+        </div>
+
+        <!-- Recent activity + Weakness report -->
+        <div class="right-column">
+          <!-- Weakness DNA -->
+          <div class="glass weakness-card">
+            <div class="card-header">
+              <h4>🧬 Weakness DNA</h4>
+              <span class="badge badge-rose">AI INSIGHT</span>
+            </div>
+            <p class="muted" style="font-size: 0.85rem; margin: var(--space-3) 0;">
+              Based on your last {{ userStore.pastGames.length }} games, we found patterns in your mistakes:
+            </p>
+            <div class="weakness-items">
+              <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
+                <div class="weakness-label">
+                  <span>{{ w.icon }} {{ w.label }}</span>
+                  <span style="font-size: 0.8rem; color: var(--text-muted);">{{ w.pct }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-bar-fill" :style="{ width: w.pct + '%', background: w.color }"></div>
+                </div>
               </div>
-              <div class="progress-bar">
-                <div class="progress-bar-fill" :style="{ width: w.pct + '%', background: w.color }"></div>
+            </div>
+            <RouterLink to="/puzzles" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
+              Train these weaknesses →
+            </RouterLink>
+          </div>
+
+          <!-- Recent games -->
+          <div class="glass recent-games">
+            <div class="card-header">
+              <h4>Recent Games</h4>
+            </div>
+            <div class="game-list">
+              <div v-for="g in recentGames" :key="g.id" class="game-row">
+                <div class="game-result-dot" :class="g.result"></div>
+                <div class="game-info">
+                  <span class="game-opponent">vs {{ g.opponent }}</span>
+                  <span class="game-meta muted">{{ g.control }} · {{ g.opening }}</span>
+                </div>
+                <div class="game-score" :class="g.result">{{ g.score }}</div>
               </div>
             </div>
           </div>
-          <RouterLink to="/puzzles" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
-            Train these weaknesses →
-          </RouterLink>
+        </div>
+      </section>
+    </template>
+
+    <!-- Guest view: Sales / Marketing section -->
+    <template v-else>
+      <section class="landing-sales">
+        <div class="section-title-wrap">
+          <h2 class="section-title">A New Era of Chess Study</h2>
+          <p class="section-subtitle muted">Bespoke technology designed for the modern grandmaster and the aspiring novice alike.</p>
         </div>
 
-        <!-- Recent games -->
-        <div class="glass recent-games">
-          <div class="card-header">
-            <h4>Recent Games</h4>
+        <!-- Showcase 1: AI Coaching -->
+        <div class="feature-showcase">
+          <div class="showcase-content">
+            <div class="badge badge-accent">🔬 NEXT-GEN ANALYSIS</div>
+            <h2>Live AI Coaching</h2>
+            <p>Don't just see the 'Best Move'. Understand the <i>why</i>. Our AI coach breaks down complex positional nuances into plain English, helping you build genuine intuition.</p>
+            <ul class="feature-list">
+              <li><span>✓</span> Line-by-line tactical commentary</li>
+              <li><span>✓</span> Critical moments automatically flagged</li>
+              <li><span>✓</span> Dynamic threats and ideas visualization</li>
+            </ul>
           </div>
-          <div class="game-list">
-            <div v-for="g in recentGames" :key="g.id" class="game-row">
-              <div class="game-result-dot" :class="g.result"></div>
-              <div class="game-info">
-                <span class="game-opponent">vs {{ g.opponent }}</span>
-                <span class="game-meta muted">{{ g.control }} · {{ g.opening }}</span>
-              </div>
-              <div class="game-score" :class="g.result">{{ g.score }}</div>
-            </div>
+          <div class="showcase-image glass">
+            <img src="/images/landings/ai_coaching.png" alt="AI Coaching Interface" />
           </div>
         </div>
-      </div>
-    </section>
+
+        <!-- Showcase 2: Weakness DNA -->
+        <div class="feature-showcase reverse">
+          <div class="showcase-content">
+            <div class="badge badge-rose">🧬 PATTERN DETECTION</div>
+            <h2>Weakness DNA</h2>
+            <p>Every chess player has a signature mistake pattern. We analyze your entire game history to map your tactical gaps, from endgame conversion to structural vulnerabilities.</p>
+            <ul class="feature-list">
+              <li><span>✓</span> Automated mistake classification</li>
+              <li><span>✓</span> Spaced-repetition puzzle training</li>
+              <li><span>✓</span> Personalized improvement roadmap</li>
+            </ul>
+          </div>
+          <div class="showcase-image glass">
+            <img src="/images/landings/weakness_dna.png" alt="Weakness DNA Analytics" />
+          </div>
+        </div>
+
+        <!-- Showcase 3: Aesthetics -->
+        <div class="feature-showcase">
+          <div class="showcase-content">
+            <div class="badge badge-gold">✨ PREMIUM EXPERIENCE</div>
+            <h2>Design Without Compromise</h2>
+            <p>Knightfall is more than a tool—it's a sanctuary. We've built a distraction-free, high-fidelity environment where you can lose yourself in the beauty of the game.</p>
+            <ul class="feature-list">
+              <li><span>✓</span> Sleek obsidian and glass aesthetics</li>
+              <li><span>✓</span> Fluid, physics-based animations</li>
+              <li><span>✓</span> Zero ads, zero distractions</li>
+            </ul>
+          </div>
+          <div class="showcase-image glass">
+            <img src="/images/landings/premium_design.png" alt="Premium Knightfall UI" />
+          </div>
+        </div>
+
+        <!-- Call to action -->
+        <div class="landing-cta glass">
+          <h2>Ready to elevate your game?</h2>
+          <p class="muted">Join 12,000+ players mastering the art of the 64 squares.</p>
+          <div class="cta-btns">
+            <button class="btn btn-primary btn-lg" @click="handleGetStarted">Create Account</button>
+            <RouterLink to="/play" class="btn btn-ghost btn-lg">Explore as Guest</RouterLink>
+          </div>
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 
@@ -156,9 +230,13 @@
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useLibraryStore } from '../stores/libraryStore'
+import { useGameStore } from '../stores/gameStore'
 
 const router = useRouter()
 const userStore = useUserStore()
+const libraryStore = useLibraryStore()
+const gameStore = useGameStore()
 
 // Mini preview board (simplified static)
 const previewBoard = [
@@ -173,10 +251,10 @@ const previewBoard = [
 ]
 
 const features = [
-  { icon: '♟', title: 'Play a Game',       desc: 'Local, vs computer, or multiplayer',    path: '/play',     bg: 'var(--accent-dim)' },
-  { icon: '⚡', title: 'Puzzle Training',   desc: 'Targeted by your weakness DNA',          path: '/puzzles',  bg: 'var(--rose-dim)' },
-  { icon: '🔬', title: 'Game Analysis',     desc: 'AI coaching — line by line breakdowns',  path: '/analysis', bg: 'var(--teal-dim)' },
-  { icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
+  { id: 'play',     icon: '♟', title: 'Play a Game',       desc: 'Local, vs computer, or multiplayer',    path: '/play',     bg: 'var(--accent-dim)' },
+  { id: 'puzzles',  icon: '⚡', title: 'Puzzle Training',   desc: 'Targeted by your weakness DNA',          path: '/puzzles',  bg: 'var(--rose-dim)' },
+  { id: 'analysis', icon: '🔬', title: 'Game Analysis',     desc: 'AI coaching — line by line breakdowns',  path: '/analysis', bg: 'var(--teal-dim)' },
+  { id: 'profile',  icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
 ]
 
 const weaknesses = computed(() => [
@@ -186,6 +264,18 @@ const weaknesses = computed(() => [
 ])
 
 const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5))
+
+function handleGetStarted() {
+  document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
+}
+
+function handleQuickAnalysis() {
+  if (libraryStore.games.length > 0) {
+    const latest = libraryStore.games[libraryStore.games.length - 1]
+    gameStore.loadPgn(latest.pgn, 'analysis', latest.id)
+  }
+  router.push('/analysis')
+}
 </script>
 
 <style scoped>
@@ -343,4 +433,82 @@ const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5
 .game-score.win  { color: var(--green); }
 .game-score.loss { color: var(--rose); }
 .game-score.draw { color: var(--gold); }
+
+/* ─── LANDING SALES ─── */
+.landing-sales {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  padding: var(--space-10) 0;
+}
+
+.section-title-wrap {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto var(--space-6);
+}
+.section-title { font-size: 2.5rem; margin-bottom: var(--space-2); }
+.section-subtitle { font-size: 1.1rem; }
+
+.feature-showcase {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+}
+.feature-showcase.reverse { flex-direction: row-reverse; }
+
+.showcase-content { flex: 1; }
+.showcase-content h2 { font-size: 2rem; margin: var(--space-4) 0 var(--space-2); }
+.showcase-content p { font-size: 1.05rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: var(--space-4); }
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.feature-list span { color: var(--accent-bright); font-weight: 800; }
+
+.showcase-image {
+  flex: 1.2;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+  background: var(--bg-surface);
+  line-height: 0;
+}
+.showcase-image img {
+  width: 100%;
+  height: auto;
+  transition: transform 0.6s ease;
+}
+.feature-showcase:hover .showcase-image img { transform: scale(1.03); }
+
+.landing-cta {
+  text-align: center;
+  padding: var(--space-12);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  background: linear-gradient(rgba(139, 92, 246, 0.05), rgba(139, 92, 246, 0.02));
+  border: 1px dashed var(--border);
+}
+.landing-cta h2 { font-size: 2.2rem; }
+.cta-btns { display: flex; gap: var(--space-4); margin-top: var(--space-2); }
+
+@media (max-width: 900px) {
+  .feature-showcase, .feature-showcase.reverse { flex-direction: column; gap: var(--space-8); }
+  .section-title { font-size: 2rem; }
+  .landing-sales { gap: var(--space-12); }
+}
 </style>

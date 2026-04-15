@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useLibraryStore } from '../stores/libraryStore'
 import VaultPanel from '../components/library/VaultPanel.vue'
 import ConstellationPanel from '../components/library/ConstellationPanel.vue'
@@ -90,13 +90,23 @@ const tabs = [
   { id: 'constellation', label: 'Constellation', icon: '✨' }
 ] as const
 
+watch(activeTab, (newTab) => {
+    libraryStore.isConstellationActive = (newTab === 'constellation')
+    if (libraryStore.isConstellationActive) {
+        libraryStore.generateOpeningTree()
+    }
+}, { immediate: true })
+
 const ECO_COUNT = computed(() => {
     const ecos = new Set(libraryStore.games.map(g => g.eco))
     return ecos.size
 })
 
 onMounted(() => {
-    libraryStore.loadGames()
+    // These are heavy background tasks that process 7500+ games.
+    // We only trigger them here so they don't fight with the Engine while in the Analysis Lab.
+    libraryStore.repairVaultMetadata() 
+    libraryStore.syncCloudGames()
 })
 </script>
 

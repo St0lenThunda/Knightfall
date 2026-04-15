@@ -101,10 +101,11 @@
       <!-- Board area -->
       <div class="board-area">
         <!-- Player info top -->
+        <!-- Top Player Bar (Always the Opponent) -->
         <PlayerBar
-          :name="flipped ? playerName : opponentName"
-          :rating="flipped ? playerRating : opponentRating"
-          :avatar="flipped ? playerAvatar : opponentAvatar"
+          :name="opponentName"
+          :rating="opponentRating"
+          :avatar="opponentAvatar"
           :time="flipped ? store.whiteTime : store.blackTime"
           :active="store.turn === (flipped ? 'w' : 'b') && gameActive"
           :color="flipped ? 'white' : 'black'"
@@ -120,36 +121,40 @@
           </div>
         </Transition>
 
-        <ChessBoard :flipped="flipped" />
+        <div class="board-wrapper">
+          <ChessBoard :flipped="flipped" />
 
-        <Transition name="fade-up">
-          <div class="game-over-banner glass" v-if="store.isGameOver && !store.isCheaterBusted">
-            <h3 style="color: var(--accent-bright);">Game Over</h3>
-            <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-2);">{{ store.gameResult }}</p>
-            <div style="display: flex; gap: var(--space-2); justify-content: center;">
-              <button class="btn btn-primary" @click="showSetup = true">New Game</button>
-              <button class="btn btn-ghost" @click="reviewGame">Review Game</button>
+          <!-- Overlays -->
+          <Transition name="fade-up">
+            <div class="game-over-overlay glass" v-if="store.isGameOver && !store.isCheaterBusted">
+              <h3 style="color: var(--accent-bright);">Game Over</h3>
+              <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-2);">{{ store.gameResult }}</p>
+              <div style="display: flex; gap: var(--space-2); justify-content: center;">
+                <button class="btn btn-primary" @click="showSetup = true">New Game</button>
+                <button class="btn btn-ghost" @click="reviewGame">Review Game</button>
+              </div>
             </div>
-          </div>
-        </Transition>
+          </Transition>
 
-        <Transition name="fade-up">
-          <div class="game-over-banner cheat-busted glass" v-if="store.isCheaterBusted" style="border-color: rgba(244,63,94,0.4); background: rgba(244,63,94,0.05);">
-            <h3 style="color: var(--rose); font-size: 1.5rem; text-transform: uppercase;">Anti-Cheat Triggered</h3>
-            <p style="font-weight: 600; font-size: 1rem; margin-bottom: var(--space-2);">Suspicious behavior detected.</p>
-            <div class="muted" style="margin-bottom: var(--space-3); font-size: 0.85rem; max-width: 300px; text-align: center;">
-              Your Suspicion Score reached <b style="color: var(--rose)">{{ store.suspicionScore.toFixed(0) }}%</b>. 
-              <br>Window Blurs: {{ store.cheatMetrics.blurCount }}
+          <Transition name="fade-up">
+            <div class="game-over-overlay cheat-busted glass" v-if="store.isCheaterBusted">
+              <h3 style="color: var(--rose); font-size: 1.5rem; text-transform: uppercase;">Anti-Cheat Triggered</h3>
+              <p style="font-weight: 600; font-size: 1rem; margin-bottom: var(--space-2);">Suspicious behavior detected.</p>
+              <div class="muted" style="margin-bottom: var(--space-3); font-size: 0.85rem; max-width: 300px; text-align: center;">
+                Your Suspicion Score reached <b style="color: var(--rose)">{{ store.suspicionScore.toFixed(0) }}%</b>. 
+                <br>Window Blurs: {{ store.cheatMetrics.blurCount }}
+              </div>
+              <button class="btn btn-danger" @click="showSetup = true, store.newGame()">Accept Defeat</button>
             </div>
-            <button class="btn btn-danger" @click="showSetup = true, store.newGame()">Accept Defeat</button>
-          </div>
-        </Transition>
+          </Transition>
+        </div>
 
         <!-- Player info bottom -->
+        <!-- Bottom Player Bar (Always the Me) -->
         <PlayerBar
-          :name="flipped ? opponentName : playerName"
-          :rating="flipped ? opponentRating : playerRating"
-          :avatar="flipped ? opponentAvatar : playerAvatar"
+          :name="playerName"
+          :rating="playerRating"
+          :avatar="playerAvatar"
           :time="flipped ? store.blackTime : store.whiteTime"
           :active="store.turn === (flipped ? 'b' : 'w') && gameActive"
           :color="flipped ? 'black' : 'white'"
@@ -239,7 +244,7 @@ let clockInterval: ReturnType<typeof setInterval> | null = null
 function startClock() {
   if (clockInterval) clearInterval(clockInterval)
   clockInterval = setInterval(() => {
-    if (!store.gameStarted || store.isGameOver || store.isThinking) return
+    if (!store.gameStarted || store.isGameOver) return
     if (store.turn === 'w') {
       if (store.whiteTime > 0) store.whiteTime--
       else { 
@@ -258,6 +263,7 @@ function startClock() {
 
 function startGame() {
   store.newGame(selectedMode.value, selectedColor.value, selectedTc.value)
+  store.gameStarted = true
   showSetup.value = false
   startClock()
   
@@ -421,14 +427,34 @@ watch(() => store.isCheaterBusted, (busted) => {
   align-items: center;
 }
 
-.game-over-banner {
-  margin-top: var(--space-4);
-  padding: var(--space-4) var(--space-6);
+.board-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.game-over-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  padding: var(--space-6) var(--space-8);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  min-width: 300px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.cheat-busted {
+  border-color: rgba(244,63,94,0.6) !important;
+  background: rgba(15,8,10,0.9) !important;
 }
 
 /* Thinking indicator */

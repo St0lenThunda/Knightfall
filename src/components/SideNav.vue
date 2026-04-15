@@ -55,23 +55,6 @@
 
     <!-- Bottom actions -->
     <div class="sidenav-bottom" v-show="!collapsed">
-      <div class="quick-settings glass-sm" style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);">
-        <div class="label">Quick Settings</div>
-        <div style="display: flex; flex-direction: column; gap: var(--space-2);">
-          <label style="font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-            <span class="muted">Board Theme</span>
-            <select v-model="settings.boardTheme" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); padding: 2px 4px; border-radius: 4px; outline: none;">
-              <option value="classic">Classic</option>
-              <option value="wood">Wood</option>
-              <option value="obsidian">Obsidian</option>
-            </select>
-          </label>
-          <label style="font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
-            <span class="muted">Sound Effects</span>
-            <input type="checkbox" v-model="settings.soundEnabled" style="accent-color: var(--accent)" />
-          </label>
-        </div>
-      </div>
       <div class="sidenav-footer">
         <span class="muted" style="font-size: 0.75rem;">v0.1.0 prototype</span>
       </div>
@@ -91,14 +74,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { useSettingsStore } from '../stores/settingsStore'
 import { useUserStore } from '../stores/userStore'
 import AuthModal from './AuthModal.vue'
 import LogoutModal from './LogoutModal.vue'
 
-const settings = useSettingsStore()
 const userStore = useUserStore()
 
 const showAuthModal = ref(false)
@@ -119,6 +100,19 @@ async function handleLogout() {
   showLogoutModal.value = true
 }
 
+const handleOpenAuth = (e: any) => {
+  authMode.value = e.detail || 'login'
+  showAuthModal.value = true
+}
+
+onMounted(() => {
+  document.addEventListener('open-auth', handleOpenAuth)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('open-auth', handleOpenAuth)
+})
+
 const route = useRoute()
 const collapsed = ref(false)
 
@@ -126,9 +120,10 @@ const allNavItems = [
   { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
   { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE', auth: false },
   { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3',    auth: false },
-  { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: false },
-  { path: '/library',   icon: '⬡',  label: 'Archive',     badge: null,   auth: false },
+  { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: true  },
+  { path: '/library',   icon: '⬡',  label: 'Archive',     badge: null,   auth: true  },
   { path: '/profile',   icon: '👤', label: 'Profile',     badge: null,   auth: true  },
+  { path: '/settings',  icon: '⚙️',  label: 'Settings',    badge: null,   auth: false },
 ]
 
 const navItems = computed(() =>
@@ -161,7 +156,9 @@ const navItems = computed(() =>
   gap: var(--space-3);
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
+.sidenav.collapsed .sidenav-logo { justify-content: center; }
 .logo-icon {
   font-size: 1.8rem;
   flex-shrink: 0;
@@ -180,6 +177,21 @@ const navItems = computed(() =>
   margin-left: auto;
   font-size: 1.2rem;
   flex-shrink: 0;
+}
+.sidenav.collapsed .collapse-btn {
+  position: absolute;
+  right: -12px;
+  top: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 10;
 }
 
 .sidenav-user, .avatar-collapsed {
@@ -233,6 +245,10 @@ const navItems = computed(() =>
   white-space: nowrap;
   position: relative;
 }
+.sidenav.collapsed .nav-link {
+  justify-content: center;
+  padding: var(--space-3) 0;
+}
 .nav-link:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
@@ -242,7 +258,16 @@ const navItems = computed(() =>
   color: var(--accent-bright);
   border: 1px solid rgba(139,92,246,0.2);
 }
-.nav-icon { font-size: 1.2rem; flex-shrink: 0; width: 24px; text-align: center; }
+.nav-icon { 
+  font-size: 1.2rem; 
+  flex-shrink: 0; 
+  width: 24px; 
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidenav.collapsed .nav-icon { margin: 0; }
 .nav-label { flex: 1; }
 .nav-badge {
   font-size: 0.65rem;

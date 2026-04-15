@@ -97,22 +97,22 @@ export const useUserStore = defineStore('user', () => {
         })
       }
 
-      // Fetch Puzzle Attempts
-      const { data: attempts } = await supabase
+      // Fetch Puzzle Attempts (Safe check)
+      const { data: attempts, error: attError } = await supabase
         .from('puzzle_attempts')
         .select('*')
         .eq('user_id', session.value.user.id)
         .order('created_at', { ascending: false })
       
-      if (attempts) puzzleAttempts.value = attempts
+      if (!attError && attempts) puzzleAttempts.value = attempts
 
-      // Fetch Puzzle Queue
-      const { data: queue } = await supabase
+      // Fetch Puzzle Queue (Safe check)
+      const { data: queue, error: qError } = await supabase
         .from('puzzle_queue')
         .select('*')
         .eq('user_id', session.value.user.id)
       
-      if (queue) puzzleQueue.value = queue
+      if (!qError && queue) puzzleQueue.value = queue
 
     } else {
       profile.value = null

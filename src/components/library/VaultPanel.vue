@@ -26,6 +26,7 @@
             <option value="date">Game Date</option>
             <option value="movesCount">Move Count</option>
             <option value="player">Player Name</option>
+            <option value="opening">Opening (ECO)</option>
           </select>
           <button class="sort-dir-btn" @click="libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'">
             {{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}
