@@ -10,6 +10,18 @@
         <button class="btn btn-ghost btn-sm" @click="importPgn">📂 Import PGN</button>
       </div>
     </div>
+
+    <!-- Loading overlay -->
+    <Transition name="fade-out">
+      <div class="analysis-loading-overlay" v-if="isLoading">
+        <div class="loading-content">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Initializing Analysis Engine</div>
+          <div class="loading-sub muted">Preparing Stockfish and loading game data...</div>
+        </div>
+      </div>
+    </Transition>
+
     <div class="analysis-layout">
       <!-- Board column -->
       <div class="analysis-board-col">
@@ -139,6 +151,7 @@ const uiStore = useUiStore()
 const settings = useSettingsStore()
 const isCoachThinking = ref(false)
 const coachResponse = ref<string | null>(null)
+const isLoading = ref(true)
 
 const renderedCoach = computed(() => {
   if (!coachResponse.value) return ''
@@ -329,6 +342,7 @@ onMounted(async () => {
   await nextTick()
 
   engineStore.init()
+  isLoading.value = false
   
   // If no game is loaded in the store, try to pull the latest from the library
   if (store.moveHistory.length === 0) {
@@ -401,7 +415,43 @@ function getMoveQuality(move: any, _index: number) {
   max-width: 1600px;
   padding-left: var(--space-6);
   padding-right: var(--space-6);
+  position: relative;
 }
+
+/* Loading overlay */
+.analysis-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+.loading-spinner {
+  width: 44px; height: 44px;
+  border: 3px solid rgba(139,92,246,0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 0.9s linear infinite;
+}
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.loading-sub { font-size: 0.85rem; }
+
+.fade-out-leave-active { transition: opacity 0.4s ease; }
+.fade-out-leave-to { opacity: 0; }
 
 .game-matchup-header {
   display: flex;
