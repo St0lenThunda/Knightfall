@@ -266,12 +266,6 @@ function masteryBadges(input: EvalInput): Badge[] {
 function ritualBadges(input: EvalInput): Badge[] {
   const { puzzleAttempts, pastGames } = input
 
-  // Monday wins check
-  const mondayWins = pastGames.filter(g => {
-    // created_at not on PastGame — approximate via index ordering
-    return g.result === 'win'
-  }).length  // Placeholder until matches table has timestamps
-
   return [
     {
       id: 'streak_3',

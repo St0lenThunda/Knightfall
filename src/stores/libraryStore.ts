@@ -505,7 +505,7 @@ export const useLibraryStore = defineStore('library', () => {
   })
 
   // --- The Opening Constellation Logic ---
-  let lastProcessedFingerprint = ''
+
   
   const isConstellationActive = ref(false)
   

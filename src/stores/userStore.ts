@@ -33,9 +33,19 @@ export interface QueuedPuzzle {
   repetition: number
 }
 
+export interface Profile {
+  id: string
+  username: string
+  email?: string
+  rating: number
+  puzzle_rating?: number
+  location?: string
+  avatar_url?: string
+}
+
 export const useUserStore = defineStore('user', () => {
   const session = ref<any>(null)
-  const profile = ref<{ id: string, username: string, rating: number, puzzle_rating?: number, location?: string, avatar_url?: string } | null>(null)
+  const profile = ref<Profile | null>(null)
   const pastGames = ref<PastGame[]>([])
   const puzzleAttempts = ref<PuzzleAttempt[]>([])
   const puzzleQueue = ref<QueuedPuzzle[]>([])
@@ -121,6 +131,13 @@ export const useUserStore = defineStore('user', () => {
       puzzleQueue.value = []
     }
   }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    session.value = null
+    profile.value = null
+  }
+
 
   // Calculate ELO Rating update based on Standard expected probability
   async function submitPuzzleAttempt(puzzleId: string, puzzleRating: number, solved: boolean, attempts: number, timeTaken: number, hintsUsed: number, themes: string[]) {
@@ -393,5 +410,5 @@ export const useUserStore = defineStore('user', () => {
     return streak
   })
 
-  return { session, profile, pastGames, puzzleAttempts, puzzleQueue, fetchUserData, submitPuzzleAttempt, weaknessDna, wldStats, openingStats, ratingHistory, currentRating, activityHeatmap, badges, solvedToday, currentStreak }
+  return { session, profile, pastGames, puzzleAttempts, puzzleQueue, fetchUserData, submitPuzzleAttempt, signOut, weaknessDna, wldStats, openingStats, ratingHistory, currentRating, activityHeatmap, badges, solvedToday, currentStreak }
 })

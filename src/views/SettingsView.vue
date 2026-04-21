@@ -158,8 +158,8 @@
               <h3>Identity</h3>
               <div class="setting-row" v-if="userStore.profile">
                 <div class="setting-info">
-                  <div class="label">Connected as {{ userStore.profile.username }}</div>
-                  <div class="desc">{{ userStore.profile.email }}</div>
+                   <div class="label">Connected as {{ userStore.profile?.username }}</div>
+                   <div class="desc">{{ userStore.profile?.email || 'No email set' }}</div>
                 </div>
                 <div class="setting-action">
                   <button class="btn btn-ghost btn-sm" @click="handleSignOut">Sign Out</button>
