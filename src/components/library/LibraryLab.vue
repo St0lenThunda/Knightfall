@@ -3,7 +3,7 @@
     <div class="lab-header">
       <span class="icon">🔬</span>
       <div class="title-group">
-        <h3>Archive Laboratory</h3>
+        <h3>Other Sources</h3>
         <p class="muted">Master collections & Custom imports</p>
       </div>
     </div>
@@ -24,10 +24,23 @@
         </div>
 
         <div class="lib-list">
-          <div v-for="item in filteredLib" :key="item.id" class="lib-item glass-xs">
+          <div
+            v-for=" item in filteredLib "
+            :key="item.id"
+            class="lib-item glass-xs"
+            :title="item.description"
+          >
             <div class="item-meta">
-              <span class="pill" :class="item.category">{{ item.category }}</span>
-              <span class="name">{{ item.name }}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span
+                  class="pill"
+                  :class="item.category"
+                >{{ item.category }}</span>
+                <span class="name">{{ item.name }}</span>
+              </div>
+              <div class="source-info">
+                <span class="badge badge-accent"> {{ item.sourceWebsite || 'Local' }}</span>
+              </div>
             </div>
             <button 
               class="import-mini-btn" 
@@ -210,6 +223,34 @@ async function importPgnTextAction() {
 .pill.events { color: #fbbf24; }
 .pill.narrative { color: #f43f5e; background: rgba(244, 63, 94, 0.1); }
 
+.source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.source-url {
+  font-size: 0.65rem;
+  color: var(--accent);
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.source-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+  max-width: 220px;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .import-mini-btn {
   background: none; border: none; cursor: pointer; opacity: 0.7;
 }

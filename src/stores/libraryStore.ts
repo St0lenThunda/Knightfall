@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, toRaw } from 'vue'
 import { Chess } from 'chess.js'
 import JSZip from 'jszip'
 import { supabase } from '../api/supabaseClient'
+import { parse } from '@mliebelt/pgn-parser'
+import { buildOpeningTree } from '../utils/constellationUtils'
+import { useUserStore } from './userStore'
 
 export interface LibraryGame {
   id: string
@@ -40,10 +43,49 @@ export const useLibraryStore = defineStore('library', () => {
   const searchQuery = ref('')
   const filterResult = ref('all')
   const selectedTag = ref('all')
+  const filterPerspective = ref<'all' | 'white' | 'black'>('all')
   const sortBy = ref(localStorage.getItem('vault_sortBy') || 'addedAt')
   const sortOrder = ref(localStorage.getItem('vault_sortOrder') || 'desc')
   
   let db: IDBDatabase | null = null
+
+  /**
+   * Helper to load a PGN into chess.js. We dynamically switch parsers for fault tolerance:
+   * 1. Strict PEG Parser (`chess.js`) - Fast but fragile
+   * 2. AST Tolerant Parser (`@mliebelt/pgn-parser`) - Handles nested metadata perfectly
+   * 3. RegEx Scrubber - Destructive last resort to salvage unreadable syntax
+   */
+  function safeLoadPgn(chess: Chess, pgn: string) {
+    try {
+      chess.loadPgn(pgn)
+    } catch {
+      try {
+        // Fallback 1: Tolerant AST compilation
+        const ast = parse(pgn, { startRule: 'game' }) as any
+        chess.reset()
+        if (ast.tags && ast.tags.FEN) {
+           chess.load(ast.tags.FEN)
+        }
+        for (const m of ast.moves) {
+           chess.move(m.notation.notation)
+        }
+        if (ast.tags) {
+           for (const [key, value] of Object.entries(ast.tags)) {
+             if (typeof value === 'string') chess.header(key, value)
+           }
+        }
+      } catch {
+        // Fallback 2: Destructive String Scrubbing
+        let clean = pgn.replace(/\[%[^\]]+\]/g, '')
+        let prev = ''
+        while (clean !== prev) {
+          prev = clean
+          clean = clean.replace(/\([^()]*\)/g, '')
+        }
+        try { chess.loadPgn(clean) } catch { /* Surrender */ }
+      }
+    }
+  }
 
   // Initialize IndexedDB
   async function initDb() {
@@ -76,7 +118,7 @@ export const useLibraryStore = defineStore('library', () => {
       
       request.onsuccess = () => {
         games.value = request.result || []
-        generateOpeningTree() // Background task
+        // generateOpeningTree() // Automatical generation disabled to save processing power
         resolve()
       }
     })
@@ -98,7 +140,7 @@ export const useLibraryStore = defineStore('library', () => {
         if (!raw) continue
 
         try {
-            chess.loadPgn(raw)
+            safeLoadPgn(chess, raw)
             const headers = chess.header()
             
             const game: LibraryGame = {
@@ -137,7 +179,7 @@ export const useLibraryStore = defineStore('library', () => {
         games.value = [...games.value, ...newGames]
         isImporting.value = false
         importProgress.value = 100
-        generateOpeningTree() // Background task
+        // generateOpeningTree() // Automatical generation disabled
     }
   }
 
@@ -188,7 +230,7 @@ export const useLibraryStore = defineStore('library', () => {
   async function saveGameToLibrary(pgn: string, tags: string[] = []) {
     const chess = new Chess()
     try {
-      chess.loadPgn(pgn)
+      safeLoadPgn(chess, pgn)
       const headers = chess.header()
       
       let cleanResult = headers['Result'] || '*'
@@ -258,7 +300,7 @@ export const useLibraryStore = defineStore('library', () => {
       if (existingIds.has(m.id)) continue
 
       try {
-        chess.loadPgn(m.pgn)
+        safeLoadPgn(chess, m.pgn)
         const headers = chess.header()
         
         const game: LibraryGame = {
@@ -402,42 +444,58 @@ export const useLibraryStore = defineStore('library', () => {
       tagDebounce = setTimeout(updateTagCloud, 1000)
   }, { immediate: true })
 
-  const filteredGames = computed(() => {
-    let result = games.value.filter(g => {
-        const matchesSearch = 
-            g.white.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            g.black.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            g.event.toLowerCase().includes(searchQuery.value.toLowerCase())
-        
-        const matchesResult = filterResult.value === 'all' || g.result === filterResult.value
-        const matchesTag = selectedTag.value === 'all' || (g.tags && g.tags.includes(selectedTag.value))
-        
-        return matchesSearch && matchesResult && matchesTag
-    })
+  const isFiltering = ref(false)
+  const filteredGames = ref<LibraryGame[]>([])
 
-    result.sort((a,b) => {
-        let valA: any, valB: any
-        switch(sortBy.value) {
-            case 'date': valA = a.date; valB = b.date; break
-            case 'movesCount': valA = a.movesCount; valB = b.movesCount; break
-            case 'player': valA = a.white; valB = b.white; break
-            case 'opening': valA = a.eco; valB = b.eco; break
-            default: valA = a.addedAt; valB = b.addedAt
-        }
-        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
-        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
-        return 0
+  const filterWorker = new Worker(new URL('../workers/libraryFilter.worker.ts', import.meta.url), { type: 'module' })
+
+  filterWorker.onmessage = (e) => {
+    filteredGames.value = e.data
+    isFiltering.value = false
+  }
+
+  function triggerFilter() {
+    isFiltering.value = true
+    const userStore = useUserStore()
+    const username = userStore.profile?.username || 'Player'
+    
+    filterWorker.postMessage({
+      type: 'FILTER',
+      payload: {
+        username,
+        searchQuery: searchQuery.value,
+        filterResult: filterResult.value,
+        selectedTag: selectedTag.value,
+        filterPerspective: filterPerspective.value,
+        sortBy: sortBy.value,
+        sortOrder: sortOrder.value
+      }
     })
-    return result
+  }
+
+  // Watch for game list changes to update Worker Cache
+  watch(() => games.value, (newGames) => {
+      filterWorker.postMessage({ type: 'SET_GAMES', payload: toRaw(newGames) })
+      triggerFilter()
+  }, { deep: false })
+
+  // Watch for filter changes to trigger worker
+  watch([searchQuery, filterResult, selectedTag, filterPerspective, sortBy, sortOrder], () => {
+    triggerFilter()
   })
 
-  // DEBOUNCED SYNC
-  let debounceTimer: any = null
-  watch([searchQuery, filterResult, selectedTag], () => {
-      if (debounceTimer) clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => {
-          generateOpeningTree()
-      }, 500)
+
+  // Track if the constellation map matches the current filters
+  const constellationFingerprint = ref('')
+  const isConstellationStale = computed(() => {
+    const current = `${filteredGames.value.length}-${searchQuery.value}-${filterResult.value}-${selectedTag.value}-${filterPerspective.value}`
+    return constellationFingerprint.value !== current
+  })
+
+  // Watch for filter changes to mark the map as stale (without triggering worker explicitly here, to avoid double trigger)
+  watch([searchQuery, filterResult, selectedTag, games], () => {
+    // We don't automatically re-generate, just ensure the UI knows it's stale
+    console.log('[Library] Filters changed, Constellation is now stale.')
   })
 
   // Watch for sort changes just for persistence
@@ -453,8 +511,6 @@ export const useLibraryStore = defineStore('library', () => {
   
   // Transforms the flat game list into a recursive trie asynchronously
   async function generateOpeningTree() {
-    if (!isConstellationActive.value) return
-
     // SUSPEND while in Analysis View to save CPU for the engine
     if (window.location.pathname.includes('/analysis')) {
         console.log('[Library] Constellation generation suspended (Analysis Lab active)')
@@ -462,51 +518,35 @@ export const useLibraryStore = defineStore('library', () => {
     }
     
     const currentGames = filteredGames.value
-    const fingerprint = `${currentGames.length}-${currentGames[0]?.id || ''}-${searchQuery.value}-${selectedTag.value}`
+    const fingerprint = `${currentGames.length}-${searchQuery.value}-${filterResult.value}-${selectedTag.value}-${filterPerspective.value}`
     
-    if (fingerprint === lastProcessedFingerprint) return
     if (isGeneratingTree.value) return 
     
     isGeneratingTree.value = true
-    lastProcessedFingerprint = fingerprint
     
-    const root: OpeningNode = { san: 'Root', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', weight: currentGames.length, children: {} }
-    const chess = new Chess()
-    
-    // Process in chunks to keep the UI snappy
-    const CHUNK_SIZE = 100
-    const total = currentGames.length
-
-    for (let i = 0; i < total; i++) {
-        const game = currentGames[i]
-        try {
-            chess.loadPgn(game.pgn)
-            const history = chess.history({ verbose: true })
-            let currentNode = root
-            const depth = Math.min(history.length, 10)
-            
-            for (let j = 0; j < depth; j++) {
-                const move = history[j]
-                const san = move.san
-                const fen = move.after
-                
-                if (!currentNode.children[san]) {
-                    currentNode.children[san] = { san, fen, weight: 0, children: {} }
-                }
-                
-                currentNode.children[san].weight++
-                currentNode = currentNode.children[san]
-            }
-        } catch (e) { /* skip */ }
-
-        // Yield to main thread
-        if (i > 0 && i % CHUNK_SIZE === 0) {
-            await new Promise(r => setTimeout(r, 0))
-        }
+    try {
+        const tree = await buildOpeningTree(currentGames, (p) => {
+            importProgress.value = Math.round(p * 100)
+        })
+        
+        openingTree.value = tree
+        constellationFingerprint.value = fingerprint // Sync the fingerprint
+    } finally {
+        isGeneratingTree.value = false
     }
+  }
 
-    openingTree.value = root
-    isGeneratingTree.value = false
+  // Helper for UI to trigger a seamless perspective change and map update 
+  function changePerspectiveAndMap(persp: 'all' | 'white' | 'black') {
+      filterPerspective.value = persp
+      
+      // We must wait for the Web Worker to finish filtering the games before mapping
+      const unwatch = watch(isFiltering, (filtering) => {
+          if (!filtering) {
+              unwatch()
+              generateOpeningTree()
+          }
+      })
   }
 
   return { 
@@ -527,6 +567,9 @@ export const useLibraryStore = defineStore('library', () => {
     generateOpeningTree,
     isConstellationActive,
     isGeneratingTree,
+    isConstellationStale,
+    changePerspectiveAndMap,
+    filterPerspective,
     openingTree,
     searchQuery,
     filterResult,
@@ -534,6 +577,7 @@ export const useLibraryStore = defineStore('library', () => {
     sortBy,
     sortOrder,
     allTags,
-    filteredGames
+    filteredGames,
+    isFiltering
   }
 })

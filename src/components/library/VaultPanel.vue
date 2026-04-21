@@ -121,16 +121,17 @@ function openInAnalysis(game: any) {
 
 .vault-controls {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   padding: var(--space-4);
   border-radius: var(--radius-md);
-  gap: var(--space-3);
+  gap: var(--space-4);
   background: rgba(255,255,255,0.02);
   border: 1px solid var(--border);
 }
 
 .search-box {
-  width: 100%;
+  flex: 1;
   position: relative;
   display: flex;
   align-items: center;
@@ -160,7 +161,7 @@ function openInAnalysis(game: any) {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .results-badge {

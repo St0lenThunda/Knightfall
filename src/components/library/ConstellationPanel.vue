@@ -3,12 +3,39 @@
     <div class="constellation-header glass-sm">
       <div class="info">
         <h3>Repertoire Constellation</h3>
-        <p class="muted">A visual map of your common opening branches. The larger the star, the more games you've played in that line.</p>
+        <p class="muted">A visual map of your common opening branches.</p>
       </div>
-      <div class="legend">
-        <div class="legend-item"><span class="dot white"></span> White Move</div>
-        <div class="legend-item"><span class="dot black"></span> Black Move</div>
+      <div class="header-controls">
+        <div class="perspective-toggle glass-xs">
+          <button 
+            class="side-btn" 
+            :class="{ active: libraryStore.filterPerspective === 'all' }"
+            @click="libraryStore.changePerspectiveAndMap('all')"
+          >
+            All
+          </button>
+          <button 
+            class="side-btn" 
+            :class="{ active: libraryStore.filterPerspective === 'white' }"
+            @click="libraryStore.changePerspectiveAndMap('white')"
+          >
+            White
+          </button>
+          <button 
+            class="side-btn" 
+            :class="{ active: libraryStore.filterPerspective === 'black' }"
+            @click="libraryStore.changePerspectiveAndMap('black')"
+          >
+            Black
+          </button>
+        </div>
       </div>
+    </div>
+    
+    <!-- Floating Bottom Legend -->
+    <div class="constellation-legend glass-sm">
+      <div class="legend-item"><span class="dot white"></span> White</div>
+      <div class="legend-item"><span class="dot black"></span> Black</div>
     </div>
 
     <div class="canvas-container" ref="containerEl" @mousedown="startDrag" @mousemove="onDrag" @mouseup="endDrag" @mouseleave="endDrag" @wheel="onWheel">
@@ -67,16 +94,26 @@
         <div class="tooltip-hint">Click to filter Vault</div>
       </div>
 
-      <!-- Loading Overlay -->
-      <Transition name="fade">
-        <div v-if="libraryStore.isGeneratingTree || !nodes.length" class="constellation-loading-overlay">
-          <div class="loader-content">
-            <div class="neon-spinner"></div>
-            <p>Mapping Repertoire Constellation...</p>
-            <span class="muted" style="font-size: 0.7rem;">Optimizing 1,000+ branches</span>
+        <!-- Loading / Empty / Stale Overlay -->
+        <Transition name="fade">
+          <div v-if="libraryStore.isGeneratingTree || !libraryStore.openingTree || libraryStore.isConstellationStale" class="constellation-loading-overlay">
+            <div class="loader-content" v-if="libraryStore.isGeneratingTree">
+              <div class="neon-spinner"></div>
+              <p>Mapping Repertoire Constellation...</p>
+              <span class="muted" style="font-size: 0.7rem;">Processing {{ libraryStore.importProgress }}%</span>
+            </div>
+            <div class="loader-content" v-else>
+               <div class="constellation-empty">{{ libraryStore.openingTree ? '🔄' : '✨' }}</div>
+               <h3>{{ libraryStore.openingTree ? 'Map Out of Date' : 'Constellation Offline' }}</h3>
+               <p class="muted" style="max-width: 300px; margin: 8px 0 20px;">
+                 {{ libraryStore.openingTree ? 'The map below does not reflect your new filters.' : 'Generate a visual map of your current filtered collection.' }}
+               </p>
+               <button class="btn btn-primary" @click="libraryStore.generateOpeningTree()">
+                 🔬 {{ libraryStore.openingTree ? 'Re-map Results' : 'Analyze Collection' }}
+               </button>
+            </div>
           </div>
-        </div>
-      </Transition>
+        </Transition>
     </div>
   </div>
 </template>
@@ -224,21 +261,41 @@ onMounted(() => {
   top: var(--space-4);
   left: var(--space-4);
   right: var(--space-4);
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--space-5);
   z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
   pointer-events: none;
+  border-radius: var(--radius-lg);
 }
-.constellation-header .info { max-width: 500px; }
-.constellation-header h3 { margin: 0; color: white; }
+.constellation-header .info { max-width: 400px; }
+.constellation-header h3 { margin: 0 0 4px; color: white; font-size: 1.2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+.constellation-header p { margin: 0; font-size: 0.85rem; line-height: 1.4; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); }
 
-.legend { display: flex; gap: var(--space-4); pointer-events: auto; }
-.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
-.dot { width: 10px; height: 10px; border-radius: 50%; }
-.dot.white { background: var(--accent-bright); box-shadow: 0 0 10px var(--accent); }
-.dot.black { background: #4b4b6a; border: 1px solid rgba(255,255,255,0.2); }
+.header-controls { pointer-events: auto; }
+.perspective-toggle { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); }
+.side-btn { 
+  background: none; border: none; padding: 6px 14px; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s;
+}
+.side-btn.active { background: var(--accent); color: white; }
+.side-btn:hover:not(.active) { color: var(--text-primary); background: rgba(255,255,255,0.05); }
+
+.constellation-legend {
+  position: absolute;
+  bottom: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10;
+  border-radius: var(--radius-md);
+}
+.legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot.white { background: var(--accent-bright); box-shadow: 0 0 12px var(--accent-bright); }
+.dot.black { background: #4a4a75; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
 
 .canvas-container {
   flex: 1;
@@ -307,6 +364,8 @@ onMounted(() => {
 }
 
 .loader-content { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
+.constellation-empty { font-size: 4rem; margin-bottom: var(--space-2); filter: drop-shadow(0 0 20px var(--accent)); animation: float 4s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
 
 .neon-spinner {
   width: 50px;

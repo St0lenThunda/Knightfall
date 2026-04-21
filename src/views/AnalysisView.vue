@@ -42,7 +42,7 @@
           </div>
         </div>
 
-        <ChessBoard :flipped="false" />
+        <ChessBoard :flipped="false" :arrows="engineArrows" />
       </div>
 
       <!-- Panel -->
@@ -52,14 +52,6 @@
            <div class="engine-info">
               <span class="badge badge-accent">STOCKFISH 16.1</span>
               <span class="depth">Depth {{ engineStore.currentDepth }}</span>
-           </div>
-           
-           <!-- Simulated Trend Graph (Mirroring the Image) -->
-           <div class="eval-graph-preview">
-              <svg viewBox="0 0 200 60" preserveAspectRatio="none">
-                <path d="M0,30 Q50,10 100,45 T200,20 L200,60 L0,60 Z" class="graph-fill" />
-                <path d="M0,30 Q50,10 100,45 T200,20" class="graph-line" />
-              </svg>
            </div>
         </div>
 
@@ -81,16 +73,7 @@
           </div>
 
           <!-- AI Coaching Prose -->
-          <div class="coaching-section">
-            <div v-if="isCoachThinking" class="coach-thinking-compact">
-              <div class="spinner"></div>
-              <span>Generating Insights...</span>
-            </div>
-            <div v-else-if="coachResponse" class="coach-prose-wrap animated-fade-in">
-              <div class="prose-header">ANALYSIS</div>
-              <div class="coach-markdown" v-html="renderedCoach"></div>
-            </div>
-          </div>
+          <CoachPanel />
 
           <!-- Alternative Lines -->
           <div v-if="engineStore.multiPvs.length > 1" class="alt-lines-sidebar">
@@ -136,27 +119,20 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useEngineStore } from '../stores/engineStore'
+import type { ArrowDef } from '../components/ChessBoard.vue'
 import { useUiStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
-import { generateCoaching } from '../api/llmApi'
-import { marked } from 'marked'
 import { Chess } from 'chess.js'
 import type { Square } from 'chess.js'
 import ChessBoard from '../components/ChessBoard.vue'
+import CoachPanel from '../components/CoachPanel.vue'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
 const uiStore = useUiStore()
 const settings = useSettingsStore()
-const isCoachThinking = ref(false)
-const coachResponse = ref<string | null>(null)
 const isLoading = ref(true)
-
-const renderedCoach = computed(() => {
-  if (!coachResponse.value) return ''
-  return marked.parse(coachResponse.value, { async: false }) as string
-})
 
 // Performance optimization: Cache the active game object so we don't .find() 7500 games on every UI update
 const currentGame = computed(() => {
@@ -183,6 +159,39 @@ const movePairs = computed(() => {
     ])
   }
   return pairs
+})
+
+const engineArrows = computed<ArrowDef[]>(() => {
+  const arrows: ArrowDef[] = []
+  if (!engineStore.pv || engineStore.pv.length === 0) return arrows
+  
+  if (settings.showBestMoveArrow && engineStore.multiPvs) {
+    engineStore.multiPvs.forEach((alt, idx) => {
+      if (alt && alt.moves && alt.moves.length > 0) {
+        const uci = alt.moves[0]
+        if (uci && uci.length >= 4) {
+          arrows.push({
+            from: uci.slice(0, 2),
+            to: uci.slice(2, 4),
+            type: idx === 0 ? 'suggestion' : 'suggestion-alt'
+          })
+        }
+      }
+    })
+  }
+
+  if (settings.showThreatArrow && engineStore.pv.length > 1) {
+    const threatUci = engineStore.pv[1]
+    if (threatUci && threatUci.length >= 4) {
+      arrows.push({
+        from: threatUci.slice(0, 2),
+        to: threatUci.slice(2, 4),
+        type: 'threat'
+      })
+    }
+  }
+
+  return arrows
 })
 
 const playerNames = computed(() => {
@@ -224,115 +233,21 @@ const selectedMoveLabel = computed(() => {
   return `${m.moveNumber}${m.moveNumber % 1 === 0 ? '.' : '...'} ${m.san}`
 })
 
-async function askCoach() {
-  const currentViewIndex = store.viewIndex
-  console.log(`[Coach] Interaction started for move idx: ${currentViewIndex}`)
-
-  if (!hasGame.value || !comparisonData.value) {
-    console.log(`[Coach] Aborting: No game or comparison data.`)
-    coachResponse.value = null
-    isCoachThinking.value = false
-    return
-  }
-  
-  const { playedMove, beforeFen } = comparisonData.value
-  const currentFen = playedMove.fen
-
-  // CHECK CACHE
-  if (currentGame.value) {
-      if (currentGame.value.analysisCache && currentGame.value.analysisCache[currentFen]) {
-          console.log(`[Coach] Cache Hit for FEN: ${currentFen.substring(0, 20)}...`)
-          coachResponse.value = currentGame.value.analysisCache[currentFen]
-          isCoachThinking.value = false
-          return
-      }
-  }
-
-  isCoachThinking.value = true
-  coachResponse.value = null
-
-  try {
-      console.log(`[Coach] Waiting for engine (target depth 3)... Current: ${engineStore.currentDepth}`)
-      let waitCount = 0
-      while (engineStore.currentDepth < 3 && waitCount < 10) {
-          if (store.viewIndex !== currentViewIndex) {
-              console.log(`[Coach] Request cancelled (user moved to ${store.viewIndex})`)
-              return
-          }
-          await new Promise(r => setTimeout(r, 60))
-          waitCount++
-      }
-
-      console.log(`[Coach] Engine ready (Depth: ${engineStore.currentDepth}). Triggering LLM...`)
-      if (store.viewIndex !== currentViewIndex) {
-          console.log(`[Coach] Aborted before LLM: viewIndex changed from ${currentViewIndex} to ${store.viewIndex}`)
-          return
-      }
-
-      const sideIdx = (store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex)
-      const side = sideIdx % 2 === 0 ? 'White' : 'Black'
-      const playerName = side === 'White' ? playerNames.value.white : playerNames.value.black
-      const opponentName = side === 'White' ? playerNames.value.black : playerNames.value.white
-      const bestMove = engineStore.suggestedMove || 'unknown'
-      const eval_ = engineStore.evalNumber
-
-      console.log(`[Coach] Calling generateCoaching for player: ${playerName}`)
-
-      const response = await generateCoaching({
-        fen: beforeFen,
-        evalNumber: eval_,
-        pv: engineStore.pv,
-        moveSan: playedMove.san,
-        moveNumber: playedMove.moveNumber,
-        side,
-        bestMove,
-        playerName,
-        opponentName
-      })
-
-      if (store.viewIndex !== currentViewIndex) {
-          console.log(`[Coach] LLM response received but ignored (late arrival).`)
-          return
-      }
-
-      console.log(`[Coach] LLM Response successfully received.`)
-      coachResponse.value = response
-
-      // PERSIST TO CACHE
-      if (store.loadedGameId && response) {
-          libraryStore.updateGameAnalysis(store.loadedGameId, currentFen, response)
-      }
-  } catch (err) {
-      if (store.viewIndex !== currentViewIndex) return
-      console.error('[Coach] Failed:', err)
-      coachResponse.value = "The AI coach encountered a momentary lapse. Try selecting this move again!"
-  } finally {
-      if (store.viewIndex === currentViewIndex) {
-          isCoachThinking.value = false
-          console.log(`[Coach] Request finished for move idx: ${currentViewIndex}`)
-      }
-  }
-}
-
+// askCoach has been extracted to CoachPanel.vue
 const hasGame = computed(() => store.moveHistory.length > 0)
 const evalNum = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
-// Reset coaching panel and re-analyze whenever the selected move changes
+// Restart engine analysis whenever the selected move changes
 let analysisDebounce: any = null
 watch(() => [store.viewIndex, store.loadedGameId], () => {
-  coachResponse.value = null
-  isCoachThinking.value = true
-  
   if (analysisDebounce) clearTimeout(analysisDebounce)
   
   analysisDebounce = setTimeout(() => {
     if (comparisonData.value) {
       engineStore.analyze(comparisonData.value.beforeFen, settings.analysisDepth)
-      askCoach()
     } else {
       engineStore.analyze(store.fen, settings.analysisDepth)
-      isCoachThinking.value = false
     }
   }, 100)
 }, { deep: false })
@@ -382,7 +297,6 @@ function importPgnStr(pgn: string) {
     store.chess.loadPgn(pgn)
     store.lastMove = moves.length ? { from: moves[moves.length-1].from as Square, to: moves[moves.length-1].to as Square } : null
     store.goToMove(0)
-    askCoach()
   } catch (err) {
     uiStore.addToast('Invalid PGN format.', 'error')
   }
@@ -524,16 +438,6 @@ function getMoveQuality(move: any, _index: number) {
 .engine-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
 .engine-info .depth { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
 
-.eval-graph-preview {
-  height: 60px;
-  width: 100%;
-  margin: var(--space-2) 0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.graph-line { fill: none; stroke: var(--accent-bright); stroke-width: 2; filter: drop-shadow(0 0 5px var(--accent)); }
-.graph-fill { fill: rgba(139,92,246,0.1); }
-
 .sidebar-scrollable-content {
   flex: 1;
   overflow-y: auto;
@@ -578,37 +482,6 @@ function getMoveQuality(move: any, _index: number) {
 .eval-val.pos { color: var(--green); }
 .eval-val.neg { color: var(--rose); }
 
-.coach-prose-wrap { overflow-y: auto; max-height: 300px; }
-.coach-markdown { font-size: 0.9rem; line-height: 1.7; color: var(--text-secondary); }
-.coach-markdown :deep(h1),
-.coach-markdown :deep(h2),
-.coach-markdown :deep(h3) { color: var(--text-primary); font-weight: 800; margin: 12px 0 6px; }
-.coach-markdown :deep(h1) { font-size: 1.1rem; }
-.coach-markdown :deep(h2) { font-size: 1rem; }
-.coach-markdown :deep(h3) { font-size: 0.92rem; color: var(--accent-bright); }
-.coach-markdown :deep(p) { margin: 6px 0; }
-.coach-markdown :deep(strong) { color: var(--text-primary); font-weight: 700; }
-.coach-markdown :deep(em) { font-style: italic; color: var(--text-muted); }
-.coach-markdown :deep(ul),
-.coach-markdown :deep(ol) { padding-left: 1.4em; margin: 6px 0; }
-.coach-markdown :deep(li) { margin-bottom: 4px; }
-.coach-markdown :deep(code) {
-  background: rgba(139, 92, 246, 0.15);
-  color: var(--accent-bright);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-}
-.coach-markdown :deep(blockquote) {
-  border-left: 3px solid var(--accent);
-  padding-left: 12px;
-  margin: 8px 0;
-  color: var(--text-muted);
-  font-style: italic;
-}
-.coach-markdown :deep(hr) { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-.prose-header, .label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; }
 
 .alt-line-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 6px; margin-bottom: 6px; font-size: 0.8rem; }
 .alt-line-item .score { font-family: var(--font-mono); font-weight: 700; width: 45px; }
@@ -641,50 +514,6 @@ function getMoveQuality(move: any, _index: number) {
 .metric-mini .bar { flex: 1; height: 3px; background: rgba(0,0,0,0.3); border-radius: 2px; }
 .metric-mini .fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
 
-.coach-thinking-compact { display: flex; align-items: center; gap: 12px; padding: var(--space-4); color: var(--text-muted); font-size: 0.85rem; }
-.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.coach-response-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.coach-avatar {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--accent-bright);
-}
-
-.save-status {
-  font-size: 0.65rem;
-  color: #10b981;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(16, 185, 129, 0.08);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.save-status .dot {
-  width: 5px;
-  height: 5px;
-  background: #10b981;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #10b981;
-}
-
-.coach-response-text {
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: var(--text-primary);
-  margin: 0;
-}
 
 .eval-chip {
   padding: 2px 8px;

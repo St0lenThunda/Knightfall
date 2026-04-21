@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { Chess } from 'chess.js'
+import { parse } from '@mliebelt/pgn-parser'
 import type { Square, PieceSymbol, Color } from 'chess.js'
 import nedImg from '../assets/ned.png'
 import tanyaImg from '../assets/tanya.png'
@@ -71,6 +72,14 @@ export const useGameStore = defineStore('game', () => {
   const activeBot = ref<Bot>(BOTS[1])
   const loadedGameId = ref<string | null>(null)
   let sfx: ReturnType<typeof initAudio> | null = null
+
+  /**
+   * Whether the game is actively in progress (started and not over).
+   * This used to be duplicated in PlayView — now it's the single source of truth.
+   *
+   * @returns boolean - True if a game is running and not yet finished
+   */
+  const gameActive = computed(() => gameStarted.value && !isGameOver.value)
 
   // Anti-cheat tracking
   const cheatMetrics = ref({
@@ -157,7 +166,33 @@ export const useGameStore = defineStore('game', () => {
   function loadPgn(pgn: string, m: GameMode = 'analysis', gameId: string | null = null) {
     newGame(m)
     loadedGameId.value = gameId
-    chess.value.loadPgn(pgn)
+    
+    // Fault-tolerant PGN parsing
+    try {
+      chess.value.loadPgn(pgn)
+    } catch {
+      try {
+        // Fallback 1: AST Parser
+        const ast = parse(pgn, { startRule: 'game' }) as any
+        chess.value.reset()
+        if (ast.tags && ast.tags.FEN) chess.value.load(ast.tags.FEN)
+        for (const move of ast.moves) chess.value.move(move.notation.notation)
+        if (ast.tags) {
+           for (const [key, value] of Object.entries(ast.tags)) {
+             if (typeof value === 'string') chess.value.header(key, value)
+           }
+        }
+      } catch {
+        // Fallback 2: Regex Scrubber
+        let clean = pgn.replace(/\[%[^\]]+\]/g, '')
+        let prev = ''
+        while (clean !== prev) {
+          prev = clean
+          clean = clean.replace(/\([^()]*\)/g, '')
+        }
+        try { chess.value.loadPgn(clean) } catch { /* Surrender */ }
+      }
+    }
     
     // Reconstruct move history from the loaded game
     const history = chess.value.history({ verbose: true })
@@ -350,6 +385,64 @@ export const useGameStore = defineStore('game', () => {
     forceGameOver.value = true
   }
 
+  // ═══ CLOCK LIFECYCLE ═══
+  // All temporal logic lives here so Views never manage setInterval directly.
+  // This prevents "ghost clocks" when navigating between views.
+
+  /** The interval ID for the running clock. Null means clock is stopped. */
+  let clockInterval: ReturnType<typeof setInterval> | null = null
+
+  /**
+   * Starts the game clock, ticking once per second.
+   * Automatically handles flag (timeout) detection for both sides.
+   * Clears any existing interval first to prevent double-ticking.
+   */
+  function startClock() {
+    if (clockInterval) clearInterval(clockInterval)
+    clockInterval = setInterval(() => {
+      if (!gameStarted.value || isGameOver.value) {
+        stopClock()
+        return
+      }
+      if (turn.value === 'w') {
+        if (whiteTime.value > 0) whiteTime.value--
+        else { stopClock(); handleFlag('w') }
+      } else {
+        if (blackTime.value > 0) blackTime.value--
+        else { stopClock(); handleFlag('b') }
+      }
+    }, 1000) // 1000ms = 1 second tick
+  }
+
+  /**
+   * Stops the clock completely. Used on game over, resignation, or view unmount.
+   */
+  function stopClock() {
+    if (clockInterval) {
+      clearInterval(clockInterval)
+      clockInterval = null
+    }
+  }
+
+  /**
+   * Pauses the clock temporarily (e.g., while the player studies a position).
+   * Identical to stopClock but semantically distinct for readability.
+   */
+  function pauseClock() {
+    stopClock()
+  }
+
+  /**
+   * Resumes the clock after a pause, but only if the game is still active.
+   * Prevents accidentally starting a clock on a finished game.
+   */
+  function resumeClock() {
+    if (gameActive.value && !clockInterval) {
+      startClock()
+    }
+  }
+
+
   watch(isGameOver, async (over) => {
     if (over && gameStarted.value && (mode.value === 'vs-computer' || mode.value === 'local')) {
       const libraryStore = useLibraryStore()
@@ -398,10 +491,11 @@ export const useGameStore = defineStore('game', () => {
   return {
     chess, mode, selectedSquare, legalMoveSquares, lastMove,
     moveHistory, viewIndex, playerColor, isThinking, promotionPending,
-    timeControl, whiteTime, blackTime, gameStarted, forceGameOver,
+    timeControl, whiteTime, blackTime, gameStarted, forceGameOver, gameActive,
     fen, turn, board, isGameOver, isCheck, isCheckmate, isStalemate, activeBot,
     isDraw, gameResult, timeOutWinner, resignationWinner, cheatMetrics, suspicionScore, isCheaterBusted, loadedGameId,
     newGame, loadPosition, loadPgn, selectSquare, makeMove, completePromotion,
-    goToMove, stepBack, stepForward, undoMove, computerMove, resign, handleFlag, registerBlur
+    goToMove, stepBack, stepForward, undoMove, computerMove, resign, handleFlag, registerBlur,
+    startClock, stopClock, pauseClock, resumeClock
   }
 })

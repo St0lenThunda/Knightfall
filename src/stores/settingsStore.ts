@@ -17,6 +17,8 @@ export const useSettingsStore = defineStore('settings', () => {
   // UI/UX
   const animationSpeed = ref<string>(localStorage.getItem('animationSpeed') || 'normal')
   const coachPersonality = ref<CoachPersonality>((localStorage.getItem('coachPersonality') as CoachPersonality) || 'encouraging')
+  const showBestMoveArrow = ref<boolean>(localStorage.getItem('showBestMoveArrow') !== 'false')
+  const showThreatArrow = ref<boolean>(localStorage.getItem('showThreatArrow') !== 'false')
 
   watch(boardTheme, (newTheme) => {
     localStorage.setItem('boardTheme', newTheme)
@@ -29,10 +31,12 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(analysisDepth, (newVal) => localStorage.setItem('analysisDepth', newVal.toString()))
   watch(animationSpeed, (newVal) => localStorage.setItem('animationSpeed', newVal))
   watch(coachPersonality, (newVal) => localStorage.setItem('coachPersonality', newVal))
+  watch(showBestMoveArrow, (newVal) => localStorage.setItem('showBestMoveArrow', newVal.toString()))
+  watch(showThreatArrow, (newVal) => localStorage.setItem('showThreatArrow', newVal.toString()))
 
   return { 
     boardTheme, pieceTheme, soundEnabled, 
     engineMultiPv, analysisDepth, 
-    animationSpeed, coachPersonality 
+    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow
   }
 })

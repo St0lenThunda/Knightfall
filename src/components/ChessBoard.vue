@@ -65,15 +65,24 @@
         <!-- Arrow Overlay -->
         <svg v-if="arrows && arrows.length > 0" class="board-arrows" viewBox="0 0 80 80">
           <defs>
-            <marker id="arrowhead" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+            <marker id="arrowhead-default" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
               <polygon points="0 0, 4 2, 0 4" fill="rgba(251,191,36,0.8)" />
+            </marker>
+            <marker id="arrowhead-suggestion" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+              <polygon points="0 0, 4 2, 0 4" fill="rgba(16, 185, 129, 0.8)" />
+            </marker>
+            <marker id="arrowhead-suggestion-alt" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+              <polygon points="0 0, 4 2, 0 4" fill="rgba(16, 185, 129, 0.3)" />
+            </marker>
+            <marker id="arrowhead-threat" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
+              <polygon points="0 0, 4 2, 0 4" fill="rgba(244, 63, 94, 0.8)" />
             </marker>
           </defs>
           <line v-for="(arr, i) in arrows" :key="i"
                 :x1="getCoords(arr.from).x" :y1="getCoords(arr.from).y"
                 :x2="getCoords(arr.to).x"   :y2="getCoords(arr.to).y"
-                stroke="rgba(251,191,36,0.8)" stroke-width="1.5"
-                marker-end="url(#arrowhead)" stroke-linecap="round" />
+                :stroke="getArrowColor(arr.type)" stroke-width="1.5"
+                :marker-end="getArrowMarker(arr.type)" stroke-linecap="round" />
         </svg>
 
         <!-- Promotion dialog -->
@@ -115,9 +124,15 @@ import type { Square } from 'chess.js'
 const store = useGameStore()
 const settings = useSettingsStore()
 
+export interface ArrowDef {
+  from: string
+  to: string
+  type?: 'suggestion' | 'suggestion-alt' | 'threat' | 'default'
+}
+
 const props = defineProps<{
   flipped?: boolean
-  arrows?: { from: string, to: string }[]
+  arrows?: ArrowDef[]
   highlights?: string[]
 }>()
 
@@ -147,6 +162,20 @@ function getCoords(sq: string) {
   let row = 8 - parseInt(rank)
   if (props.flipped) { col = 7 - col; row = 7 - row }
   return { x: col * 10 + 5, y: row * 10 + 5 }
+}
+
+function getArrowColor(type?: string) {
+  if (type === 'suggestion') return 'rgba(16, 185, 129, 0.8)'
+  if (type === 'suggestion-alt') return 'rgba(16, 185, 129, 0.3)'
+  if (type === 'threat') return 'rgba(244, 63, 94, 0.8)'
+  return 'rgba(251, 191, 36, 0.8)'
+}
+
+function getArrowMarker(type?: string) {
+  if (type === 'suggestion') return 'url(#arrowhead-suggestion)'
+  if (type === 'suggestion-alt') return 'url(#arrowhead-suggestion-alt)'
+  if (type === 'threat') return 'url(#arrowhead-threat)'
+  return 'url(#arrowhead-default)'
 }
 
 const PIECE_UNICODE: Record<string, string> = {

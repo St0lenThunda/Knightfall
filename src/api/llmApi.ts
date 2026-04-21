@@ -46,6 +46,30 @@ function generateMockCoaching ( req: CoachingRequest ): string {
   return `${getRand( intros )}${getRand( evaluations )}${getRand( closings )}`
 }
 
+/**
+ * Shared helper to call the Gemini API and parse the response text.
+ * @param prompt The complete LLM prompt
+ * @param apiKey The Gemini API Key
+ */
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    })
+  })
+  
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`Gemini API Error Body:`, errorBody);
+    throw new Error(`Gemini API error: ${response.statusText} - ${errorBody}`)
+  }
+
+  const data = await response.json()
+  return data.candidates[0].content.parts[0].text.trim()
+}
+
 export async function generateCoaching(req: CoachingRequest): Promise<string> {
   console.log( `[LLM API] generateCoaching entered for move: ${req.moveSan}` )
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
@@ -71,24 +95,10 @@ In 2-3 high-impact, actionable sentences:
 4. Keep the tone encouraging but scientifically precise.`
 
   try {
-    const response = await fetch( `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    })
     console.log( `LLM API Request: ${prompt}` )
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error( `Gemini API Error Body:`, errorBody );
-      throw new Error( `Gemini API error: ${response.statusText} - ${errorBody}` )
-    }
-
-    const data = await response.json()
-    const dataContent = data.candidates[0].content.parts[0].text.trim()
-    console.log( `LLM API Response: ${dataContent}` )
-    return dataContent
+    const responseText = await callGemini(prompt, apiKey)
+    console.log( `LLM API Response: ${responseText}` )
+    return responseText
   } catch (err) {
     console.error("LLM Generation failed:", err)
     return "The AI coach is currently unavailable. Focus on developing your pieces toward active squares and keeping your king safe!"
@@ -126,14 +136,7 @@ In 1-2 SHORT sentences with markdown:
 Keep it encouraging but direct. Use **bold** for key moves/concepts.`
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    })
-    if (!response.ok) throw new Error(`API ${response.status}`)
-    const data = await response.json()
-    return data.candidates[0].content.parts[0].text.trim()
+    return await callGemini(prompt, apiKey)
   } catch (err) {
     console.error("[BlunderAlert] LLM failed:", err)
     return `**${moveSan}** was inaccurate (−${evalDrop}). The engine preferred **${bestMove}**. Stay alert for tactical opportunities!`
@@ -163,14 +166,7 @@ Give a rich **markdown** breakdown in 3-5 sentences:
 Use ### headings, **bold** for key concepts, and bullet points where helpful. Be insightful but concise.`
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    })
-    if (!response.ok) throw new Error(`API ${response.status}`)
-    const data = await response.json()
-    return data.candidates[0].content.parts[0].text.trim()
+    return await callGemini(prompt, apiKey)
   } catch (err) {
     console.error("[PositionExplain] LLM failed:", err)
     return `### Position Assessment\n\nEvaluation: **${evalNum > 0 ? '+' : ''}${evalNum.toFixed(1)}**. Unable to generate detailed analysis at this time.`

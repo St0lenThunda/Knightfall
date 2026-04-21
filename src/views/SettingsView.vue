@@ -82,6 +82,27 @@
                   </select>
                 </div>
               </div>
+              
+              <h3>Visual Aids</h3>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Engine Best Move Arrow</div>
+                  <div class="desc">Show a glowing green prediction arrow indicating the top AI recommendation</div>
+                </div>
+                <div class="setting-action">
+                  <input type="checkbox" v-model="settings.showBestMoveArrow" class="toggle-switch" />
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Engine Threat Arrow</div>
+                  <div class="desc">Show a red arrow indicating the opponent's strongest expected counter-response</div>
+                </div>
+                <div class="setting-action">
+                  <input type="checkbox" v-model="settings.showThreatArrow" class="toggle-switch" />
+                </div>
+              </div>
             </div>
 
             <!-- ENGINE SETTINGS -->
