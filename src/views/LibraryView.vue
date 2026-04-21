@@ -34,6 +34,7 @@
           <div :key="activeTab" class="tab-content">
             <VaultPanel v-if="activeTab === 'vault'" />
             <ConstellationPanel v-else-if="activeTab === 'constellation'" />
+            <NativeExplorer v-else-if="activeTab === 'native'" />
           </div>
         </Transition>
       </div>
@@ -55,14 +56,16 @@ import { useLibraryStore } from '../stores/libraryStore'
 import VaultPanel from '../components/library/VaultPanel.vue'
 import ConstellationPanel from '../components/library/ConstellationPanel.vue'
 import LibraryLab from '../components/library/LibraryLab.vue'
+import NativeExplorer from '../components/library/NativeExplorer.vue'
 
 const libraryStore = useLibraryStore()
-const activeTab = ref<'vault' | 'constellation'>('vault')
+const activeTab = ref<'vault' | 'constellation' | 'native'>('vault')
 const rightVisible = ref(true)
 
 const tabs = [
   { id: 'vault', label: 'Vault', icon: '🗄️' },
-  { id: 'constellation', label: 'Constellation', icon: '✨' }
+  { id: 'constellation', label: 'Constellation', icon: '✨' },
+  { id: 'native', label: 'Local Files', icon: '💻' }
 ] as const
 
 watch(activeTab, (newTab) => {

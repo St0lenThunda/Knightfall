@@ -65,7 +65,7 @@
         >
           <span class="icon">📂</span>
           <p>Drop PGN/ZIP</p>
-          <button class="btn btn-ghost btn-xs" @click="$refs.fileInput.click()">Select</button>
+          <button class="btn btn-ghost btn-xs" @click="fileInput?.click()">Select</button>
           <input type="file" ref="fileInput" hidden @change="handleFileSelect" accept=".pgn,.zip" />
         </div>
       </div>
@@ -111,6 +111,7 @@ const libSearch = ref('')
 const isDragging = ref(false)
 const importUrl = ref('')
 const pgnText = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const tabs = [
   { id: 'library', icon: '🏆', label: 'Masters' },
@@ -136,8 +137,9 @@ async function handleFileDrop(e: DragEvent) {
     if (file) processFile(file)
 }
 
-function handleFileSelect(e: any) {
-    const file = e.target.files[0]
+function handleFileSelect(e: Event) {
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
     if (file) processFile(file)
 }
 
@@ -164,6 +166,7 @@ async function importPgnTextAction() {
     pgnText.value = ''
     uiStore.addToast('Snippet parsed!', 'success')
 }
+
 </script>
 
 <style scoped>
