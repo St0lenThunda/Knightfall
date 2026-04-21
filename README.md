@@ -175,7 +175,10 @@ A progressive rank ladder replacing the static "PRO" badge:
   - 🗡️ *"Opening Theory Broke"* — Won with no recognized opening for 10+ moves
   - 🏆 *"Perfect Run"* — 5 consecutive puzzles: no hints, no mistakes, first attempt
   - Requires PGN analysis via Supabase Edge Functions and material-tracking middleware
-- [ ] **Spaced Repetition Queue** — Failed puzzles resurface based on SM-2 forgetting curve algorithm
+- [ ] **The "Duolingo for Chess" SRS Engine** — A hyper-personalized Spaced Repetition puzzle system:
+  - 🔍 *Phase 1: Blunder Harvester* — Async background worker parsing `libraryStore` for massive eval swings to extract custom blunder FENs.
+  - 🧠 *Phase 2: SRS Algorithm* — Utilizing SM-2 forgetting curves to serve dynamically generated puzzles based strictly on a user's historical mistakes.
+  - 🎯 *Phase 3: Daily Drill UI* — A gamified "training loop" dashboard featuring progression streaks, XP bars, and instantaneous tactical pulse feedback.
 - [ ] **Opening Explorer** — Interactive tree of user's most-played openings with ECO codes
 - [ ] **Anti-Cheat Edge Functions** — Migrate client-side heuristics to server-side Supabase Edge Functions
 - [ ] **Mobile PWA** — Progressive Web App manifest + offline puzzle mode
