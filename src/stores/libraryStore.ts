@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch, toRaw } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Chess } from 'chess.js'
 import * as JSZip from 'jszip'
 import { supabase } from '../api/supabaseClient'
 import { parse } from '@mliebelt/pgn-parser'
 import { buildOpeningTree } from '../utils/constellationUtils'
-import { ecoToName } from '../utils/ecoLookup'
+import { ecoToName, ecoToDescription } from '../utils/ecoLookup'
+import { generateGameFingerprint } from '../utils/gameFingerprint'
 import { useUserStore } from './userStore'
 
 export interface LibraryGame {
@@ -39,6 +40,9 @@ export const useLibraryStore = defineStore('library', () => {
   const importProgress = ref(0)
   const isGeneratingTree = ref(false)
   const openingTree = ref<OpeningNode | null>(null)
+  
+  // Pinia Store Hoisting
+  const userStore = useUserStore()
   
   // FILTER STATE (Centralized)
   const searchQuery = ref('')
@@ -239,26 +243,19 @@ export const useLibraryStore = defineStore('library', () => {
       else if (cleanResult.startsWith('0-1')) cleanResult = '0-1'
       else if (cleanResult.startsWith('1/2-1/2') || cleanResult.includes('1/2') || cleanResult.includes('½')) cleanResult = '1/2-1/2'
 
-      // Deduplication Check — normalize names to lowercase for consistency
-      const isDuplicate = games.value.some(g => {
-        // Exact PGN match (fastest check)
-        if (g.pgn === pgn) return true
-        // Fuzzy meta match: same players, same date, similar length
-        // We allow ±2 move difference to handle parser inconsistencies
-        const sameWhite = g.white.toLowerCase() === (headers['White'] || 'Unknown').toLowerCase()
-        const sameBlack = g.black.toLowerCase() === (headers['Black'] || 'Unknown').toLowerCase()
-        const sameDate  = g.date === (headers['Date'] || 'Unknown')
-        const similarMoves = Math.abs(g.movesCount - (chess.history() || []).length) <= 2
-        return sameWhite && sameBlack && sameDate && similarMoves
-      })
+      const white = headers['White'] || 'Unknown'
+      const black = headers['Black'] || 'Unknown'
+      const stableId = generateGameFingerprint(white, black, pgn)
 
-      if (isDuplicate) return
+      // Deduplication Check — using our stable ID
+      const alreadyExists = games.value.some(g => g.id === stableId)
+      if (alreadyExists) return
 
       const game: LibraryGame = {
-        id: crypto.randomUUID(),
+        id: stableId,
         pgn: pgn,
-        white: headers['White'] || 'Unknown',
-        black: headers['Black'] || 'Unknown',
+        white,
+        black,
         result: cleanResult,
         date: headers['Date'] || new Date().toISOString().split('T')[0],
         event: headers['Event'] || 'Local Game',
@@ -284,7 +281,6 @@ export const useLibraryStore = defineStore('library', () => {
         // 5. Cloud Sync (Permanent DB)
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          const userStore = useUserStore()
           const myUsername = userStore.profile?.username || ''
           const isWhite = game.white.toLowerCase() === myUsername.toLowerCase()
           
@@ -330,15 +326,19 @@ export const useLibraryStore = defineStore('library', () => {
     const existingIds = new Set(games.value.map(g => g.id))
     
     for (const m of matches) {
-      // Avoid duplicates: check if ID exists locally (O(1) with Set)
-      if (existingIds.has(m.id)) continue
-
       try {
         safeLoadPgn(chess, m.pgn)
         const headers = chess.header()
         
+        // Recalculate fingerprint to ensure local ID consistency
+        const white = headers['White'] || 'Unknown'
+        const black = headers['Black'] || 'Unknown'
+        const stableId = generateGameFingerprint(white, black, m.pgn)
+
+        if (existingIds.has(stableId)) continue
+
         const game: LibraryGame = {
-          id: m.id, // Use Supabase UUID as local ID for stability
+          id: stableId,
           pgn: m.pgn,
           white: headers['White'] || 'Unknown',
           black: headers['Black'] || 'Unknown',
@@ -444,17 +444,12 @@ export const useLibraryStore = defineStore('library', () => {
      * 3. Combine with lowercase player names for uniqueness
      */
     games.value.forEach(g => {
-      // Extract the move portion of the PGN by stripping header lines [...]
-      const movesOnly = g.pgn
-        .replace(/\[.*?\]\s*/g, '')   // Remove all header tags
-        .replace(/\{[^}]*\}/g, '')    // Remove comments
-        .replace(/\s+/g, ' ')         // Collapse whitespace
-        .trim()
+      const fingerprint = generateGameFingerprint(g.white, g.black, g.pgn)
       
-      // Primary fingerprint: normalized moves + players
-      const fingerprint = `${g.white.toLowerCase().trim()}-${g.black.toLowerCase().trim()}-${movesOnly.slice(0, 200)}`
-      
-      if (seen.has(fingerprint)) {
+      // If the current ID doesn't match the correct fingerprint, it's a legacy entry
+      const isLegacyId = g.id !== fingerprint
+
+      if (seen.has(fingerprint) || isLegacyId) {
         toDelete.push(g.id)
       } else {
         seen.add(fingerprint)
@@ -523,6 +518,29 @@ export const useLibraryStore = defineStore('library', () => {
     console.log('[resetLibrary] Fresh database ready.')
   }
 
+  /**
+   * Aggressively cleans up the Supabase 'matches' table for the user.
+   * This is useful for clearing out legacy duplicates that were saved
+   * before the stable fingerprinting system was implemented.
+   */
+  async function purgeCloudLibrary() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    console.log('[purgeCloudLibrary] Wiping cloud matches...')
+    const { error } = await supabase
+      .from('matches')
+      .delete()
+      .or(`white_id.eq.${session.user.id},black_id.eq.${session.user.id}`)
+
+    if (error) {
+      console.error('[purgeCloudLibrary] Error:', error)
+      throw error
+    } else {
+      console.log('[purgeCloudLibrary] Cloud library wiped.')
+    }
+  }
+
   async function updateGameAnalysis(id: string, fen: string, text: string) {
     const game = gamesMap.value.get(id)
     if (!game) return
@@ -544,11 +562,139 @@ export const useLibraryStore = defineStore('library', () => {
    * utility to produce clean opening names — no need to re-parse
    * every PGN on each render.
    */
-  const openingStats = computed(() => {
-    const userStore = useUserStore()
-    const myUsername = userStore.profile?.username?.toLowerCase() || ''
+  /**
+   * PERFORMANCE RATING ENGINE (ELO)
+   * Calculates a unified rating based on the chronological history of all library games.
+   * Uses standard Elo formula: R_new = R_old + K * (S - E)
+   */
+  const performanceRating = computed(() => {
+    const history = performanceHistory.value
+    return history.length > 0 ? history[history.length - 1] : 1200
+  })
+
+  /**
+   * Generates the full rating progression history.
+   * Useful for charts and trend analysis.
+   */
+  const performanceHistory = computed(() => {
+    if (games.value.length === 0) return [1200]
+
+    const myName = userStore.profile?.username?.toLowerCase() || ''
+    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
     
-    const stats: Record<string, { win: number, loss: number, draw: number, games: number }> = {}
+    const sortedGames = [...games.value].sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0
+      const dateB = b.date ? new Date(b.date).getTime() : 0
+      return dateA - dateB
+    })
+
+    let currentElo = 1200
+    const K = 32
+    const history = [1200]
+
+    sortedGames.forEach(g => {
+      const isWhite = g.white.toLowerCase() === myName || (myChessCom && g.white.toLowerCase() === myChessCom)
+      const oppRatingStr = isWhite ? g.blackElo : g.whiteElo
+      const oppRating = oppRatingStr ? parseInt(oppRatingStr) : null
+      
+      if (!oppRating) return
+
+      let S = 0.5
+      if (g.result === '1-0') S = isWhite ? 1 : 0
+      if (g.result === '0-1') S = isWhite ? 0 : 1
+
+      const E = 1 / (1 + Math.pow(10, (oppRating - currentElo) / 400))
+      currentElo = currentElo + K * (S - E)
+      history.push(Math.round(currentElo))
+    })
+
+    return history
+  })
+
+  /**
+   * Generates a 12-week activity heatmap based on game frequency.
+   * Each cell represents a day, value is game count.
+   */
+  const activityHeatmap = computed(() => {
+    const weeks = 12
+    const days = 7
+    const heatmap = Array.from({ length: weeks }, () => Array(days).fill(0))
+    
+    if (games.value.length === 0) return heatmap
+
+    const now = new Date()
+    // Start of the heatmap (12 weeks ago, start of that week)
+    const startDate = new Date(now)
+    startDate.setDate(now.getDate() - (weeks * 7))
+    // Align to start of week (Sunday)
+    startDate.setDate(startDate.getDate() - startDate.getDay())
+
+    games.value.forEach(g => {
+      if (!g.date) return
+      const gDate = new Date(g.date)
+      const diffTime = gDate.getTime() - startDate.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays >= 0 && diffDays < (weeks * 7)) {
+        const weekIdx = Math.floor(diffDays / 7)
+        const dayIdx = diffDays % 7
+        heatmap[weekIdx][dayIdx]++
+      }
+    })
+
+    return heatmap
+  })
+
+  /**
+   * Overall library win rate (0-100).
+   */
+  const libraryWinRate = computed(() => {
+    if (games.value.length === 0) return 0
+    
+    const myName = userStore.profile?.username?.toLowerCase() || ''
+    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
+    
+    const wins = games.value.filter(g => {
+      const pWhite = g.white.toLowerCase()
+      const isWhite = pWhite === myName || (myChessCom && pWhite === myChessCom)
+      return (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
+    }).length
+    
+    return Math.round((wins / games.value.length) * 100)
+  })
+
+  /**
+   * Average Elo of all opponents in the library.
+   */
+  const avgOpponentElo = computed(() => {
+    if (games.value.length === 0) return 0
+    
+    const myName = userStore.profile?.username?.toLowerCase() || ''
+    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
+    
+    let totalElo = 0
+    let ratedGames = 0
+
+    games.value.forEach(g => {
+      const pWhite = g.white.toLowerCase()
+      const isWhite = pWhite === myName || (myChessCom && pWhite === myChessCom)
+      const oppRatingStr = isWhite ? g.blackElo : g.whiteElo
+      const oppRating = oppRatingStr ? parseInt(oppRatingStr) : null
+      
+      if (oppRating && !isNaN(oppRating)) {
+        totalElo += oppRating
+        ratedGames++
+      }
+    })
+
+    return ratedGames > 0 ? Math.round(totalElo / ratedGames) : 0
+  })
+
+  const openingStats = computed(() => {
+    const myName = userStore.profile?.username?.toLowerCase() || ''
+    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
+    
+    const stats: Record<string, { win: number, loss: number, draw: number, games: number, eco: string, description: string }> = {}
     
     games.value.forEach(g => {
       // Priority: ECO code → stored event name → fallback
@@ -558,9 +704,19 @@ export const useLibraryStore = defineStore('library', () => {
            ? g.event
            : 'Unknown Opening')
       
-      if (!stats[opName]) stats[opName] = { win: 0, loss: 0, draw: 0, games: 0 }
+      if (!stats[opName]) {
+        stats[opName] = { 
+          win: 0, 
+          loss: 0, 
+          draw: 0, 
+          games: 0, 
+          eco: g.eco || '',
+          description: ecoToDescription(g.eco || '')
+        }
+      }
       
-      const isWhite = g.white.toLowerCase() === myUsername
+      const pWhite = g.white.toLowerCase()
+      const isWhite = pWhite === myName || (myChessCom && pWhite === myChessCom)
       const result = g.result
       
       stats[opName].games++
@@ -572,6 +728,8 @@ export const useLibraryStore = defineStore('library', () => {
     return Object.entries(stats).map(([name, s]) => ({
       name,
       games: s.games,
+      eco: s.eco,
+      description: s.description,
       winPct: Math.round((s.win / s.games) * 100),
       lossPct: Math.round((s.loss / s.games) * 100),
       drawPct: Math.round((s.draw / s.games) * 100)
@@ -622,7 +780,6 @@ export const useLibraryStore = defineStore('library', () => {
 
   function triggerFilter() {
     isFiltering.value = true
-    const userStore = useUserStore()
     const username = userStore.profile?.username || 'Player'
     
     filterWorker.postMessage({
@@ -735,9 +892,15 @@ export const useLibraryStore = defineStore('library', () => {
     deleteGame,
     updateGameAnalysis,
     syncCloudGames,
+    performanceRating,
+    performanceHistory,
+    activityHeatmap,
+    libraryWinRate,
+    avgOpponentElo,
     repairVaultMetadata,
     purgeDuplicates,
     resetLibrary,
+    purgeCloudLibrary,
     generateOpeningTree,
     isConstellationActive,
     isGeneratingTree,

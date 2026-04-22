@@ -153,6 +153,26 @@ const ECO_CATEGORIES: Record<string, string> = {
 }
 
 /**
+ * Educational descriptions for opening categories and major systems.
+ */
+const ECO_DESCRIPTIONS: Record<string, string> = {
+  // Categories
+  'A': 'Flank openings (like the English or Bird) avoid the center early to strike later.',
+  'B': 'Semi-Open games occur when White plays 1.e4 and Black responds with anything other than 1...e5.',
+  'C': 'Open games (1.e4 e5) are the most classical battleground for central control.',
+  'D': 'Closed games (1.d4 d5) tend toward strategic maneuvering and solid structures.',
+  'E': 'Indian Defenses (1.d4 Nf6) are hypermodern systems that allow White central space to attack it later.',
+
+  // Specific Major Systems (Examples)
+  'B90': 'The Najdorf is the "Cadillac of Openings" — sharp, tactical, and incredibly complex.',
+  'C50': 'The Italian Game is a timeless classical battle, focusing on development and the f7 square.',
+  'B10': 'The Caro-Kann is the "Iron Wall" — a rock-solid defense that prepares a strong counter-strike.',
+  'C00': 'The French Defense creates an asymmetrical battle where Black solidifies the center and counter-attacks.',
+  'D10': 'The Slav is one of the most reliable ways to meet 1.d4, creating a very solid pawn chain.',
+  'E60': "The King's Indian is a high-risk, high-reward system aimed at a massive kingside attack.",
+}
+
+/**
  * Looks up a human-readable opening name for a given ECO code.
  * Falls back to the letter-category if the exact code isn't mapped.
  *
@@ -166,4 +186,20 @@ export function ecoToName(eco: string): string {
   // Fall back to the letter category
   const letter = code.charAt(0)
   return ECO_CATEGORIES[letter] || 'Unknown Opening'
+}
+
+/**
+ * Looks up a brief educational description for a given ECO code.
+ *
+ * @param eco - The ECO code (e.g. "B90", "C50")
+ * @returns A short description of the opening
+ */
+export function ecoToDescription(eco: string): string {
+  if (!eco) return 'A mysterious sequence of moves.'
+  const code = eco.trim().toUpperCase()
+  if (ECO_DESCRIPTIONS[code]) return ECO_DESCRIPTIONS[code]
+  
+  // Fall back to the category description
+  const letter = code.charAt(0)
+  return ECO_DESCRIPTIONS[letter] || 'A strategic battle for control of the board.'
 }

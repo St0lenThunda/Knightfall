@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useLibraryStore } from '../stores/libraryStore'
-import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
+import { useCoachStore } from '../stores/coachStore'
 
 const libraryStore = useLibraryStore()
-const userStore = useUserStore()
 const uiStore = useUiStore()
+const coachStore = useCoachStore()
 
 const isLoading = ref(true)
 const selectedCategory = ref('repertoire')
@@ -29,56 +29,21 @@ const detectedOpenings = computed(() => {
     winPct: s.winPct,
     lossPct: s.lossPct,
     drawPct: s.drawPct,
-    icon: '📊'
+    description: s.description,
+    icon: s.name.toLowerCase().includes('sicilian') ? '🦂' 
+        : s.name.toLowerCase().includes('ruy lopez') ? '🏰'
+        : s.name.toLowerCase().includes('italian') ? '🇮🇹'
+        : s.name.toLowerCase().includes('french') ? '🇫🇷'
+        : s.name.toLowerCase().includes('caro-kann') ? '🛡️'
+        : '♟️'
   }))
 })
 
 /**
  * Opening-specific prescriptions derived from the repertoire stats.
- * Unlike the DNA Lab (general fitness), these focus entirely on
- * which openings to study, avoid, or double down on.
+ * Now centralized in coachStore.
  */
-const openingRx = computed(() => {
-  const stats = libraryStore.openingStats || []
-  if (stats.length === 0) return []
-
-  const rx: { icon: string, title: string, desc: string, severity: string }[] = []
-
-  // 1. Weakest opening (lowest win% with ≥2 games played)
-  const viable = stats.filter(s => s.games >= 2)
-  if (viable.length > 0) {
-    const worst = [...viable].sort((a, b) => a.winPct - b.winPct)[0]
-    if (worst.winPct < 40) {
-      rx.push({ icon: '🩸', title: `Bleeding in the ${worst.name}`, desc: `Only ${worst.winPct}% win rate over ${worst.games} games. Consider switching systems or studying the critical lines.`, severity: 'critical' })
-    } else if (worst.winPct < 55) {
-      rx.push({ icon: '⚠️', title: `Shaky: ${worst.name}`, desc: `${worst.winPct}% win rate isn't terrible, but there's room to improve in ${worst.games} games played.`, severity: 'warning' })
-    }
-  }
-
-  // 2. Best opening — reinforce what works
-  if (viable.length > 0) {
-    const best = [...viable].sort((a, b) => b.winPct - a.winPct)[0]
-    if (best.winPct >= 60) {
-      rx.push({ icon: '💪', title: `Weapon: ${best.name}`, desc: `${best.winPct}% win rate across ${best.games} games. This is your strongest system — deepen your prep here.`, severity: 'good' })
-    }
-  }
-
-  // 3. One-trick pony check
-  const totalGames = stats.reduce((s, o) => s + o.games, 0)
-  if (stats.length > 0 && totalGames > 5) {
-    const topPct = Math.round((stats[0].games / totalGames) * 100)
-    if (topPct > 50) {
-      rx.push({ icon: '🔁', title: 'Predictable Repertoire', desc: `${topPct}% of your games are ${stats[0].name}. Opponents can prepare specifically against you.`, severity: 'warning' })
-    }
-  }
-
-  // Pad to at least 1 if we have games but no strong signals
-  if (rx.length === 0 && stats.length > 0) {
-    rx.push({ icon: '✅', title: 'Solid Repertoire', desc: 'No critical weaknesses detected. Keep playing to build deeper data.', severity: 'good' })
-  }
-
-  return rx.slice(0, 3)
-})
+const openingRx = computed(() => coachStore.openingPrescriptions)
 
 onMounted(async () => {
   isLoading.value = true
@@ -156,7 +121,9 @@ function startTraining(openingId: string) {
             <div class="rx-body">
               <h5>{{ rx.title }}</h5>
               <p>{{ rx.desc }}</p>
+              <router-link :to="rx.link" class="btn-text">{{ rx.linkText }}</router-link>
             </div>
+            <div class="rx-severity-dot" :class="rx.severity"></div>
           </div>
         </div>
       </div>
@@ -175,6 +142,7 @@ function startTraining(openingId: string) {
             <span class="opening-icon">{{ opening.icon }}</span>
             <div class="opening-name-wrap">
               <h3 class="title-sm">{{ opening.name }}</h3>
+              <p class="opening-desc">{{ opening.description }}</p>
               <p class="games-count">{{ opening.games }} games analyzed</p>
             </div>
           </div>
@@ -254,7 +222,8 @@ function startTraining(openingId: string) {
 .opening-card { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-5); }
 .card-top { display: flex; gap: var(--space-4); align-items: center; }
 .opening-icon { font-size: 2rem; }
-.games-count { font-size: 0.75rem; color: var(--text-muted); }
+.opening-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.3; margin: 2px 0 6px 0; font-style: italic; }
+.games-count { font-size: 0.7rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .performance-stats { display: flex; flex-direction: column; gap: var(--space-3); }
 .stat-row { display: flex; align-items: center; gap: var(--space-3); font-size: 0.75rem; }

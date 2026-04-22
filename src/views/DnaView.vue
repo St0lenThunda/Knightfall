@@ -3,12 +3,14 @@ import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
+import { useCoachStore } from '../stores/coachStore'
 import { fetchRecentChessComGames, getPlayerStats } from '../api/chessComApi'
 import ConfirmModal from '../components/ConfirmModal.vue'
 
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
+const coachStore = useCoachStore()
 
 const isSyncing = ref(false)
 const isImporting = ref(false)
@@ -33,32 +35,8 @@ const sourceBreakdown = computed(() => {
 // --- Library-Derived Intelligence ---
 
 /** Overall win rate across all imported games */
-const libraryWinRate = computed(() => {
-  const myName = userStore.profile?.username?.toLowerCase() || ''
-  if (libraryStore.games.length === 0) return 0
-  let wins = 0
-  libraryStore.games.forEach(g => {
-    const isWhite = g.white.toLowerCase() === myName
-    if ((g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)) wins++
-  })
-  return Math.round((wins / libraryStore.games.length) * 100)
-})
-
-/** Average Elo of opponents faced, parsed from PGN headers */
-const avgOpponentElo = computed(() => {
-  const myName = userStore.profile?.username?.toLowerCase() || ''
-  let total = 0
-  let count = 0
-  libraryStore.games.forEach(g => {
-    const isWhite = g.white.toLowerCase() === myName
-    const oppElo = parseInt(isWhite ? (g.blackElo || '') : (g.whiteElo || ''))
-    if (!isNaN(oppElo) && oppElo > 0) {
-      total += oppElo
-      count++
-    }
-  })
-  return count > 0 ? Math.round(total / count) : null
-})
+const libraryWinRate = computed(() => libraryStore.libraryWinRate)
+const avgOpponentElo = computed(() => libraryStore.avgOpponentElo)
 
 /** Most-played time control, derived from the Event header pattern */
 const mostPlayedControl = computed(() => {
@@ -77,123 +55,27 @@ const mostPlayedControl = computed(() => {
   return sorted.length > 0 ? sorted[0][0] : null
 })
 
-// --- Prescription Engine ---
-
-/**
- * Analyzes the user's game library and generates 3 personalized
- * training prescriptions based on real patterns in their data.
- * Each prescription targets a specific weakness discovered by
- * looking at color performance, game length, and opening variety.
- */
-const prescriptions = computed(() => {
-  const myName = userStore.profile?.username?.toLowerCase() || ''
-  const allGames = libraryStore.games
-  if (allGames.length === 0) {
-    return [
-      { icon: '📥', title: 'Import Your Games', desc: 'Link your Chess.com account to get personalized prescriptions.', link: '/profile', linkText: 'Set Up Profile →', severity: 'info' },
-      { icon: '⚔️', title: 'Play Some Games', desc: 'We need at least a few games to analyze your patterns.', link: '/play', linkText: 'Play Now →', severity: 'info' },
-      { icon: '🧩', title: 'Sharpen Tactics', desc: 'Solve puzzles to build your tactical foundation.', link: '/puzzles', linkText: 'Start Puzzles →', severity: 'info' },
-    ]
-  }
-
-  const rx: { icon: string, title: string, desc: string, link: string, linkText: string, severity: string }[] = []
-
-  // --- Analysis 1: Color Imbalance ---
-  let whiteWins = 0, whiteLosses = 0, blackWins = 0, blackLosses = 0
-  allGames.forEach(g => {
-    const isWhite = g.white.toLowerCase() === myName
-    const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
-    const lost = (g.result === '0-1' && isWhite) || (g.result === '1-0' && !isWhite)
-    if (isWhite) { if (won) whiteWins++; if (lost) whiteLosses++ }
-    else         { if (won) blackWins++; if (lost) blackLosses++ }
-  })
-  const whiteGames = whiteWins + whiteLosses
-  const blackGames = blackWins + blackLosses
-  const whiteWinPct = whiteGames > 0 ? Math.round((whiteWins / whiteGames) * 100) : 50
-  const blackWinPct = blackGames > 0 ? Math.round((blackWins / blackGames) * 100) : 50
-  const colorGap = whiteWinPct - blackWinPct
-
-  if (colorGap > 15) {
-    rx.push({ icon: '⬛', title: 'Black Side Weakness', desc: `Your win rate as Black is ${blackWinPct}% vs ${whiteWinPct}% as White. Study solid defensive openings like the Caro-Kann or Slav.`, link: '/opening-lab', linkText: 'Opening Lab →', severity: 'warning' })
-  } else if (colorGap < -15) {
-    rx.push({ icon: '⬜', title: 'White Side Weakness', desc: `Your win rate as White is ${whiteWinPct}% vs ${blackWinPct}% as Black. Focus on building a sharper 1.e4 or 1.d4 repertoire.`, link: '/opening-lab', linkText: 'Opening Lab →', severity: 'warning' })
-  } else {
-    rx.push({ icon: '⚖️', title: 'Balanced Colors', desc: `Your win rate is balanced: ${whiteWinPct}% as White, ${blackWinPct}% as Black. Focus on converting drawn positions.`, link: '/puzzles', linkText: 'Practice →', severity: 'good' })
-  }
-
-  // --- Analysis 2: Game Length Pattern ---
-  const losses = allGames.filter(g => {
-    const isWhite = g.white.toLowerCase() === myName
-    return (g.result === '0-1' && isWhite) || (g.result === '1-0' && !isWhite)
-  })
-  if (losses.length > 0) {
-    const avgLossMoves = Math.round(losses.reduce((s, g) => s + g.movesCount, 0) / losses.length)
-    if (avgLossMoves < 30) {
-      rx.push({ icon: '🎬', title: 'Opening Vulnerability', desc: `You lose games after ~${avgLossMoves} moves on average. You may be falling into traps or leaving prep too early.`, link: '/opening-lab', linkText: 'Study Openings →', severity: 'critical' })
-    } else if (avgLossMoves > 55) {
-      rx.push({ icon: '🏁', title: 'Endgame Leaks', desc: `Your losses average ${avgLossMoves} moves — you\'re reaching endgames but not converting. Practice R+P and K+P endings.`, link: '/puzzles', linkText: 'Endgame Drills →', severity: 'warning' })
-    } else {
-      rx.push({ icon: '⚡', title: 'Middlegame Tactics', desc: `Your losses happen around move ${avgLossMoves}. Focus on tactical pattern recognition and calculation depth.`, link: '/puzzles', linkText: 'Tactical Training →', severity: 'warning' })
-    }
-  } else {
-    rx.push({ icon: '🏆', title: 'Undefeated!', desc: 'No losses found in your library. Keep playing to gather more data.', link: '/play', linkText: 'Keep Playing →', severity: 'good' })
-  }
-
-  // --- Analysis 3: Opening Diversity ---
-  const openings: Record<string, number> = {}
-  allGames.forEach(g => {
-    const key = g.eco || g.event || 'Unknown'
-    openings[key] = (openings[key] || 0) + 1
-  })
-  const uniqueOpenings = Object.keys(openings).length
-  const topOpening = Object.entries(openings).sort((a, b) => b[1] - a[1])[0]
-  const topPct = topOpening ? Math.round((topOpening[1] / allGames.length) * 100) : 0
-
-  if (uniqueOpenings <= 3 || topPct > 60) {
-    rx.push({ icon: '📚', title: 'Narrow Repertoire', desc: `${topPct}% of your games use the same opening. Broaden your repertoire to avoid being predictable.`, link: '/opening-lab', linkText: 'Explore Openings →', severity: 'warning' })
-  } else if (uniqueOpenings > 10) {
-    rx.push({ icon: '🎯', title: 'Too Many Openings', desc: `You play ${uniqueOpenings} different openings. Consider specializing in 2-3 systems to build deeper knowledge.`, link: '/opening-lab', linkText: 'Focus Repertoire →', severity: 'info' })
-  } else {
-    rx.push({ icon: '✅', title: 'Healthy Repertoire', desc: `You play ${uniqueOpenings} openings with good variety. Your most played covers ${topPct}% of games.`, link: '/opening-lab', linkText: 'Review →', severity: 'good' })
-  }
-
-  return rx
-})
-
-const weakness = computed(() => userStore.weaknessDna)
-
-const traits = computed(() => [
-  { id: 'opening', label: 'Opening Precision', value: 100 - (weakness.value.category === 'opening' ? weakness.value.missRate : 15), icon: '🎬', color: 'var(--teal)' },
-  { id: 'tactics', label: 'Tactical Awareness', value: 100 - (weakness.value.category === 'tactics' ? weakness.value.missRate : 20), icon: '⚡', color: 'var(--rose)' },
-  { id: 'endgame', label: 'Endgame Conversion', value: 100 - (weakness.value.category === 'endgame' ? weakness.value.missRate : 10), icon: '🏁', color: 'var(--gold)' },
-])
+// --- Prescription Engine (Centralized in coachStore) ---
+const prescriptions = computed(() => coachStore.dnaPrescriptions)
 
 async function startSync() {
   if (isSyncing.value) return
   isSyncing.value = true
   syncProgress.value = 0
+  syncStage.value = 'Analyzing Library...'
   
-  const stages = [
-    'Parsing Game Library...',
-    'Extracting Tactical Motifs...',
-    'Analyzing Blunder Clusters...',
-    'Mapping Weakness DNA...',
-    'Finalizing Report...'
-  ]
-  
-  for (let i = 0; i < stages.length; i++) {
-    syncStage.value = stages[i]
-    // Simulate work
-    const steps = 20
-    for (let j = 0; j < steps; j++) {
-      syncProgress.value += (100 / (stages.length * steps))
-      await new Promise(r => setTimeout(r, 40 + Math.random() * 60))
-    }
+  try {
+    await libraryStore.syncCloudGames()
+    syncProgress.value = 50
+    syncStage.value = 'Mapping Weakness DNA...'
+    await coachStore.syncArchetypeToCloud()
+    syncProgress.value = 100
+    uiStore.addToast('DNA Profile Synchronized', 'success')
+  } catch (e: any) {
+    uiStore.addToast('Sync failed: ' + e.message, 'error')
+  } finally {
+    isSyncing.value = false
   }
-  
-  syncProgress.value = 100
-  uiStore.addToast('DNA Sync Complete! Your profile has been updated.', 'success')
-  isSyncing.value = false
 }
 
 const chessComStats = ref<any>(null)
@@ -248,22 +130,27 @@ async function confirmReset() {
   
   // 1. Destroy the corrupted local database
   await libraryStore.resetLibrary()
-  uiStore.addToast('Library wiped. Recovering your cloud data...', 'info')
+  uiStore.addToast('Local library wiped.', 'info')
   
-  // 2. Pull back any games saved to Supabase (Knightfall games)
+  // 2. Wipe the cloud library too — this is the only way to kill "ghost" duplicates
+  // that have different IDs in Supabase but represent the same game.
+  try {
+    await libraryStore.purgeCloudLibrary()
+    uiStore.addToast('Cloud storage cleaned.', 'info')
+  } catch (e) {
+    console.error('Cloud purge failed:', e)
+  }
+  
+  // 3. Pull back any games saved to Supabase (Knightfall games)
+  // Note: Since we just purged, this will likely be 0 unless games were added elsewhere.
   await libraryStore.syncCloudGames()
   
-  // 3. If Chess.com is linked, re-import those games too
+  // 4. If Chess.com is linked, re-import those games too
   if (chessComUser.value) {
-    uiStore.addToast('Re-importing Chess.com games...', 'info')
+    uiStore.addToast('Re-importing Chess.com games with new fingerprinting...', 'info')
     await importChessCom()
   } else {
-    const cloudCount = libraryStore.games.length
-    if (cloudCount > 0) {
-      uiStore.addToast(`Recovered ${cloudCount} games from cloud. Link Chess.com in your Profile to re-import external games.`, 'success')
-    } else {
-      uiStore.addToast('Library is clean. Link Chess.com in your Profile to import games.', 'success')
-    }
+    uiStore.addToast('Library is clean. Link Chess.com in your Profile to import games.', 'success')
   }
 }
 
@@ -279,12 +166,10 @@ const axes = [
 
 const radarPoints = computed(() => {
   const n = axes.length
+  const scores = coachStore.archetypeReport.radarScores
   return axes.map((ax, i) => {
     const angle = (Math.PI * 2 * i / n) - Math.PI / 2
-    // Calculate score based on weakness DNA
-    let score = 0.7 // Default
-    if (weakness.value.category === ax.key) score = 1 - (weakness.value.missRate / 100)
-    else score = 0.6 + (Math.random() * 0.2)
+    const score = scores[ax.key as keyof typeof scores] || 0.7
     
     const x = cx + r * score * Math.cos(angle)
     const y = cy + r * score * Math.sin(angle)
@@ -338,7 +223,7 @@ function getAxisLabelPos(i: number) {
           <div class="dna-avatar">🧬</div>
           <div>
             <h3 class="title-md">Your Playstyle</h3>
-            <p class="trait-tag" :style="{ color: 'var(--accent-bright)' }">Tactical opportunist</p>
+            <p class="trait-tag" :style="{ color: 'var(--accent-bright)' }">{{ coachStore.playstyleNarrative.title }}</p>
           </div>
         </div>
 
@@ -352,6 +237,10 @@ function getAxisLabelPos(i: number) {
               <button class="btn-cleanup-text" @click="handleCleanup">PRUNE DUPES</button>
               <button class="btn-cleanup-text danger" @click="handleReset">RESET ALL</button>
             </div>
+          </div>
+          <div class="stat-mini" v-if="totalGames > 0">
+            <span class="label">Performance Rating</span>
+            <span class="val text-gradient">♔ {{ libraryStore.performanceRating }}</span>
           </div>
           <div class="stat-mini" v-if="totalGames > 0">
             <span class="label">Win Rate</span>
@@ -434,14 +323,14 @@ function getAxisLabelPos(i: number) {
         </div>
 
         <div class="traits-list">
-          <div v-for="trait in traits" :key="trait.id" class="trait-item">
+          <div class="trait-item">
             <div class="trait-info">
-              <span class="trait-icon">{{ trait.icon }}</span>
-              <span class="trait-label">{{ trait.label }}</span>
-              <span class="trait-val">{{ trait.value }}%</span>
+              <span class="trait-icon">🎯</span>
+              <span class="trait-label">Primary Focus: {{ coachStore.archetypeReport.label }}</span>
+              <span class="trait-val">{{ coachStore.archetypeReport.missRate }}%</span>
             </div>
             <div class="trait-bar">
-              <div class="trait-fill" :style="{ width: trait.value + '%', background: trait.color }"></div>
+              <div class="trait-fill" :style="{ width: coachStore.archetypeReport.missRate + '%', background: 'var(--rose)' }"></div>
             </div>
           </div>
         </div>
@@ -449,8 +338,8 @@ function getAxisLabelPos(i: number) {
         <div class="dna-insight">
           <h4 class="title-xs">Critical Insight</h4>
           <p class="text-secondary">
-            Your {{ weakness.label }} is currently your biggest bottleneck. 
-            You tend to lose <strong>{{ weakness.missRate }}%</strong> of games when the position reaches this phase.
+            Your {{ coachStore.archetypeReport.label }} is currently your biggest bottleneck. 
+            You tend to lose <strong>{{ coachStore.archetypeReport.missRate }}%</strong> of games when the position reaches this phase.
           </p>
         </div>
       </div>
@@ -458,6 +347,9 @@ function getAxisLabelPos(i: number) {
       <!-- Center Column: Radar Chart -->
       <div class="dna-card chart-card glass-card">
         <h3 class="title-sm">Performance DNA</h3>
+        <p class="playstyle-narrative">
+          <strong>"{{ coachStore.playstyleNarrative.title }}"</strong> — {{ coachStore.playstyleNarrative.desc }}
+        </p>
         <div class="radar-wrapper">
           <svg viewBox="0 0 300 300" class="radar-svg">
             <!-- Background Rings -->
@@ -628,6 +520,12 @@ function getAxisLabelPos(i: number) {
 .dna-insight strong { color: var(--rose); }
 
 /* Radar Chart */
+.playstyle-narrative { 
+  font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; 
+  margin-bottom: var(--space-4); opacity: 0.95;
+  max-width: 440px; margin-left: auto; margin-right: auto; text-align: center;
+}
+.playstyle-narrative :deep(strong), .playstyle-narrative :deep(b) { color: var(--teal); font-weight: 800; font-style: normal; }
 .radar-wrapper { display: flex; align-items: center; justify-content: center; padding: var(--space-8); }
 .radar-svg { width: 100%; max-width: 400px; height: auto; }
 .radar-ring { fill: none; stroke: var(--border); stroke-width: 1; }

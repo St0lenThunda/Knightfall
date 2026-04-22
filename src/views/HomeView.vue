@@ -66,27 +66,28 @@
 
     <!-- Logged in view: Dashboard -->
     <template v-if="userStore.session && userStore.profile">
-      <!-- Stats row -->
       <section class="stats-row">
         <div class="stat-card">
-          <div class="stat-label">Your Rating</div>
-          <div class="stat-value text-gradient">{{ userStore.currentRating }}</div>
-          <div class="stat-delta up">▲ +23 this week</div>
+          <div class="stat-label">Library Performance</div>
+          <div class="stat-value text-gradient">{{ libraryStore.performanceRating }}</div>
+          <div class="stat-delta up">▲ Chronological Elo</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Games Played</div>
-          <div class="stat-value">{{ userStore.pastGames.length }}</div>
-          <div class="stat-delta up">▲ 8 today</div>
+          <div class="stat-label">Library Games</div>
+          <div class="stat-value">{{ libraryStore.games.length }}</div>
+          <div class="stat-delta">Combined Sources</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Win Rate</div>
-          <div class="stat-value" style="color: var(--green);">{{ userStore.wldStats[0].pct }}%</div>
-          <div class="stat-delta up">▲ +4% vs last month</div>
+          <div class="stat-label">Unique Openings</div>
+          <div class="stat-value text-teal-gradient">{{ libraryStore.openingStats.length }}</div>
+          <div class="stat-delta">Repertoire Depth</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Puzzle Streak</div>
-          <div class="stat-value text-gold-gradient">🔥 7</div>
-          <div class="stat-delta" style="color: var(--gold);">Best: 12 days</div>
+          <div class="stat-label">Library Win Rate</div>
+          <div class="stat-value" :style="{ color: libraryWinRate > 50 ? 'var(--green)' : 'var(--gold)' }">
+            {{ libraryWinRate }}%
+          </div>
+          <div class="stat-delta up">▲ Trending Up</div>
         </div>
       </section>
 
@@ -115,7 +116,7 @@
               <span class="badge badge-rose">AI INSIGHT</span>
             </div>
             <p class="muted" style="font-size: 0.85rem; margin: var(--space-3) 0;">
-              Based on your last {{ userStore.pastGames.length }} games, we found patterns in your mistakes:
+              Based on your last {{ libraryStore.games.length }} analyzed games, we found patterns in your mistakes:
             </p>
             <div class="weakness-items">
               <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
@@ -128,9 +129,26 @@
                 </div>
               </div>
             </div>
-            <RouterLink to="/puzzles" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
-              Train these weaknesses →
+            <RouterLink to="/dna" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
+              Full DNA Lab →
             </RouterLink>
+          </div>
+
+          <!-- Mini Prescription Engine (The Clinic) -->
+          <div v-if="miniRx.length > 0" class="glass clinic-mini-card">
+            <div class="card-header">
+              <h4>📋 The Clinic</h4>
+              <span class="badge badge-teal">ACTIVE RX</span>
+            </div>
+            <div class="mini-prescriptions">
+              <div v-for="rx in miniRx" :key="rx.id" class="mini-rx-item" :class="rx.severity">
+                <span class="rx-icon">{{ rx.icon }}</span>
+                <div class="rx-info">
+                  <div class="rx-title">{{ rx.title }}</div>
+                  <router-link :to="rx.link" class="rx-action">{{ rx.linkText }}</router-link>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Recent games -->
@@ -232,11 +250,13 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useGameStore } from '../stores/gameStore'
+import { useCoachStore } from '../stores/coachStore'
 
 const router = useRouter()
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const gameStore = useGameStore()
+const coachStore = useCoachStore()
 
 // Mini preview board (simplified static)
 const previewBoard = [
@@ -260,13 +280,60 @@ const features = [
   { id: 'profile',  icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
 ]
 
-const weaknesses = computed(() => [
-  { label: userStore.weaknessDna.label,  pct: userStore.weaknessDna.missRate, icon: '🏁', color: 'var(--rose)' },
-  { label: 'Minor Pieces',               pct: 22, icon: '♟', color: 'var(--gold)' },
-  { label: 'Time Management',            pct: 12, icon: '⏱', color: 'var(--teal)' },
-])
+const weaknesses = computed(() => {
+  const report = coachStore.archetypeReport
+  const base = [
+    { label: report.label,  pct: report.missRate, icon: '🧬', color: 'var(--rose)' }
+  ]
+  
+  // Signal 2: Time/Structure
+  const hasTimeIssues = coachStore.dnaPrescriptions.some(rx => rx.id === 'clock-management')
+  if (hasTimeIssues) {
+    base.push({ label: 'Time Management', pct: 22, icon: '⏱', color: 'var(--teal)' })
+  } else {
+    base.push({ label: 'Structural Gaps', pct: 14, icon: '🏗️', color: 'var(--teal)' })
+  }
 
-const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5))
+  // Signal 3: Tactical/Opening Vulnerability
+  const hasTacticalVuln = coachStore.dnaPrescriptions.some(rx => rx.id === 'opening-vuln')
+  if (hasTacticalVuln) {
+    base.push({ label: 'Tactical Traps', pct: 31, icon: '⚠️', color: 'var(--gold)' })
+  } else {
+    base.push({ label: 'Positioning', pct: 18, icon: '♟', color: 'var(--gold)' })
+  }
+  
+  return base
+})
+
+const miniRx = computed(() => {
+  // Pull the top 2 high-priority items
+  const combined = [...coachStore.dnaPrescriptions, ...coachStore.openingPrescriptions]
+  return combined
+    .filter(rx => rx.severity === 'critical' || rx.severity === 'warning')
+    .slice(0, 2)
+})
+
+const libraryWinRate = computed(() => libraryStore.libraryWinRate)
+
+const recentGames = computed(() => {
+  return [...libraryStore.games].reverse().slice(0, 5).map(g => {
+    const myName = userStore.profile?.username?.toLowerCase() || ''
+    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
+    const isWhite = g.white.toLowerCase() === myName || (myChessCom && g.white.toLowerCase() === myChessCom)
+    
+    const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
+    const draw = g.result === '1/2-1/2'
+    
+    return {
+      id: g.id,
+      opponent: isWhite ? g.black : g.white,
+      result: won ? 'win' : (draw ? 'draw' : 'loss'),
+      control: g.event || 'Blitz',
+      opening: g.eco || '---',
+      score: g.result
+    }
+  })
+})
 
 function handleGetStarted() {
   document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
@@ -436,6 +503,22 @@ function handleQuickAnalysis() {
 .game-score.win  { color: var(--green); }
 .game-score.loss { color: var(--rose); }
 .game-score.draw { color: var(--gold); }
+
+/* ─── MINI CLINIC ─── */
+.clinic-mini-card { padding: var(--space-5); background: linear-gradient(rgba(45, 212, 191, 0.05), transparent); }
+.mini-prescriptions { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
+.mini-rx-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3); border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+}
+.mini-rx-item.critical { border-left: 3px solid var(--rose); }
+.mini-rx-item.warning { border-left: 3px solid var(--gold); }
+
+.rx-info { display: flex; flex-direction: column; gap: 2px; }
+.rx-title { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); }
+.rx-action { font-size: 0.75rem; font-weight: 800; color: var(--accent-bright); text-decoration: none; text-transform: uppercase; }
+.rx-action:hover { color: white; text-decoration: underline; }
 
 /* ─── LANDING SALES ─── */
 .landing-sales {

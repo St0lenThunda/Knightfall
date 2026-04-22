@@ -324,11 +324,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
 import { supabase } from '../api/supabaseClient'
 
+const router = useRouter()
 const userStore = useUserStore()
+const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 
 const activePeriod = ref('1M')
@@ -418,22 +422,22 @@ const openingStats = computed(() => userStore.openingStats)
 // Chart
 const chartW = 500
 const chartH = 120
-const ratingData = computed(() => userStore.ratingHistory)
+const ratingData = computed(() => libraryStore.performanceHistory)
 const minR = computed(() => Math.min(...ratingData.value) - 10)
 const maxR = computed(() => Math.max(...ratingData.value) + 10)
 
-const chartPoints = computed(() => ratingData.value.map((r, i) => ({
+const chartPoints = computed(() => ratingData.value.map((r: number, i: number) => ({
   x: (i / (Math.max(1, ratingData.value.length - 1))) * chartW,
-  y: chartH - ((r - minR.value) / (maxR.value - minR.value)) * chartH,
+  y: chartH - ((r - minR.value) / (Math.max(1, maxR.value - minR.value))) * chartH,
 })))
 
 const linePath = computed(() =>
-  chartPoints.value.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  chartPoints.value.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
 )
 
 const areaPath = computed(() => {
   const pts = chartPoints.value
-  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  const line = pts.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
   return `${line} L${chartW},${chartH} L0,${chartH} Z`
 })
 
@@ -446,7 +450,7 @@ const gridLines = computed(() => {
 })
 
 // Heatmap
-const heatmapData = computed(() => userStore.activityHeatmap)
+const heatmapData = computed(() => libraryStore.activityHeatmap)
 function heatColor(count: number) {
   if (count === 0) return 'rgba(255,255,255,0.04)'
   if (count <= 2)  return 'rgba(139,92,246,0.25)'

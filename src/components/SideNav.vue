@@ -41,19 +41,43 @@
 
     <!-- Navigation sections -->
     <div class="sidenav-sections">
-      <div v-for="section in navSections" :key="section.title" class="nav-section">
-        <div class="section-title" v-show="!collapsed && section.showTitle">{{ section.title }}</div>
-        
-        <RouterLink v-for="item in section.items" :key="item.path"
-          :to="item.path"
-          class="nav-link"
-          :class="{ active: route.path === item.path }"
-          :data-tooltip="collapsed ? item.label : undefined"
+      <div 
+        v-for="section in navSections" 
+        :key="section.title" 
+        class="nav-section"
+        :class="{ 'section-collapsed': collapsedSections.has(section.title) }"
+      >
+        <div 
+          class="section-header" 
+          v-show="!collapsed && section.showTitle"
+          @click="toggleSection(section.title)"
         >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
-          <span class="nav-badge" v-if="item.badge && !collapsed">{{ item.badge }}</span>
-        </RouterLink>
+          <span class="section-title">{{ section.title }}</span>
+          <span class="section-chevron">{{ collapsedSections.has(section.title) ? '⌃' : '⌄' }}</span>
+        </div>
+        
+        <div class="section-items-wrapper" v-show="!collapsedSections.has(section.title) || collapsed">
+          <RouterLink v-for="item in section.items" :key="item.path"
+            :to="item.path"
+            class="nav-link"
+            :class="{ active: route.path === item.path }"
+            :data-tooltip="collapsed ? item.label : undefined"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
+            <span 
+              class="nav-badge" 
+              v-if="item.badge && !collapsed"
+              :class="[
+                item.badge === 'CRITICAL' ? 'badge-critical' : '',
+                item.badge === 'ACTIVE' ? 'badge-active' : '',
+                item.badge === 'LIVE' ? 'badge-live' : ''
+              ]"
+            >
+              {{ item.badge }}
+            </span>
+          </RouterLink>
+        </div>
       </div>
     </div>
 
@@ -81,10 +105,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useLibraryStore } from '../stores/libraryStore'
+import { useCoachStore } from '../stores/coachStore'
 import AuthModal from './AuthModal.vue'
 import LogoutModal from './LogoutModal.vue'
 
 const userStore = useUserStore()
+const libraryStore = useLibraryStore()
+const coachStore = useCoachStore()
 
 const showAuthModal = ref(false)
 const showLogoutModal = ref(false)
@@ -120,42 +148,69 @@ onUnmounted(() => {
 const route = useRoute()
 const collapsed = ref(false)
 
-const navSections = computed(() => [
-  {
-    title: 'Main',
-    showTitle: false,
-    items: [
-      { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
-      { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE', auth: false },
-      { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3',    auth: false },
-      { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: true  },
-    ].filter(i => !i.auth || !!userStore.session)
-  },
-  {
-    title: 'The Forge',
-    showTitle: true,
-    items: [
-      { path: '/gauntlet',  icon: '🔥',  label: 'Gauntlet',    badge: 'NEW',  auth: true  },
-      { path: '/dna',       icon: '🧬',  label: 'DNA Sync',    badge: null,   auth: true  },
-      { path: '/opening-lab', icon: '📖', label: 'Opening Lab', badge: 'LAB',  auth: true  },
-    ].filter(i => !i.auth || !!userStore.session)
-  },
-  {
-    title: 'Archive',
-    showTitle: true,
-    items: [
-      { path: '/library',   icon: '⬡',  label: 'Game Vault',  badge: null,   auth: true  },
-    ].filter(i => !i.auth || !!userStore.session)
-  },
-  {
-    title: 'User',
-    showTitle: true,
-    items: [
-      { path: '/profile',   icon: '👤', label: 'Profile',     badge: null,   auth: true  },
-      { path: '/settings',  icon: '⚙️',  label: 'Settings',    badge: null,   auth: false },
-    ].filter(i => !i.auth || !!userStore.session)
+// Accordion State
+const collapsedSections = ref(new Set<string>())
+
+function toggleSection(title: string) {
+  if (collapsedSections.value.has(title)) {
+    collapsedSections.value.delete(title)
+  } else {
+    collapsedSections.value.add(title)
   }
-])
+}
+
+// Auto-expand sections when navigating
+const ensureSectionExpanded = () => {
+  const activeSection = navSections.value.find(s => 
+    s.items.some(i => i.path === route.path)
+  )
+  if (activeSection) {
+    collapsedSections.value.delete(activeSection.title)
+  }
+}
+
+onMounted(() => {
+  ensureSectionExpanded()
+})
+
+const navSections = computed(() => {
+  const critRx = coachStore.dnaPrescriptions.filter(r => r.severity === 'critical').length +
+                 coachStore.openingPrescriptions.filter(r => r.severity === 'critical').length
+  
+  const warnRx = coachStore.dnaPrescriptions.filter(r => r.severity === 'warning').length +
+                 coachStore.openingPrescriptions.filter(r => r.severity === 'warning').length
+
+  return [
+    {
+      title: 'Arena',
+      showTitle: true,
+      items: [
+        { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
+        { path: '/play',      icon: '♟',  label: 'Play Now',   badge: 'LIVE', auth: false },
+        { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',    badge: 'NEW',  auth: false },
+        { path: '/gauntlet',  icon: '🔥',  label: 'Gauntlet',   badge: null,   auth: true  },
+      ].filter(i => !i.auth || !!userStore.session)
+    },
+    {
+      title: 'The Clinic',
+      showTitle: true,
+      items: [
+        { path: '/dna',       icon: '🧬',  label: 'DNA Lab',     badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true  },
+        { path: '/opening-lab', icon: '📖', label: 'Opening Lab',  badge: null,   auth: true  },
+        { path: '/analysis',  icon: '🔬', label: 'Game Analysis', badge: null,   auth: true  },
+      ].filter(i => !i.auth || !!userStore.session)
+    },
+    {
+      title: 'Vault',
+      showTitle: true,
+      items: [
+        { path: '/library',   icon: '📦',  label: 'Game Vault',  badge: libraryStore.games.length > 0 ? libraryStore.games.length : null, auth: true  },
+        { path: '/profile',   icon: '👤', label: 'My Profile',   badge: libraryStore.performanceRating > 0 ? `♔ ${libraryStore.performanceRating}` : null, auth: true  },
+        { path: '/settings',  icon: '⚙️',  label: 'Settings',     badge: null,   auth: false },
+      ].filter(i => !i.auth || !!userStore.session)
+    }
+  ]
+})
 </script>
 
 <style scoped>
@@ -266,14 +321,40 @@ const navSections = computed(() => [
 .sidenav-sections::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 .nav-section { display: flex; flex-direction: column; gap: 2px; }
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: var(--space-1);
+}
+.section-header:hover .section-title { color: var(--text-primary); }
+.section-header:hover .section-chevron { color: var(--accent-bright); }
+
 .section-title {
   font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  margin-bottom: var(--space-2);
   margin-left: var(--space-3);
+  transition: color 0.2s;
+}
+.section-chevron {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  font-weight: 800;
+}
+
+.section-items-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-link {
@@ -327,14 +408,23 @@ const navSections = computed(() => [
 .sidenav.collapsed .nav-icon { margin: 0; }
 .nav-label { flex: 1; }
 .nav-badge {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  padding: 1px 5px;
-  background: var(--rose);
-  color: #fff;
+  padding: 2px 6px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
   border-radius: var(--radius-full);
   letter-spacing: 0.05em;
+  border: 1px solid var(--border);
 }
+.nav-link:hover .nav-badge { border-color: var(--accent-dim); }
+.nav-link.active .nav-badge { background: var(--accent); color: white; border-color: transparent; }
+
+/* Intelligence Overrides */
+.badge-critical { background: var(--rose) !important; color: white !important; border-color: transparent !important; box-shadow: 0 0 10px var(--rose-dim); }
+.badge-active { background: var(--teal) !important; color: white !important; border-color: transparent !important; }
+.badge-live { background: var(--green) !important; color: white !important; border-color: transparent !important; }
+
 
 .sidenav-bottom {
   display: flex;
