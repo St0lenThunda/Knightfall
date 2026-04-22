@@ -39,18 +39,22 @@
       </div>
     </div>
 
-    <!-- Navigation items -->
-    <div class="sidenav-links">
-      <RouterLink v-for="item in navItems" :key="item.path"
-        :to="item.path"
-        class="nav-link"
-        :class="{ active: route.path === item.path }"
-        :data-tooltip="collapsed ? item.label : undefined"
-      >
-        <span class="nav-icon">{{ item.icon }}</span>
-        <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
-        <span class="nav-badge" v-if="item.badge && !collapsed">{{ item.badge }}</span>
-      </RouterLink>
+    <!-- Navigation sections -->
+    <div class="sidenav-sections">
+      <div v-for="section in navSections" :key="section.title" class="nav-section">
+        <div class="section-title" v-show="!collapsed && section.showTitle">{{ section.title }}</div>
+        
+        <RouterLink v-for="item in section.items" :key="item.path"
+          :to="item.path"
+          class="nav-link"
+          :class="{ active: route.path === item.path }"
+          :data-tooltip="collapsed ? item.label : undefined"
+        >
+          <span class="nav-icon">{{ item.icon }}</span>
+          <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
+          <span class="nav-badge" v-if="item.badge && !collapsed">{{ item.badge }}</span>
+        </RouterLink>
+      </div>
     </div>
 
     <!-- Bottom actions -->
@@ -116,19 +120,42 @@ onUnmounted(() => {
 const route = useRoute()
 const collapsed = ref(false)
 
-const allNavItems = [
-  { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
-  { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE', auth: false },
-  { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3',    auth: false },
-  { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: true  },
-  { path: '/library',   icon: '⬡',  label: 'Archive',     badge: null,   auth: true  },
-  { path: '/profile',   icon: '👤', label: 'Profile',     badge: null,   auth: true  },
-  { path: '/settings',  icon: '⚙️',  label: 'Settings',    badge: null,   auth: false },
-]
-
-const navItems = computed(() =>
-  allNavItems.filter(item => !item.auth || !!userStore.session)
-)
+const navSections = computed(() => [
+  {
+    title: 'Main',
+    showTitle: false,
+    items: [
+      { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
+      { path: '/play',      icon: '♟',  label: 'Play',        badge: 'LIVE', auth: false },
+      { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',     badge: '3',    auth: false },
+      { path: '/analysis',  icon: '🔬', label: 'Analysis',    badge: null,   auth: true  },
+    ].filter(i => !i.auth || !!userStore.session)
+  },
+  {
+    title: 'The Forge',
+    showTitle: true,
+    items: [
+      { path: '/gauntlet',  icon: '🔥',  label: 'Gauntlet',    badge: 'NEW',  auth: true  },
+      { path: '/dna',       icon: '🧬',  label: 'DNA Sync',    badge: null,   auth: true  },
+      { path: '/opening-lab', icon: '📖', label: 'Opening Lab', badge: 'LAB',  auth: true  },
+    ].filter(i => !i.auth || !!userStore.session)
+  },
+  {
+    title: 'Archive',
+    showTitle: true,
+    items: [
+      { path: '/library',   icon: '⬡',  label: 'Game Vault',  badge: null,   auth: true  },
+    ].filter(i => !i.auth || !!userStore.session)
+  },
+  {
+    title: 'User',
+    showTitle: true,
+    items: [
+      { path: '/profile',   icon: '👤', label: 'Profile',     badge: null,   auth: true  },
+      { path: '/settings',  icon: '⚙️',  label: 'Settings',    badge: null,   auth: false },
+    ].filter(i => !i.auth || !!userStore.session)
+  }
+])
 </script>
 
 <style scoped>
@@ -157,6 +184,7 @@ const navItems = computed(() =>
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--border);
   position: relative;
+  flex-shrink: 0;
 }
 .sidenav.collapsed .sidenav-logo { justify-content: center; }
 .logo-icon {
@@ -198,6 +226,7 @@ const navItems = computed(() =>
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-shrink: 0;
 }
 .avatar-collapsed { justify-content: center; }
 .user-avatar {
@@ -225,17 +254,33 @@ const navItems = computed(() =>
 }
 .user-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
 
-.sidenav-links {
+.sidenav-sections {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-6);
   flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
 }
+.sidenav-sections::-webkit-scrollbar { width: 4px; }
+.sidenav-sections::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.nav-section { display: flex; flex-direction: column; gap: 2px; }
+.section-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+  margin-left: var(--space-3);
+}
+
 .nav-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
@@ -256,8 +301,20 @@ const navItems = computed(() =>
 .nav-link.active {
   background: var(--accent-dim);
   color: var(--accent-bright);
-  border: 1px solid rgba(139,92,246,0.2);
 }
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.sidenav.collapsed .nav-link.active::before { display: none; }
+
 .nav-icon { 
   font-size: 1.2rem; 
   flex-shrink: 0; 
@@ -272,21 +329,18 @@ const navItems = computed(() =>
 .nav-badge {
   font-size: 0.65rem;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   background: var(--rose);
   color: #fff;
   border-radius: var(--radius-full);
   letter-spacing: 0.05em;
-  animation: pulse-glow 2s infinite;
 }
 
 .sidenav-bottom {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-.daily-challenge {
-  padding: var(--space-4);
+  flex-shrink: 0;
 }
 .sidenav-footer {
   text-align: center;

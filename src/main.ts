@@ -11,6 +11,9 @@ import PuzzlesView from './views/PuzzlesView.vue'
 import ProfileView from './views/ProfileView.vue'
 import LibraryView from './views/LibraryView.vue'
 import SettingsView from './views/SettingsView.vue'
+import GauntletView from './views/GauntletView.vue'
+import DnaView from './views/DnaView.vue'
+import OpeningLabView from './views/OpeningLabView.vue'
 import { supabase } from './api/supabaseClient'
 
 const router = createRouter({
@@ -20,6 +23,9 @@ const router = createRouter({
     { path: '/play',     component: PlayView },
     { path: '/analysis', component: AnalysisView, meta: { requiresAuth: true } },
     { path: '/puzzles',  component: PuzzlesView },
+    { path: '/gauntlet', component: GauntletView, meta: { requiresAuth: true } },
+    { path: '/dna',      component: DnaView,      meta: { requiresAuth: true } },
+    { path: '/opening-lab', component: OpeningLabView, meta: { requiresAuth: true } },
     { path: '/profile',  component: ProfileView, meta: { requiresAuth: true } },
     { path: '/library',  component: LibraryView, meta: { requiresAuth: true } },
     { path: '/settings', component: SettingsView },

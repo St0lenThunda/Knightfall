@@ -252,7 +252,10 @@ const previewBoard = [
 
 const features = [
   { id: 'play',     icon: '♟', title: 'Play a Game',       desc: 'Local, vs computer, or multiplayer',    path: '/play',     bg: 'var(--accent-dim)' },
-  { id: 'puzzles',  icon: '⚡', title: 'Puzzle Training',   desc: 'Targeted by your weakness DNA',          path: '/puzzles',  bg: 'var(--rose-dim)' },
+  { id: 'puzzles',  icon: '⚡', title: 'Adaptive Puzzles',  desc: 'Training targeted at your Weakness DNA', path: '/puzzles',  bg: 'var(--rose-dim)' },
+  { id: 'gauntlet', icon: '🔥', title: 'Daily Gauntlet',  desc: '5 puzzles, one shot, daily glory',      path: '/gauntlet', bg: 'var(--accent-dim)' },
+  { id: 'dna',      icon: '🧬', title: 'DNA Lab',           desc: 'Discover your hidden playstyle patterns', path: '/dna',      bg: 'var(--teal-dim)' },
+  { id: 'opening',  icon: '📖', title: 'Opening Lab',       desc: 'Build a bulletproof repertoire',          path: '/opening-lab', bg: 'var(--gold-dim)' },
   { id: 'analysis', icon: '🔬', title: 'Game Analysis',     desc: 'AI coaching — line by line breakdowns',  path: '/analysis', bg: 'var(--teal-dim)' },
   { id: 'profile',  icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
 ]

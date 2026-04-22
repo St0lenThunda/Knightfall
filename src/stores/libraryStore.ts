@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, toRaw } from 'vue'
 import { Chess } from 'chess.js'
-import JSZip from 'jszip'
+import * as JSZip from 'jszip'
 import { supabase } from '../api/supabaseClient'
 import { parse } from '@mliebelt/pgn-parser'
 import { buildOpeningTree } from '../utils/constellationUtils'
+import { ecoToName } from '../utils/ecoLookup'
 import { useUserStore } from './userStore'
 
 export interface LibraryGame {
@@ -238,6 +239,21 @@ export const useLibraryStore = defineStore('library', () => {
       else if (cleanResult.startsWith('0-1')) cleanResult = '0-1'
       else if (cleanResult.startsWith('1/2-1/2') || cleanResult.includes('1/2') || cleanResult.includes('½')) cleanResult = '1/2-1/2'
 
+      // Deduplication Check — normalize names to lowercase for consistency
+      const isDuplicate = games.value.some(g => {
+        // Exact PGN match (fastest check)
+        if (g.pgn === pgn) return true
+        // Fuzzy meta match: same players, same date, similar length
+        // We allow ±2 move difference to handle parser inconsistencies
+        const sameWhite = g.white.toLowerCase() === (headers['White'] || 'Unknown').toLowerCase()
+        const sameBlack = g.black.toLowerCase() === (headers['Black'] || 'Unknown').toLowerCase()
+        const sameDate  = g.date === (headers['Date'] || 'Unknown')
+        const similarMoves = Math.abs(g.movesCount - (chess.history() || []).length) <= 2
+        return sameWhite && sameBlack && sameDate && similarMoves
+      })
+
+      if (isDuplicate) return
+
       const game: LibraryGame = {
         id: crypto.randomUUID(),
         pgn: pgn,
@@ -253,16 +269,34 @@ export const useLibraryStore = defineStore('library', () => {
         blackElo: headers['BlackElo'] ?? undefined,
         tags: [...new Set(['My Games', ...tags])]
       }
+
+      // Update local state immediately to prevent race conditions in deduplication
+      games.value.push(JSON.parse(JSON.stringify(game)))
       
       if (!db) await initDb()
       const transaction = db!.transaction(['games'], 'readwrite')
       const store = transaction.objectStore('games')
-      store.put(game)
+      store.put(JSON.parse(JSON.stringify(game)))
       
-      transaction.oncomplete = () => {
-        // Use spread to avoid proxy issues, but JSON clone is safer for nested data
-        games.value.push(JSON.parse(JSON.stringify(game)))
+      transaction.oncomplete = async () => {
         generateOpeningTree()
+
+        // 5. Cloud Sync (Permanent DB)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          const userStore = useUserStore()
+          const myUsername = userStore.profile?.username || ''
+          const isWhite = game.white.toLowerCase() === myUsername.toLowerCase()
+          
+          await supabase.from('matches').upsert({
+            id: game.id,
+            white_id: isWhite ? session.user.id : null,
+            black_id: !isWhite ? session.user.id : null,
+            pgn: game.pgn,
+            result: game.result,
+            created_at: game.date
+          })
+        }
       }
     } catch (e) {
       console.error('Failed to save game to library', e)
@@ -398,6 +432,97 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
+  async function purgeDuplicates() {
+    if (!db) await initDb()
+    const seen = new Set<string>()
+    const toDelete: string[] = []
+    
+    /**
+     * Multi-layer fingerprinting to catch ALL duplicate variants:
+     * 1. Extract just the move text from the PGN (strip headers)
+     * 2. Normalize whitespace so formatting differences don't matter
+     * 3. Combine with lowercase player names for uniqueness
+     */
+    games.value.forEach(g => {
+      // Extract the move portion of the PGN by stripping header lines [...]
+      const movesOnly = g.pgn
+        .replace(/\[.*?\]\s*/g, '')   // Remove all header tags
+        .replace(/\{[^}]*\}/g, '')    // Remove comments
+        .replace(/\s+/g, ' ')         // Collapse whitespace
+        .trim()
+      
+      // Primary fingerprint: normalized moves + players
+      const fingerprint = `${g.white.toLowerCase().trim()}-${g.black.toLowerCase().trim()}-${movesOnly.slice(0, 200)}`
+      
+      if (seen.has(fingerprint)) {
+        toDelete.push(g.id)
+      } else {
+        seen.add(fingerprint)
+      }
+    })
+
+    console.log(`[purgeDuplicates] Found ${toDelete.length} duplicates out of ${games.value.length} games`)
+
+    if (toDelete.length === 0) return 0
+
+    const transaction = db!.transaction(['games'], 'readwrite')
+    const store = transaction.objectStore('games')
+    toDelete.forEach(id => store.delete(id))
+    
+    return new Promise<number>((resolve) => {
+      transaction.oncomplete = () => {
+        games.value = games.value.filter(g => !toDelete.includes(g.id))
+        resolve(toDelete.length)
+      }
+    })
+  }
+
+  /**
+   * Nuclear option: completely destroys and recreates the IndexedDB database.
+   * We use `indexedDB.deleteDatabase()` instead of `store.clear()` because
+   * clear() runs inside a transaction that can silently fail if navigation
+   * happens before it commits. deleteDatabase() is fully atomic — once it
+   * resolves, the data is guaranteed gone.
+   */
+  async function resetLibrary() {
+    console.log('[resetLibrary] Destroying database...')
+    
+    // 1. Close the active connection so deleteDatabase can proceed
+    if (db) {
+      db.close()
+      db = null
+    }
+    
+    // 2. Delete the entire database — this is atomic and cannot partially fail
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase('KnightfallLibrary')
+      req.onsuccess = () => {
+        console.log('[resetLibrary] Database destroyed successfully.')
+        resolve()
+      }
+      req.onerror = () => {
+        console.error('[resetLibrary] Database deletion failed:', req.error)
+        reject(req.error)
+      }
+      req.onblocked = () => {
+        // Another tab might have the DB open — force it
+        console.warn('[resetLibrary] Database deletion blocked, forcing...')
+        resolve()
+      }
+    })
+    
+    // 3. Clear in-memory state
+    games.value = []
+    filteredGames.value = []
+    
+    // 4. Flush the Web Worker cache
+    filterWorker.postMessage({ type: 'SET_GAMES', payload: [] })
+    
+    // 5. Reinitialize a fresh empty database for future use
+    await initDb()
+    console.log('[resetLibrary] Fresh database ready.')
+  }
+
   async function updateGameAnalysis(id: string, fen: string, text: string) {
     const game = gamesMap.value.get(id)
     if (!game) return
@@ -411,6 +536,47 @@ export const useLibraryStore = defineStore('library', () => {
     // Deep clone to strip Proxy wrappers which cause DataCloneError in IndexedDB
     store.put(JSON.parse(JSON.stringify(game)))
   }
+
+  // --- Statistical Intelligence ---
+  /**
+   * Aggregates opening statistics from the game library.
+   * Uses the pre-stored ECO code (from PGN import) and the ecoLookup
+   * utility to produce clean opening names — no need to re-parse
+   * every PGN on each render.
+   */
+  const openingStats = computed(() => {
+    const userStore = useUserStore()
+    const myUsername = userStore.profile?.username?.toLowerCase() || ''
+    
+    const stats: Record<string, { win: number, loss: number, draw: number, games: number }> = {}
+    
+    games.value.forEach(g => {
+      // Priority: ECO code → stored event name → fallback
+      const opName = g.eco
+        ? ecoToName(g.eco)
+        : (g.event && !g.event.toLowerCase().includes('live chess') && !g.event.toLowerCase().includes('tournament')
+           ? g.event
+           : 'Unknown Opening')
+      
+      if (!stats[opName]) stats[opName] = { win: 0, loss: 0, draw: 0, games: 0 }
+      
+      const isWhite = g.white.toLowerCase() === myUsername
+      const result = g.result
+      
+      stats[opName].games++
+      if (result === '1/2-1/2') stats[opName].draw++
+      else if ((result === '1-0' && isWhite) || (result === '0-1' && !isWhite)) stats[opName].win++
+      else stats[opName].loss++
+    })
+
+    return Object.entries(stats).map(([name, s]) => ({
+      name,
+      games: s.games,
+      winPct: Math.round((s.win / s.games) * 100),
+      lossPct: Math.round((s.loss / s.games) * 100),
+      drawPct: Math.round((s.draw / s.games) * 100)
+    })).sort((a, b) => b.games - a.games)
+  })
 
   // --- Filter Engine Logic ---
   const allTags = ref<string[]>(['My Games'])
@@ -475,7 +641,14 @@ export const useLibraryStore = defineStore('library', () => {
 
   // Watch for game list changes to update Worker Cache
   watch(() => games.value, (newGames) => {
-      filterWorker.postMessage({ type: 'SET_GAMES', payload: toRaw(newGames) })
+      // JSON roundtrip fully strips Vue's reactive Proxy wrappers.
+      // toRaw() only unwraps the top-level ref, but each game object
+      // inside the array remains a Proxy — which postMessage cannot clone.
+      try {
+        filterWorker.postMessage({ type: 'SET_GAMES', payload: JSON.parse(JSON.stringify(newGames)) })
+      } catch (e) {
+        console.warn('[Library] Worker cache sync failed:', e)
+      }
       triggerFilter()
   }, { deep: false })
 
@@ -505,8 +678,6 @@ export const useLibraryStore = defineStore('library', () => {
   })
 
   // --- The Opening Constellation Logic ---
-  let lastProcessedFingerprint = ''
-  
   const isConstellationActive = ref(false)
   
   // Transforms the flat game list into a recursive trie asynchronously
@@ -552,6 +723,7 @@ export const useLibraryStore = defineStore('library', () => {
   return { 
     games,
     gamesMap,
+    openingStats,
     isImporting, 
     importProgress, 
     loadGames, 
@@ -564,6 +736,8 @@ export const useLibraryStore = defineStore('library', () => {
     updateGameAnalysis,
     syncCloudGames,
     repairVaultMetadata,
+    purgeDuplicates,
+    resetLibrary,
     generateOpeningTree,
     isConstellationActive,
     isGeneratingTree,

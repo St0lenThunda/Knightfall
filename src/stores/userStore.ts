@@ -35,10 +35,18 @@ export interface QueuedPuzzle {
 
 export const useUserStore = defineStore('user', () => {
   const session = ref<any>(null)
-  const profile = ref<{ id: string, username: string, rating: number, puzzle_rating?: number, location?: string, avatar_url?: string } | null>(null)
+  const profile = ref<{ id: string, username: string, rating: number, puzzle_rating?: number, location?: string, avatar_url?: string, chessComUsername?: string } | null>(null)
   const pastGames = ref<PastGame[]>([])
   const puzzleAttempts = ref<PuzzleAttempt[]>([])
   const puzzleQueue = ref<QueuedPuzzle[]>([])
+  
+  // Daily Gauntlet state
+  const gauntletProgress = ref({
+    lastDate: '',
+    completed: false,
+    bestTime: 0,
+    history: [] as { date: string, time: number }[]
+  })
 
   async function fetchUserData() {
     const { data: { session: currentSession } } = await supabase.auth.getSession()
@@ -57,6 +65,9 @@ export const useUserStore = defineStore('user', () => {
 
       if (prof) {
         profile.value = prof
+        // Hydrate Chess.com username from localStorage (avoids DB migration)
+        const savedChessComUser = localStorage.getItem('knightfall_chesscom_username')
+        if (savedChessComUser) profile.value.chessComUsername = savedChessComUser
       } else {
         // No profile row yet — create one automatically
         const defaultUsername = session.value.user.email?.split('@')[0] ?? 'Player'
@@ -222,6 +233,24 @@ export const useUserStore = defineStore('user', () => {
       ease_factor: updatedQueueItem.ease_factor,
       repetition: updatedQueueItem.repetition
     }).then()
+  }
+
+  /**
+   * Records a completed Daily Gauntlet session.
+   * 
+   * @param date - The date string (YYYY-MM-DD)
+   * @param totalTime - The total time in seconds taken to solve all 5 puzzles
+   */
+  function submitGauntletResult(date: string, totalTime: number) {
+    if (gauntletProgress.value.lastDate === date) return // Already recorded
+
+    gauntletProgress.value.lastDate = date
+    gauntletProgress.value.completed = true
+    gauntletProgress.value.bestTime = totalTime
+    gauntletProgress.value.history.push({ date, time: totalTime })
+    
+    // In a production app, we would sync this to a 'gauntlet_leaderboard' table in Supabase
+    console.log(`🏆 Gauntlet Completed for ${date} in ${totalTime}s!`)
   }
 
   // Hook into supabase auth changes
@@ -393,5 +422,5 @@ export const useUserStore = defineStore('user', () => {
     return streak
   })
 
-  return { session, profile, pastGames, puzzleAttempts, puzzleQueue, fetchUserData, submitPuzzleAttempt, weaknessDna, wldStats, openingStats, ratingHistory, currentRating, activityHeatmap, badges, solvedToday, currentStreak }
+  return { session, profile, pastGames, puzzleAttempts, puzzleQueue, gauntletProgress, fetchUserData, submitPuzzleAttempt, submitGauntletResult, weaknessDna, wldStats, openingStats, ratingHistory, currentRating, activityHeatmap, badges, solvedToday, currentStreak }
 })

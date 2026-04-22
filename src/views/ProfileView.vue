@@ -21,6 +21,7 @@
             </div>
             <p class="muted" style="font-size: 0.9rem; margin-bottom: var(--space-3);">
               Joined {{ joinedDate }}<span v-if="userStore.profile?.location"> · {{ userStore.profile.location }}</span>
+              <span v-if="userStore.profile?.chessComUsername" class="chess-com-tag"> · ♟ {{ userStore.profile.chessComUsername }}</span>
             </p>
             <div class="profile-badges">
               <span v-for="b in userStore.badges.badges.filter(x => x.earned).slice(0, 5)" :key="b.id" class="tag">
@@ -55,6 +56,15 @@
                   class="input"
                   v-model="editLocation"
                   placeholder="e.g. New York, USA"
+                />
+              </div>
+              <div>
+                <label class="label" style="font-size: 0.8rem; margin-bottom: var(--space-1); display:block; color: rgba(255,255,255,0.5);">Chess.com Username <span class="muted">(optional)</span></label>
+                <input
+                  type="text"
+                  class="input"
+                  v-model="editChessComUser"
+                  placeholder="e.g. hikaru"
                 />
               </div>
               <div style="display: flex; gap: var(--space-2);">
@@ -333,6 +343,7 @@ const badgePillars = [
 const isEditing = ref(false)
 const editUsername = ref('')
 const editLocation = ref('')
+const editChessComUser = ref('')
 const isSaving = ref(false)
 
 const joinedDate = computed(() => {
@@ -356,6 +367,7 @@ async function startEdit() {
   }
   editUsername.value = userStore.profile?.username ?? ''
   editLocation.value = (userStore.profile as any)?.location ?? ''
+  editChessComUser.value = userStore.profile?.chessComUsername ?? ''
   isEditing.value = true
 }
 
@@ -386,8 +398,16 @@ async function saveProfile() {
     console.error('[saveProfile] Supabase error:', error)
     uiStore.addToast('Save failed: ' + error.message, 'error')
   } else {
+    // Persist Chess.com username to localStorage
+    const chessComTrimmed = editChessComUser.value.trim()
+    if (chessComTrimmed) {
+      localStorage.setItem('knightfall_chesscom_username', chessComTrimmed)
+    } else {
+      localStorage.removeItem('knightfall_chesscom_username')
+    }
+    
     isEditing.value = false
-    uiStore.addToast('Username updated!', 'success')
+    uiStore.addToast('Profile updated!', 'success')
     await userStore.fetchUserData()
   }
 }
@@ -752,4 +772,9 @@ function radarRing(scale: number) {
 .card-header { display: flex; align-items: center; justify-content: space-between; }
 .stat-delta { font-size: 0.75rem; font-weight: 600; }
 .stat-delta.up { color: var(--green); }
+
+.chess-com-tag {
+  color: var(--teal);
+  font-weight: 600;
+}
 </style>
