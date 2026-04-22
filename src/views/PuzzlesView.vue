@@ -143,18 +143,20 @@ import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
+import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
 import ChessBoard from '../components/ChessBoard.vue'
 import type { Square, PieceSymbol } from 'chess.js'
 
 const store = useGameStore()
 const userStore = useUserStore()
+const coachStore = useCoachStore()
 const uiStore = useUiStore()
 
 const puzzleRating = computed(() => userStore.profile?.puzzle_rating ?? 1200)
 const streak = computed(() => userStore.currentStreak)
 const solvedToday = computed(() => userStore.solvedToday)
-const activeCat = ref(userStore.weaknessDna.category || 'mixed')
+const activeCat = ref(coachStore.archetypeReport.category || 'mixed')
 const hintLevel = ref(0)
 const puzzleSolved = ref(false)
 
@@ -227,7 +229,6 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
         const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
         userStore.submitPuzzleAttempt(
           currentPuzzle.value.id,
-          currentPuzzle.value.rating as number,
           true,
           Math.max(1, attemptCount.value),
           timeTaken,
@@ -270,7 +271,7 @@ function showHint() {
 }
 
 const queuePuzzles = ref<Puzzle[]>([])
-const weakness = computed(() => userStore.weaknessDna)
+const weakness = computed(() => coachStore.archetypeReport)
 
 function setCat(id: string) {
   activeCat.value = id
@@ -284,7 +285,6 @@ async function loadNextPuzzle(skipped = false) {
     const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
     userStore.submitPuzzleAttempt(
       currentPuzzle.value.id,
-      currentPuzzle.value.rating as number,
       false,
       Math.max(1, attemptCount.value),
       timeTaken,

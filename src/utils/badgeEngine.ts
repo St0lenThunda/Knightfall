@@ -37,6 +37,12 @@ interface EvalInput {
   profile: { rating: number; puzzle_rating?: number } | null
   pastGames: PastGame[]
   puzzleAttempts: PuzzleAttempt[]
+  archetype?: {
+    category: string
+    title: string
+    missRate: number
+    radarScores: Record<string, number>
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -264,13 +270,7 @@ function masteryBadges(input: EvalInput): Badge[] {
 // ─── Pillar 3: Streak & Ritual Badges ─────────────────────────────────────────
 
 function ritualBadges(input: EvalInput): Badge[] {
-  const { puzzleAttempts, pastGames } = input
-
-  // Monday wins check
-  const mondayWins = pastGames.filter(g => {
-    // created_at not on PastGame — approximate via index ordering
-    return g.result === 'win'
-  }).length  // Placeholder until matches table has timestamps
+  const { puzzleAttempts } = input
 
   return [
     {
@@ -326,6 +326,59 @@ function ritualBadges(input: EvalInput): Badge[] {
   ]
 }
 
+// ─── Pillar 4: Archetype & Persona Badges ─────────────────────────────────────
+
+function archetypeBadges(input: EvalInput): Badge[] {
+  const { archetype, pastGames } = input
+  if (!archetype) return []
+
+  const scores = archetype.radarScores
+  const games = pastGames.length
+
+  return [
+    {
+      id: 'versatile_general',
+      label: 'Versatile General',
+      icon: '🛡️',
+      description: 'Achieve a balanced "Mixed" playstyle with 10+ games',
+      pillar: 'title',
+      earned: archetype.category === 'mixed' && games >= 10,
+      progress: archetype.category === 'mixed' ? 1 : 0,
+      progressLabel: archetype.category === 'mixed' ? 'Identity Unlocked' : 'Keep playing',
+    },
+    {
+      id: 'theory_master',
+      label: 'Theory Master',
+      icon: '🧙‍♂️',
+      description: 'Achieve 0.9+ score in Opening Theory',
+      pillar: 'title',
+      earned: scores.opening >= 0.9,
+      progress: scores.opening,
+      progressLabel: `${Math.round(scores.opening * 100)}% theory`,
+    },
+    {
+      id: 'tactical_beast',
+      label: 'Tactical Beast',
+      icon: '👹',
+      description: 'Achieve 0.9+ score in Tactical Vision',
+      pillar: 'title',
+      earned: scores.tactics >= 0.9,
+      progress: scores.tactics,
+      progressLabel: `${Math.round(scores.tactics * 100)}% vision`,
+    },
+    {
+      id: 'endgame_grinder',
+      label: 'Endgame Grinder',
+      icon: '🧱',
+      description: 'Achieve 0.9+ score in Endgame Technique',
+      pillar: 'title',
+      earned: scores.endgame >= 0.9,
+      progress: scores.endgame,
+      progressLabel: `${Math.round(scores.endgame * 100)}% technique`,
+    },
+  ]
+}
+
 // ─── Pillar 4: Tiered Title ────────────────────────────────────────────────────
 
 export function computeTitle(input: EvalInput, masteryCount: number): ChessTitle {
@@ -354,7 +407,8 @@ export function evaluateBadges(input: EvalInput): {
   const milestone = milestoneBadges(input)
   const mastery   = masteryBadges(input)
   const ritual    = ritualBadges(input)
-  const badges    = [...milestone, ...mastery, ...ritual]
+  const arch      = archetypeBadges(input)
+  const badges    = [...milestone, ...mastery, ...ritual, ...arch]
   const masteryEarned = mastery.filter(b => b.earned).length
   const title     = computeTitle(input, masteryEarned)
 

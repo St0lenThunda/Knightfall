@@ -65,7 +65,7 @@
         >
           <span class="icon">📂</span>
           <p>Drop PGN/ZIP</p>
-          <button class="btn btn-ghost btn-xs" @click="$refs.fileInput.click()">Select</button>
+          <button class="btn btn-ghost btn-xs" @click="($refs.fileInput as HTMLInputElement).click()">Select</button>
           <input type="file" ref="fileInput" hidden @change="handleFileSelect" accept=".pgn,.zip" />
         </div>
       </div>

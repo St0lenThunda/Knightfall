@@ -18,7 +18,7 @@
       <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
         <div class="user-rating">
-          <span class="badge badge-gold">♔ {{ userStore.profile?.rating || 1200 }}</span>
+          <span class="badge badge-gold">♔ {{ libraryStore.performanceRating }}</span>
         </div>
       </div>
     </div>

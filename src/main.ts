@@ -4,34 +4,44 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import './style.css'
 
-import HomeView from './views/HomeView.vue'
-import PlayView from './views/PlayView.vue'
-import AnalysisView from './views/AnalysisView.vue'
-import PuzzlesView from './views/PuzzlesView.vue'
-import ProfileView from './views/ProfileView.vue'
-import LibraryView from './views/LibraryView.vue'
-import SettingsView from './views/SettingsView.vue'
-import GauntletView from './views/GauntletView.vue'
-import DnaView from './views/DnaView.vue'
-import OpeningLabView from './views/OpeningLabView.vue'
 import { supabase } from './api/supabaseClient'
+
+/**
+ * Route Configuration
+ *
+ * HomeView is loaded eagerly because it's the landing page and must render
+ * instantly. All other routes use dynamic `import()` so Vite can code-split
+ * them into separate chunks. This cuts the initial JS bundle significantly
+ * (from ~723KB monolith to per-route chunks), improving first-paint time.
+ *
+ * Why? The Vite build previously warned about a 723KB chunk. Lazy-loading
+ * ensures users only download the code they actually navigate to.
+ */
+import HomeView from './views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/',         component: HomeView },
-    { path: '/play',     component: PlayView },
-    { path: '/analysis', component: AnalysisView, meta: { requiresAuth: true } },
-    { path: '/puzzles',  component: PuzzlesView },
-    { path: '/gauntlet', component: GauntletView, meta: { requiresAuth: true } },
-    { path: '/dna',      component: DnaView,      meta: { requiresAuth: true } },
-    { path: '/opening-lab', component: OpeningLabView, meta: { requiresAuth: true } },
-    { path: '/profile',  component: ProfileView, meta: { requiresAuth: true } },
-    { path: '/library',  component: LibraryView, meta: { requiresAuth: true } },
-    { path: '/settings', component: SettingsView },
+    { path: '/play',     component: () => import('./views/PlayView.vue') },
+    { path: '/analysis', component: () => import('./views/AnalysisView.vue'), meta: { requiresAuth: true } },
+    { path: '/puzzles',  component: () => import('./views/PuzzlesView.vue') },
+    { path: '/gauntlet', component: () => import('./views/GauntletView.vue'), meta: { requiresAuth: true } },
+    { path: '/dna',      component: () => import('./views/DnaView.vue'),      meta: { requiresAuth: true } },
+    { path: '/opening-lab', component: () => import('./views/OpeningLabView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile',  component: () => import('./views/ProfileView.vue'), meta: { requiresAuth: true } },
+    { path: '/library',  component: () => import('./views/LibraryView.vue'), meta: { requiresAuth: true } },
+    { path: '/settings', component: () => import('./views/SettingsView.vue') },
   ],
 })
 
+/**
+ * Navigation Guard
+ *
+ * Protects routes marked with `meta.requiresAuth` by checking the
+ * Supabase session before allowing navigation. Unauthenticated users
+ * are redirected to the home page.
+ */
 router.beforeEach(async (to) => {
   if (to.meta.requiresAuth) {
     const { data: { session } } = await supabase.auth.getSession()

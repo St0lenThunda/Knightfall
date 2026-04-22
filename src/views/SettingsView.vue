@@ -159,7 +159,7 @@
               <div class="setting-row" v-if="userStore.profile">
                 <div class="setting-info">
                   <div class="label">Connected as {{ userStore.profile.username }}</div>
-                  <div class="desc">{{ userStore.profile.email }}</div>
+                  <div class="desc">{{ userStore.session?.user?.email }}</div>
                 </div>
                 <div class="setting-action">
                   <button class="btn btn-ghost btn-sm" @click="handleSignOut">Sign Out</button>
@@ -188,6 +188,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUserStore } from '../stores/userStore'
+import { supabase } from '../api/supabaseClient'
 
 const settings = useSettingsStore()
 const userStore = useUserStore()
@@ -208,8 +209,9 @@ const boardThemes = [
   { id: 'obsidian', label: 'Obsidian', color: '#2a2a2a' },
 ]
 
-function handleSignOut() {
-  userStore.signOut()
+async function handleSignOut() {
+  await supabase.auth.signOut()
+  window.location.reload()
   router.push('/')
 }
 

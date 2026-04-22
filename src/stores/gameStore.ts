@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { Chess } from 'chess.js'
-import { parse } from '@mliebelt/pgn-parser'
 import type { Square, PieceSymbol, Color } from 'chess.js'
 import nedImg from '../assets/ned.png'
 import tanyaImg from '../assets/tanya.png'
@@ -10,6 +9,7 @@ import { initAudio } from '../utils/audio'
 import { useSettingsStore } from './settingsStore'
 import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
+import { safeLoadPgn } from '../utils/pgnParser'
 import { supabase } from '../api/supabaseClient'
 
 export type GameMode = 'local' | 'vs-computer' | 'analysis' | 'puzzle'
@@ -52,7 +52,7 @@ export const TIME_CONTROLS: TimeControl[] = [
 ]
 
 export const useGameStore = defineStore('game', () => {
-  const chess = ref(new Chess())
+  const chess = shallowRef(new Chess())
   const mode = ref<GameMode>('local')
   const selectedSquare = ref<Square | null>(null)
   const legalMoveSquares = ref<Square[]>([])
@@ -167,32 +167,8 @@ export const useGameStore = defineStore('game', () => {
     newGame(m)
     loadedGameId.value = gameId
     
-    // Fault-tolerant PGN parsing
-    try {
-      chess.value.loadPgn(pgn)
-    } catch {
-      try {
-        // Fallback 1: AST Parser
-        const ast = parse(pgn, { startRule: 'game' }) as any
-        chess.value.reset()
-        if (ast.tags && ast.tags.FEN) chess.value.load(ast.tags.FEN)
-        for (const move of ast.moves) chess.value.move(move.notation.notation)
-        if (ast.tags) {
-           for (const [key, value] of Object.entries(ast.tags)) {
-             if (typeof value === 'string') chess.value.header(key, value)
-           }
-        }
-      } catch {
-        // Fallback 2: Regex Scrubber
-        let clean = pgn.replace(/\[%[^\]]+\]/g, '')
-        let prev = ''
-        while (clean !== prev) {
-          prev = clean
-          clean = clean.replace(/\([^()]*\)/g, '')
-        }
-        try { chess.value.loadPgn(clean) } catch { /* Surrender */ }
-      }
-    }
+    // Fault-tolerant PGN parsing — uses the shared 3-tier parser
+    safeLoadPgn(chess.value, pgn)
     
     // Reconstruct move history from the loaded game
     const history = chess.value.history({ verbose: true })

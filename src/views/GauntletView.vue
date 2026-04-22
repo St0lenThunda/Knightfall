@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { Square, PieceSymbol } from 'chess.js'
+import type { Square, PieceSymbol } from 'chess.js'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
-import { fetchDailyGauntlet, Puzzle } from '../api/puzzleApi'
+import { fetchDailyGauntlet, type Puzzle } from '../api/puzzleApi'
 import ChessBoard from '../components/ChessBoard.vue'
 
 const store = useGameStore()
@@ -193,7 +193,7 @@ onUnmounted(() => {
       <div class="board-container glass-card">
         <ChessBoard 
           :arrows="arrows"
-          @move="(m) => store.makeMove(m.from, m.to, m.promotion)"
+          @move="(m: any) => store.makeMove(m.from, m.to, m.promotion)"
         />
         <div class="turn-label" :class="store.turn === 'w' ? 'white' : 'black'">
           {{ store.turn === 'w' ? "White to Move" : "Black to Move" }}

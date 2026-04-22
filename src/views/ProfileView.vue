@@ -9,8 +9,8 @@
           <template v-if="!isEditing">
             <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2);">
               <h2 style="margin: 0;">{{ userStore.profile?.username || 'Player' }}</h2>
-              <span class="title-badge" :style="{ color: userStore.badges.title.color, borderColor: userStore.badges.title.color }">
-                {{ userStore.badges.title.symbol }} {{ userStore.badges.title.label }}
+              <span class="title-badge" :style="{ color: coachStore.achievements.title.color, borderColor: coachStore.achievements.title.color }">
+                {{ coachStore.achievements.title.symbol }} {{ coachStore.achievements.title.label }}
               </span>
               <!-- Edit button — always visible, route guard ensures auth -->
               <button
@@ -24,10 +24,10 @@
               <span v-if="userStore.profile?.chessComUsername" class="chess-com-tag"> · ♟ {{ userStore.profile.chessComUsername }}</span>
             </p>
             <div class="profile-badges">
-              <span v-for="b in userStore.badges.badges.filter(x => x.earned).slice(0, 5)" :key="b.id" class="tag">
+              <span v-for="b in coachStore.achievements.badges.filter(x => x.earned).slice(0, 5)" :key="b.id" class="tag">
                 {{ b.icon }} {{ b.label }}
               </span>
-              <span class="tag muted" v-if="userStore.badges.badges.filter(x => x.earned).length === 0">No badges yet — start playing!</span>
+              <span class="tag muted" v-if="coachStore.achievements.badges.filter(x => x.earned).length === 0">No badges yet — start playing!</span>
             </div>
           </template>
 
@@ -87,7 +87,7 @@
           </div>
           <div class="rating-big">
             <div class="label">Badges</div>
-            <div class="rating-num" style="color: var(--teal);">{{ userStore.badges.earnedCount }}<span style="font-size:1rem; opacity:0.5;">/{{ userStore.badges.totalCount }}</span></div>
+            <div class="rating-num" style="color: var(--teal);">{{ coachStore.achievements.earnedCount }}<span style="font-size:1rem; opacity:0.5;">/{{ coachStore.achievements.totalCount }}</span></div>
           </div>
         </div>
       </div>
@@ -156,14 +156,14 @@
         <div class="glass badge-showcase-card">
           <div class="card-header" style="margin-bottom: var(--space-4);">
             <h4>Badges</h4>
-            <span class="muted" style="font-size:0.8rem;">{{ userStore.badges.earnedCount }} / {{ userStore.badges.totalCount }} earned</span>
+            <span class="muted" style="font-size:0.8rem;">{{ coachStore.achievements.earnedCount }} / {{ coachStore.achievements.totalCount }} earned</span>
           </div>
 
           <div v-for="pillar in badgePillars" :key="pillar.id" style="margin-bottom: var(--space-5);">
             <div class="badge-pillar-label">{{ pillar.icon }} {{ pillar.label }}</div>
             <div class="badge-grid">
               <div
-                v-for="b in userStore.badges.badges.filter(x => x.pillar === pillar.id)"
+                v-for="b in coachStore.achievements.badges.filter(x => x.pillar === pillar.id)"
                 :key="b.id"
                 class="badge-item"
                 :class="{ 'badge-earned': b.earned, 'badge-locked': !b.earned }"
@@ -251,7 +251,7 @@
           <div class="card-header" style="margin-bottom: var(--space-4);">
             <h4>Weakness DNA</h4>
             <span class="badge" :class="dnaCategory === 'tactics' ? 'badge-rose' : dnaCategory === 'endgame' ? 'badge-teal' : dnaCategory === 'opening' ? 'badge-accent' : 'badge-gold'">
-              {{ userStore.weaknessDna.label }}
+              {{ coachStore.archetypeReport.label }}
             </span>
           </div>
           <div class="radar-container">
@@ -324,15 +324,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
+import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
 import { supabase } from '../api/supabaseClient'
 
-const router = useRouter()
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
+const coachStore = useCoachStore()
 const uiStore = useUiStore()
 
 const activePeriod = ref('1M')
@@ -462,7 +462,7 @@ function heatColor(count: number) {
 const recentGames = computed(() => [...userStore.pastGames].reverse().slice(0, 5))
 
 // ---- Radar Chart ----
-const dnaCategory = computed(() => userStore.weaknessDna.category)
+const dnaCategory = computed(() => coachStore.archetypeReport.category)
 
 // 6 axes: the 4 weakness categories + puzzle solve rate + game win rate
 const radarAxisDefs = [
@@ -475,29 +475,21 @@ const radarAxisDefs = [
 ]
 
 const radarValues = computed(() => {
-  const dna = userStore.weaknessDna as any
-  const breakdown: { cat: string; score: number }[] = dna.breakdown || []
-  const totalScore = breakdown.reduce((s: number, b: any) => s + b.score, 0) || 1
-
-  // Invert scores: high failure score → low radar value (weakness = depressed axis)
-  const catValue = (key: string) => {
-    const b = breakdown.find((x: any) => x.cat === key)
-    const rawScore = b ? b.score : 0
-    return Math.max(0.1, 1 - (rawScore / totalScore) * 4) // clamp between 0.1-1
-  }
-
+  const scores = coachStore.archetypeReport.radarScores
+  
   const puzzleRate = userStore.puzzleAttempts.length
-    ? userStore.puzzleAttempts.filter(a => a.solved).length / userStore.puzzleAttempts.length
+    ? userStore.puzzleAttempts.filter((a: any) => a.solved).length / userStore.puzzleAttempts.length
     : 0.5
+    
   const wld = userStore.wldStats
   const total = (wld[0].count + wld[1].count + wld[2].count) || 1
   const winRate = wld[0].count / total
 
   return {
-    opening:  catValue('opening'),
-    tactics:  catValue('tactics'),
-    endgame:  catValue('endgame'),
-    mixed:    catValue('mixed'),
+    opening:  scores.opening,
+    tactics:  scores.tactics,
+    endgame:  scores.endgame,
+    mixed:    scores.mixed,
     puzzles:  Math.max(0.1, puzzleRate),
     games:    Math.max(0.1, winRate),
   } as Record<string, number>

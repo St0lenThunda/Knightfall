@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger'
+
 export interface CoachingRequest {
   fen: string
   evalNumber: number
@@ -62,7 +64,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
   
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`Gemini API Error Body:`, errorBody);
+    logger.error(`Gemini API Error Body:`, errorBody);
     throw new Error(`Gemini API error: ${response.statusText} - ${errorBody}`)
   }
 
@@ -71,7 +73,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
 }
 
 export async function generateCoaching(req: CoachingRequest): Promise<string> {
-  console.log( `[LLM API] generateCoaching entered for move: ${req.moveSan}` )
+  logger.info( `[LLM API] generateCoaching entered for move: ${req.moveSan}` )
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
@@ -95,12 +97,12 @@ In 2-3 high-impact, actionable sentences:
 4. Keep the tone encouraging but scientifically precise.`
 
   try {
-    console.log( `LLM API Request: ${prompt}` )
+    logger.info( `LLM API Request: ${prompt}` )
     const responseText = await callGemini(prompt, apiKey)
-    console.log( `LLM API Response: ${responseText}` )
+    logger.info( `LLM API Response: ${responseText}` )
     return responseText
   } catch (err) {
-    console.error("LLM Generation failed:", err)
+    logger.error("LLM Generation failed:", err)
     return "The AI coach is currently unavailable. Focus on developing your pieces toward active squares and keeping your king safe!"
   }
 }
@@ -138,7 +140,7 @@ Keep it encouraging but direct. Use **bold** for key moves/concepts.`
   try {
     return await callGemini(prompt, apiKey)
   } catch (err) {
-    console.error("[BlunderAlert] LLM failed:", err)
+    logger.error("[BlunderAlert] LLM failed:", err)
     return `**${moveSan}** was inaccurate (−${evalDrop}). The engine preferred **${bestMove}**. Stay alert for tactical opportunities!`
   }
 }
@@ -168,7 +170,7 @@ Use ### headings, **bold** for key concepts, and bullet points where helpful. Be
   try {
     return await callGemini(prompt, apiKey)
   } catch (err) {
-    console.error("[PositionExplain] LLM failed:", err)
+    logger.error("[PositionExplain] LLM failed:", err)
     return `### Position Assessment\n\nEvaluation: **${evalNum > 0 ? '+' : ''}${evalNum.toFixed(1)}**. Unable to generate detailed analysis at this time.`
   }
 }

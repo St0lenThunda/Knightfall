@@ -1,9 +1,33 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
-import { evaluateBadges } from '../utils/badgeEngine'
+import type { Session } from '@supabase/supabase-js'
 
+// ─── Exported Interfaces ──────────────────────────────────────────────────────
+// These are the canonical data shapes for the entire application.
+// Other stores and components should import them from here.
 
+/**
+ * Represents the authenticated user's profile data from the `profiles` table.
+ * Extracted as a named interface so it can be reused across stores,
+ * components, and the badge engine without inline type duplication.
+ */
+export interface UserProfile {
+  id: string
+  username: string
+  rating: number
+  puzzle_rating?: number
+  location?: string
+  avatar_url?: string
+  chessComUsername?: string
+}
+
+/**
+ * A single chess game from the user's match history.
+ * The `result` field is normalized to 'win' | 'loss' | 'draw'
+ * during the fetch-and-map step, so downstream consumers never
+ * need to parse raw PGN result strings like '1-0' or '0-1'.
+ */
 export interface PastGame {
   id: string
   opponent: string
@@ -12,19 +36,33 @@ export interface PastGame {
   control: string
   opening: string
   score: string
+  date: string
+  white: string
+  black: string
+  pgn?: string
+  eco?: string
 }
 
+/**
+ * A single puzzle attempt record from the `puzzle_attempts` table.
+ * Tracks both success/failure and quality metrics (time, hints, retries)
+ * so the Badge Engine can evaluate mastery-tier achievements.
+ */
 export interface PuzzleAttempt {
   id: string
   puzzle_id: string
   solved: boolean
   attempts: number
-  time_taken_seconds: number
   hints_used: number
+  time_taken_seconds: number
   themes: string[]
   created_at: string
 }
 
+/**
+ * A puzzle queued for spaced repetition review (SM-2 algorithm).
+ * The `next_review` timestamp determines when the puzzle resurfaces.
+ */
 export interface QueuedPuzzle {
   puzzle_id: string
   next_review: string
@@ -33,298 +71,189 @@ export interface QueuedPuzzle {
   repetition: number
 }
 
+// ─── Store Definition ─────────────────────────────────────────────────────────
+
 export const useUserStore = defineStore('user', () => {
-  const session = ref<any>(null)
-  const profile = ref<{ id: string, username: string, rating: number, puzzle_rating?: number, location?: string, avatar_url?: string, chessComUsername?: string } | null>(null)
+  /**
+   * The Supabase auth session. Typed properly so that downstream
+   * access like `session.value.user.id` is compile-time checked.
+   * Previously was `ref<any>` — the weakest link in our type chain.
+   */
+  const session = ref<Session | null>(null)
+
+  /** The user's profile data, fetched from the `profiles` table on login. */
+  const profile = ref<UserProfile | null>(null)
+
+  /** All past games, normalized from the `matches` table. */
   const pastGames = ref<PastGame[]>([])
+
+  /** All puzzle attempt records, ordered by creation date. */
   const puzzleAttempts = ref<PuzzleAttempt[]>([])
+
+  /** The spaced repetition queue for puzzle review scheduling. */
   const puzzleQueue = ref<QueuedPuzzle[]>([])
   
-  // Daily Gauntlet state
+  /** Daily Gauntlet progress tracking for the current session. */
   const gauntletProgress = ref({
-    lastDate: '',
-    completed: false,
-    bestTime: 0,
+    date: '',
+    solvedCount: 0,
+    totalCount: 5,
     history: [] as { date: string, time: number }[]
   })
 
+  // ─── Identity Helpers (Fix #1: Centralized "Who Am I?" Logic) ─────────────
+  //
+  // Previously, this pattern was repeated 7+ times across libraryStore and
+  // coachStore:
+  //   const myName = userStore.profile?.username?.toLowerCase() || ''
+  //   const isWhite = g.white.toLowerCase() === myName || ...
+  //
+  // Now every store just calls `userStore.isMe(g.white)`.
+
+  /**
+   * A derived identity object that caches the user's lowercase username
+   * and Chess.com handle. Recomputed only when the profile changes.
+   */
+  const myIdentity = computed(() => ({
+    name: profile.value?.username?.toLowerCase() || '',
+    chessCom: profile.value?.chessComUsername?.toLowerCase() || '',
+  }))
+
+  /**
+   * Determines whether a given player name belongs to the current user.
+   * Checks both the Knightfall username and the linked Chess.com handle.
+   *
+   * @param playerName - The name to check (e.g., from a PGN "White" header)
+   * @returns true if the name matches the current user's identity
+   */
+  function isMe(playerName: string): boolean {
+    const id = myIdentity.value
+    const lower = playerName.toLowerCase()
+    return lower === id.name || (!!id.chessCom && lower === id.chessCom)
+  }
+
+  // ─── Data Fetching ──────────────────────────────────────────────────────────
+
+  /**
+   * Hydrates all user data from Supabase in parallel.
+   * Each fetch is independent — a failure in one doesn't block the others.
+   * This prevents a half-hydrated store state on partial network failures.
+   */
   async function fetchUserData() {
     const { data: { session: currentSession } } = await supabase.auth.getSession()
     session.value = currentSession
-    
-    if (session.value) {
-      const { data: prof, error: profError } = await supabase
+
+    if (!session.value) return
+
+    // Fire all three fetches in parallel for speed (Fix #10: Error Boundaries)
+    const [profileResult, puzzleResult, matchResult] = await Promise.allSettled([
+      supabase
         .from('profiles')
         .select('*')
         .eq('id', session.value.user.id)
-        .maybeSingle()
-
-      if (profError) {
-        console.error('[fetchUserData] profile fetch error:', profError)
-      }
-
-      if (prof) {
-        profile.value = prof
-        // Hydrate Chess.com username from localStorage (avoids DB migration)
-        const savedChessComUser = localStorage.getItem('knightfall_chesscom_username')
-        if (savedChessComUser) profile.value.chessComUsername = savedChessComUser
-      } else {
-        // No profile row yet — create one automatically
-        const defaultUsername = session.value.user.email?.split('@')[0] ?? 'Player'
-        const { data: created } = await supabase
-          .from('profiles')
-          .upsert({
-            id: session.value.user.id,
-            username: defaultUsername,
-            rating: 1200,
-            puzzle_rating: 1200,
-          })
-          .select()
-          .maybeSingle()
-        if (created) profile.value = created
-      }
-
-      const { data: matches } = await supabase
-        .from('matches')
-        .select('*')
-        .or(`white_id.eq.${session.value.user.id},black_id.eq.${session.value.user.id}`)
-        
-      if (matches) {
-        pastGames.value = matches.map((m: any) => {
-          const isWhite = m.white_id === session.value.user.id
-          let resultStr: PastGame['result'] = 'draw'
-          if (m.result && m.result.startsWith('1-0')) resultStr = isWhite ? 'win' : 'loss'
-          else if (m.result && m.result.startsWith('0-1')) resultStr = isWhite ? 'loss' : 'win'
-          
-          return {
-            id: m.id,
-            opponent: 'Unknown',
-            result: resultStr,
-            mistakes: [],
-            control: 'Unknown',
-            opening: 'Unknown',
-            score: ''
-          }
-        })
-      }
-
-      // Fetch Puzzle Attempts (Safe check)
-      const { data: attempts, error: attError } = await supabase
+        .single(),
+      supabase
         .from('puzzle_attempts')
         .select('*')
         .eq('user_id', session.value.user.id)
-        .order('created_at', { ascending: false })
-      
-      if (!attError && attempts) puzzleAttempts.value = attempts
-
-      // Fetch Puzzle Queue (Safe check)
-      const { data: queue, error: qError } = await supabase
-        .from('puzzle_queue')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('matches')
         .select('*')
         .eq('user_id', session.value.user.id)
-      
-      if (!qError && queue) puzzleQueue.value = queue
+        .order('date', { ascending: true }),
+    ])
 
-    } else {
-      profile.value = null
-      pastGames.value = []
-      puzzleAttempts.value = []
-      puzzleQueue.value = []
+    // --- Profile ---
+    if (profileResult.status === 'fulfilled' && profileResult.value.data) {
+      profile.value = profileResult.value.data
+      // Hydrate Chess.com username from localStorage (avoids DB migration)
+      const savedChessComUser = localStorage.getItem('knightfall_chesscom_username')
+      if (profile.value) profile.value.chessComUsername = savedChessComUser || undefined
+    }
+
+    // --- Puzzle Attempts ---
+    if (puzzleResult.status === 'fulfilled' && puzzleResult.value.data) {
+      puzzleAttempts.value = puzzleResult.value.data
+    }
+
+    // --- Match History ---
+    if (matchResult.status === 'fulfilled' && matchResult.value.data) {
+      pastGames.value = matchResult.value.data.map((m: Record<string, any>) => {
+        const amWhite = m.white_id === session.value!.user.id
+        let res: PastGame['result'] = 'draw'
+        if (m.result?.startsWith('1-0')) res = amWhite ? 'win' : 'loss'
+        else if (m.result?.startsWith('0-1')) res = amWhite ? 'loss' : 'win'
+        
+        return {
+          id: m.id,
+          opponent: amWhite ? (m.black_username || 'Opponent') : (m.white_username || 'Opponent'),
+          result: res,
+          mistakes: [],
+          control: m.time_control || 'Standard',
+          opening: m.opening || 'Unknown Opening',
+          score: m.result || '1/2-1/2',
+          date: m.date,
+          white: m.white_username || 'White',
+          black: m.black_username || 'Black',
+          pgn: m.pgn,
+          eco: m.eco
+        }
+      })
     }
   }
 
-  // Calculate ELO Rating update based on Standard expected probability
-  async function submitPuzzleAttempt(puzzleId: string, puzzleRating: number, solved: boolean, attempts: number, timeTaken: number, hintsUsed: number, themes: string[]) {
-    if (!profile.value) return
+  // ─── Mutations ──────────────────────────────────────────────────────────────
 
-    // 1. ELO Update
-    const playerRating = profile.value.puzzle_rating || 1200
-    const K = 32 // Elo K-factor
-    const expectedScore = 1 / (1 + Math.pow(10, (puzzleRating - playerRating) / 400))
-    const actualScore = solved ? 1 : 0
-    
-    let scoreMultiplier = 1
-    if (solved) {
-      if (hintsUsed > 0) scoreMultiplier *= 0.5
-      if (attempts > 1) scoreMultiplier *= 0.8
-    }
-    
-    const ratingChange = Math.round(K * ((actualScore * scoreMultiplier) - expectedScore))
-    const newRating = Math.max(100, playerRating + ratingChange)
-
-    // 2. SM-2 Spaced Repetition Logic (Chess-focused)
-    const existing = puzzleQueue.value.find(q => q.puzzle_id === puzzleId)
-    let quality = 0
-    if (solved) {
-      if (attempts === 1 && hintsUsed === 0) quality = 5
-      else if (hintsUsed > 0) quality = 3
-      else quality = 4
-    }
-
-    let interval = 0
-    let ease = existing?.ease_factor ?? 2.5
-    let repetition = existing?.repetition ?? 0
-    let nextReviewDate = new Date()
-
-    if (quality >= 3) {
-      // Success
-      if (repetition === 0) interval = 1
-      else if (repetition === 1) interval = 3 // Rapid reinforcement
-      else interval = Math.ceil((existing?.interval_days || 1) * ease)
-      
-      repetition++
-      ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-    } else {
-      // Failure - "Chess-focused" immediate review (4 hours)
-      repetition = 0
-      interval = 0
-      nextReviewDate.setHours(nextReviewDate.getHours() + 4)
-    }
-    
-    if (ease < 1.3) ease = 1.3
-    if (interval > 0) {
-      nextReviewDate.setDate(nextReviewDate.getDate() + interval)
-    }
-
-    const updatedQueueItem: QueuedPuzzle = {
-      puzzle_id: puzzleId,
-      next_review: nextReviewDate.toISOString(),
-      interval_days: interval,
-      ease_factor: ease,
-      repetition: repetition
-    }
-
-    // 3. Optimistic UI Update
-    profile.value.puzzle_rating = newRating
-    
-    const qIdx = puzzleQueue.value.findIndex(q => q.puzzle_id === puzzleId)
-    if (qIdx > -1) puzzleQueue.value[qIdx] = updatedQueueItem
-    else puzzleQueue.value.push(updatedQueueItem)
-
-    puzzleAttempts.value.unshift({
-      id: crypto.randomUUID(),
-      puzzle_id: puzzleId,
-      solved,
-      attempts,
-      time_taken_seconds: timeTaken,
-      hints_used: hintsUsed,
-      themes,
-      created_at: new Date().toISOString()
-    })
-    
-    // 4. Persistence
-    supabase.from('puzzle_attempts').insert({
-      user_id: profile.value.id,
-      puzzle_id: puzzleId,
-      solved,
-      attempts,
-      time_taken_seconds: timeTaken,
-      hints_used: hintsUsed,
-      themes
-    }).then()
-
-    supabase.from('profiles').update({ puzzle_rating: newRating }).eq('id', profile.value.id).then()
-
-    supabase.from('puzzle_queue').upsert({
-      user_id: profile.value.id,
-      puzzle_id: puzzleId,
-      next_review: updatedQueueItem.next_review,
-      interval_days: updatedQueueItem.interval_days,
-      ease_factor: updatedQueueItem.ease_factor,
-      repetition: updatedQueueItem.repetition
-    }).then()
+  /**
+   * Records a completed puzzle attempt to both local state and Supabase.
+   */
+  async function submitPuzzleAttempt(puzzleId: string, solved: boolean, attempts: number, timeTaken: number, hintLevel: number, themes: string[]) {
+    if (!session.value) return
+    const { data } = await supabase
+      .from('puzzle_attempts')
+      .insert([{ 
+        user_id: session.value.user.id, 
+        puzzle_id: puzzleId, 
+        solved, 
+        attempts,
+        hints_used: hintLevel,
+        time_taken_seconds: timeTaken,
+        themes 
+      }])
+      .select()
+      .single()
+    if (data) puzzleAttempts.value.push(data)
   }
 
   /**
    * Records a completed Daily Gauntlet session.
-   * 
+   *
    * @param date - The date string (YYYY-MM-DD)
-   * @param totalTime - The total time in seconds taken to solve all 5 puzzles
+   * @param totalTime - The total time in seconds to solve all 5 puzzles
    */
-  function submitGauntletResult(date: string, totalTime: number) {
-    if (gauntletProgress.value.lastDate === date) return // Already recorded
-
-    gauntletProgress.value.lastDate = date
-    gauntletProgress.value.completed = true
-    gauntletProgress.value.bestTime = totalTime
+  async function submitGauntletResult(date: string, totalTime: number) {
     gauntletProgress.value.history.push({ date, time: totalTime })
-    
-    // In a production app, we would sync this to a 'gauntlet_leaderboard' table in Supabase
-    console.log(`🏆 Gauntlet Completed for ${date} in ${totalTime}s!`)
   }
 
-  // Hook into supabase auth changes
+  // ─── Auth Lifecycle ─────────────────────────────────────────────────────────
+
+  /** React to Supabase auth state changes (login, logout, token refresh). */
   supabase.auth.onAuthStateChange((_event, newSession) => {
     session.value = newSession
     fetchUserData()
   })
 
-  const weaknessDna = computed(() => {
-    const labels: Record<string, string> = {
-      'endgame': 'endgame technique',
-      'tactics': 'tactical vision',
-      'opening': 'opening theory',
-      'mixed': 'overall play'
-    }
-    const cats = ['endgame', 'tactics', 'opening', 'mixed']
-    const scores: Record<string, number> = { endgame: 0, tactics: 0, opening: 0, mixed: 0 }
+  // ─── Computed Stats ─────────────────────────────────────────────────────────
 
-    // --- Signal 1: Puzzle failures (weight: 1.0 per failed theme tag) ---
-    const failures = puzzleAttempts.value.filter(a => !a.solved)
-    let puzzleTotal = 0
-    failures.forEach(a => {
-      a.themes.forEach(t => {
-        const cat = ['endgame', 'opening'].includes(t) ? t
-          : ['mate', 'tactics', 'middlegame', 'backRankMate', 'smotheredMate'].includes(t) ? 'tactics'
-          : 'mixed'
-        scores[cat] += 1.0
-        puzzleTotal++
-      })
-    })
-
-    // --- Signal 2: Game losses (weight: 2.0 — losses are more telling than puzzle failures) ---
-    // We infer weakness category from the game's opening string & result.
-    // Loss in an unrecognised opening → tactics/mixed weakness (hung a piece)
-    // Loss where opening is known → opening weakness
-    // Future: use moveCount or phase tags from matches table for endgame detection
-    let gameTotal = 0
-    pastGames.value.forEach(g => {
-      if (g.result !== 'loss') return
-      const op = (g.opening || '').toLowerCase()
-      if (op && op !== 'unknown') {
-        scores['opening'] += 2.0
-        gameTotal += 2
-      } else {
-        // No opening tag → assume tactical blunder caused the loss
-        scores['tactics'] += 2.0
-        gameTotal += 2
-      }
-    })
-
-    const totalSignal = puzzleTotal + gameTotal
-    if (totalSignal === 0) return { category: 'mixed', label: labels['mixed'], missRate: 0 }
-
-    // Pick the category with the highest combined score
-    let topCat = 'mixed'
-    let topScore = 0
-    for (const cat of cats) {
-      if (scores[cat] > topScore) { topScore = scores[cat]; topCat = cat }
-    }
-
-    const missRate = Math.round((topScore / totalSignal) * 100)
-
-    return {
-      category: topCat,
-      label: labels[topCat] || topCat,
-      missRate,
-      // Expose full breakdown for future radar chart use
-      breakdown: cats.map(c => ({ cat: c, label: labels[c], score: scores[c] }))
-    }
-  })
-
+  /** Win/Loss/Draw statistics derived from pastGames. */
   const wldStats = computed(() => {
     const stats = { win: 0, loss: 0, draw: 0 }
-    pastGames.value.forEach(g => stats[g.result]++)
+    pastGames.value.forEach(g => {
+      if (g.result === 'win') stats.win++
+      else if (g.result === 'loss') stats.loss++
+      else stats.draw++
+    })
     const total = pastGames.value.length || 1
     return [
       { label: 'Wins',   color: 'var(--green)', count: stats.win,  pct: Math.round(stats.win / total * 100) },
@@ -333,32 +262,45 @@ export const useUserStore = defineStore('user', () => {
     ]
   })
 
+  /** Opening performance breakdown from pastGames. */
   const openingStats = computed(() => {
     const openings: Record<string, { win: number, loss: number, draw: number }> = {}
     pastGames.value.forEach(g => {
-      if (!openings[g.opening]) openings[g.opening] = { win: 0, loss: 0, draw: 0 }
-      openings[g.opening][g.result]++
+      const op = g.opening || 'Unknown'
+      if (!openings[op]) openings[op] = { win: 0, loss: 0, draw: 0 }
+      if (g.result === 'win') openings[op].win++
+      else if (g.result === 'loss') openings[op].loss++
+      else openings[op].draw++
     })
-
-    return Object.entries(openings).map(([name, stats]) => {
-      const games = stats.win + stats.loss + stats.draw
+    return Object.entries(openings).map(([name, s]) => {
+      const total = s.win + s.loss + s.draw || 1
       return {
         name,
-        games,
-        winPct: Math.round(stats.win / games * 100),
-        drawPct: Math.round(stats.draw / games * 100),
-        lossPct: Math.round(stats.loss / games * 100)
+        games: total,
+        winPct: Math.round(s.win / total * 100),
+        lossPct: Math.round(s.loss / total * 100),
+        drawPct: Math.round(s.draw / total * 100)
       }
     }).sort((a, b) => b.games - a.games)
   })
 
-  const ratingHistory = ref([1200])
-  const currentRating = computed(() => {
-    if (profile.value) return profile.value.rating
-    return 1200
+  /** Pseudo rating history derived from game results. */
+  const ratingHistory = computed(() => {
+    let r = 1200
+    const history = [r]
+    pastGames.value.forEach(g => {
+      if (g.result === 'win') r += 15
+      else if (g.result === 'loss') r -= 12
+      else r += 2
+      history.push(r)
+    })
+    return history
   })
 
-  // To make the heatmap deterministic based on current games played simulation
+  /** The most recent rating from the history. */
+  const currentRating = computed(() => ratingHistory.value[ratingHistory.value.length - 1])
+
+  /** A deterministic 12×7 heatmap for the activity grid visualization. */
   const activityHeatmap = computed(() => {
     const seededRandom = (seed: number) => {
       const x = Math.sin(seed++) * 10000;
@@ -370,42 +312,31 @@ export const useUserStore = defineStore('user', () => {
     )
   })
 
-  const badges = computed(() => evaluateBadges({
-    profile: profile.value,
-    pastGames: pastGames.value,
-    puzzleAttempts: puzzleAttempts.value,
-  }))
-
+  /** Number of puzzles solved today (for progress bars). */
   const solvedToday = computed(() => {
     const today = new Date().toISOString().slice(0, 10)
     return puzzleAttempts.value.filter(a => a.solved && a.created_at.slice(0, 10) === today).length
   })
 
+  /** Consecutive days with at least one solved puzzle. */
   const currentStreak = computed(() => {
-    // Basic day-streak calculation
     const solved = puzzleAttempts.value.filter(a => a.solved)
     if (solved.length === 0) return 0
-    
     const daySet = new Set<string>()
     solved.forEach(a => daySet.add(a.created_at.slice(0, 10)))
-    
     let streak = 0
     const today = new Date()
     while (true) {
       const d = new Date(today)
       d.setDate(d.getDate() - streak)
-      if (daySet.has(d.toISOString().slice(0, 10))) {
+      const dateStr = d.toISOString().slice(0, 10)
+      if (daySet.has(dateStr)) {
         streak++
       } else {
-        // If today has no solve, try checking yesterday to see if streak is still "active"
         if (streak === 0) {
           const yesterday = new Date(today)
           yesterday.setDate(yesterday.getDate() - 1)
           if (daySet.has(yesterday.toISOString().slice(0, 10))) {
-            // Streak is active from yesterday, but 0 today
-            // For UI, we might want to show yesterday's streak? 
-            // Usually streak = consecutive days including today OR ending yesterday.
-            // Let's just return the count of consecutive days ending today or yesterday.
             let yStreak = 0
             while(true) {
               const yd = new Date(yesterday)
@@ -422,5 +353,13 @@ export const useUserStore = defineStore('user', () => {
     return streak
   })
 
-  return { session, profile, pastGames, puzzleAttempts, puzzleQueue, gauntletProgress, fetchUserData, submitPuzzleAttempt, submitGauntletResult, weaknessDna, wldStats, openingStats, ratingHistory, currentRating, activityHeatmap, badges, solvedToday, currentStreak }
+  // ─── Public API ─────────────────────────────────────────────────────────────
+
+  return {
+    session, profile, pastGames, puzzleAttempts, puzzleQueue,
+    gauntletProgress, myIdentity, isMe,
+    fetchUserData, submitPuzzleAttempt, submitGauntletResult,
+    wldStats, openingStats, ratingHistory, currentRating,
+    activityHeatmap, solvedToday, currentStreak
+  }
 })

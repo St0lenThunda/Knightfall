@@ -22,6 +22,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 import { useEngineStore } from '../stores/engineStore'
 import { generateCoaching } from '../api/llmApi'
 import { renderMarkdown } from '../utils/markdown'
+import { logger } from '../utils/logger'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
@@ -61,10 +62,10 @@ const hasGame = computed(() => store.moveHistory.length > 0)
 
 async function askCoach() {
   const currentViewIndex = store.viewIndex
-  console.log(`[Coach] Interaction started for move idx: ${currentViewIndex}`)
+  logger.info(`[Coach] Interaction started for move idx: ${currentViewIndex}`)
 
   if (!hasGame.value || !comparisonData.value) {
-    console.log(`[Coach] Aborting: No game or comparison data.`)
+    logger.info(`[Coach] Aborting: No game or comparison data.`)
     coachResponse.value = null
     isCoachThinking.value = false
     return
@@ -76,7 +77,7 @@ async function askCoach() {
   // CHECK CACHE
   if (currentGame.value) {
       if (currentGame.value.analysisCache && currentGame.value.analysisCache[currentFen]) {
-          console.log(`[Coach] Cache Hit for FEN: ${currentFen.substring(0, 20)}...`)
+          logger.info(`[Coach] Cache Hit for FEN: ${currentFen.substring(0, 20)}...`)
           coachResponse.value = currentGame.value.analysisCache[currentFen]
           isCoachThinking.value = false
           return
@@ -87,20 +88,20 @@ async function askCoach() {
   coachResponse.value = null
 
   try {
-      console.log(`[Coach] Waiting for engine (target depth 3)... Current: ${engineStore.currentDepth}`)
+      logger.info(`[Coach] Waiting for engine (target depth 3)... Current: ${engineStore.currentDepth}`)
       let waitCount = 0
       while (engineStore.currentDepth < 3 && waitCount < 10) {
           if (store.viewIndex !== currentViewIndex) {
-              console.log(`[Coach] Request cancelled (user moved to ${store.viewIndex})`)
+              logger.info(`[Coach] Request cancelled (user moved to ${store.viewIndex})`)
               return
           }
           await new Promise(r => setTimeout(r, 60))
           waitCount++
       }
 
-      console.log(`[Coach] Engine ready (Depth: ${engineStore.currentDepth}). Triggering LLM...`)
+      logger.info(`[Coach] Engine ready (Depth: ${engineStore.currentDepth}). Triggering LLM...`)
       if (store.viewIndex !== currentViewIndex) {
-          console.log(`[Coach] Aborted before LLM: viewIndex changed from ${currentViewIndex} to ${store.viewIndex}`)
+          logger.info(`[Coach] Aborted before LLM: viewIndex changed from ${currentViewIndex} to ${store.viewIndex}`)
           return
       }
 
@@ -111,7 +112,7 @@ async function askCoach() {
       const bestMove = engineStore.suggestedMove || 'unknown'
       const eval_ = engineStore.evalNumber
 
-      console.log(`[Coach] Calling generateCoaching for player: ${playerName}`)
+      logger.info(`[Coach] Calling generateCoaching for player: ${playerName}`)
 
       const response = await generateCoaching({
         fen: beforeFen,
@@ -126,11 +127,11 @@ async function askCoach() {
       })
 
       if (store.viewIndex !== currentViewIndex) {
-          console.log(`[Coach] LLM response received but ignored (late arrival).`)
+          logger.info(`[Coach] LLM response received but ignored (late arrival).`)
           return
       }
 
-      console.log(`[Coach] LLM Response successfully received.`)
+      logger.info(`[Coach] LLM Response successfully received.`)
       coachResponse.value = response
 
       // PERSIST TO CACHE
@@ -139,12 +140,12 @@ async function askCoach() {
       }
   } catch (err) {
       if (store.viewIndex !== currentViewIndex) return
-      console.error('[Coach] Failed:', err)
+      logger.error('[Coach] Failed:', err)
       coachResponse.value = "The AI coach encountered a momentary lapse. Try selecting this move again!"
   } finally {
       if (store.viewIndex === currentViewIndex) {
           isCoachThinking.value = false
-          console.log(`[Coach] Request finished for move idx: ${currentViewIndex}`)
+          logger.info(`[Coach] Request finished for move idx: ${currentViewIndex}`)
       }
   }
 }

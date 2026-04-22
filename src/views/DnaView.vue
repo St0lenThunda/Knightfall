@@ -5,6 +5,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
 import { fetchRecentChessComGames, getPlayerStats } from '../api/chessComApi'
+import { logger } from '../utils/logger'
 import ConfirmModal from '../components/ConfirmModal.vue'
 
 const userStore = useUserStore()
@@ -78,7 +79,7 @@ async function startSync() {
   }
 }
 
-const chessComStats = ref<any>(null)
+const chessComStats = ref<Record<string, any> | null>(null)
 
 async function importChessCom() {
   if (!chessComUser.value) return
@@ -138,7 +139,7 @@ async function confirmReset() {
     await libraryStore.purgeCloudLibrary()
     uiStore.addToast('Cloud storage cleaned.', 'info')
   } catch (e) {
-    console.error('Cloud purge failed:', e)
+    logger.error('Cloud purge failed:', e)
   }
   
   // 3. Pull back any games saved to Supabase (Knightfall games)

@@ -317,9 +317,7 @@ const libraryWinRate = computed(() => libraryStore.libraryWinRate)
 
 const recentGames = computed(() => {
   return [...libraryStore.games].reverse().slice(0, 5).map(g => {
-    const myName = userStore.profile?.username?.toLowerCase() || ''
-    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
-    const isWhite = g.white.toLowerCase() === myName || (myChessCom && g.white.toLowerCase() === myChessCom)
+    const isWhite = userStore.isMe(g.white)
     
     const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
     const draw = g.result === '1/2-1/2'

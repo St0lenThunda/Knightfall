@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
+import { evaluateBadges } from '../utils/badgeEngine'
 import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
 import { supabase } from '../api/supabaseClient'
@@ -42,8 +43,8 @@ export const useCoachStore = defineStore('coach', () => {
     // --- Signal 1: Puzzle failures ---
     const failures = userStore.puzzleAttempts.filter(a => !a.solved)
     let totalSignals = 0
-    failures.forEach(a => {
-      a.themes.forEach(t => {
+    failures.forEach((a: any) => {
+      a.themes.forEach((t: string) => {
         const cat = ['endgame', 'opening'].includes(t) ? t
           : ['mate', 'tactics', 'middlegame', 'backRankMate'].includes(t) ? 'tactics'
           : 'mixed'
@@ -56,8 +57,7 @@ export const useCoachStore = defineStore('coach', () => {
     libraryStore.games.forEach(g => {
       if (g.result === '1/2-1/2') return
       
-      const myName = userStore.profile?.username?.toLowerCase() || ''
-      const isWhite = g.white.toLowerCase() === myName
+      const isWhite = userStore.isMe(g.white)
       const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
       
       if (!won) {
@@ -124,8 +124,6 @@ export const useCoachStore = defineStore('coach', () => {
    */
   const dnaPrescriptions = computed<Prescription[]>(() => {
     const allGames = libraryStore.games
-    const myName = userStore.profile?.username?.toLowerCase() || ''
-    const myChessCom = userStore.profile?.chessComUsername?.toLowerCase() || ''
     const rx: Prescription[] = []
     
     if (allGames.length === 0) {
@@ -138,8 +136,7 @@ export const useCoachStore = defineStore('coach', () => {
     // --- Signal 1: Color Imbalance ---
     let whiteWins = 0, whiteLosses = 0, blackWins = 0, blackLosses = 0
     allGames.forEach(g => {
-      const pWhite = g.white.toLowerCase()
-      const isWhite = pWhite === myName || (myChessCom && pWhite === myChessCom)
+      const isWhite = userStore.isMe(g.white)
       const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
       const lost = (g.result === '0-1' && isWhite) || (g.result === '1-0' && !isWhite)
       if (isWhite) { if (won) whiteWins++; if (lost) whiteLosses++ }
@@ -158,13 +155,12 @@ export const useCoachStore = defineStore('coach', () => {
     }
 
     // --- Signal 2: Game Length (Phase Vulnerability) ---
-    const losses = allGames.filter(g => {
-      const pWhite = g.white.toLowerCase()
-      const isWhite = pWhite === myName || (myChessCom && pWhite === myChessCom)
+    const losses = allGames.filter((g: any) => {
+      const isWhite = userStore.isMe(g.white)
       return (g.result === '0-1' && isWhite) || (g.result === '1-0' && !isWhite)
     })
     if (losses.length > 0) {
-      const avgLossMoves = Math.round(losses.reduce((s, g) => s + g.movesCount, 0) / losses.length)
+      const avgLossMoves = Math.round(losses.reduce((s: number, g: any) => s + g.movesCount, 0) / losses.length)
       if (avgLossMoves < 25) {
         rx.push({ id: 'opening-vuln', icon: '🎬', title: 'Opening Vulnerability', desc: `Critical: Your losses average only ${avgLossMoves} moves. You are likely falling into opening traps.`, link: '/opening-lab', linkText: 'Study Openings →', severity: 'critical', category: 'dna' })
       } else if (avgLossMoves > 55) {
@@ -287,11 +283,24 @@ export const useCoachStore = defineStore('coach', () => {
     }
   })
 
+  /**
+   * CENTRALIZED ACHIEVEMENTS
+   * Evaluates all badges and titles based on the live session data
+   * and the current archetype report.
+   */
+  const achievements = computed(() => evaluateBadges({
+    profile: userStore.profile,
+    pastGames: userStore.pastGames,
+    puzzleAttempts: userStore.puzzleAttempts,
+    archetype: archetypeReport.value
+  }))
+
   return { 
     archetypeReport, 
     dnaPrescriptions, 
     openingPrescriptions, 
-    playstyleNarrative, 
+    playstyleNarrative,
+    achievements,
     syncArchetypeToCloud 
   }
 })

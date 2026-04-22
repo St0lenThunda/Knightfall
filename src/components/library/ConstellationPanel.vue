@@ -120,7 +120,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useLibraryStore } from '../../stores/libraryStore'
+import { useLibraryStore, type OpeningNode } from '../../stores/libraryStore'
+
+/**
+ * Visual Graph Node representation.
+ * Combines opening data with SVG-specific coordinates for rendering.
+ */
+interface GraphNode extends OpeningNode {
+  id: string
+  x: number
+  y: number
+  isWhite: boolean
+}
 
 const libraryStore = useLibraryStore()
 
@@ -128,7 +139,7 @@ const containerEl = ref<HTMLElement | null>(null)
 const width = ref(1000)
 const height = ref(800)
 const viewBox = ref({ x: 500, y: 700, scale: 1.0 })
-const hoverNode = ref<any>(null)
+const hoverNode = ref<GraphNode | null>(null)
 const tooltipPos = ref({ x: 0, y: 0 })
 
 // Dragging state
@@ -163,7 +174,7 @@ function onWheel(e: WheelEvent) {
 const maxWeight = computed(() => {
     if (!libraryStore.openingTree) return 1
     let max = 1
-    const findMax = (node: any) => {
+    const findMax = (node: OpeningNode) => {
         if (node.weight > max) max = node.weight
         Object.values(node.children).forEach(findMax)
     }
@@ -172,20 +183,19 @@ const maxWeight = computed(() => {
 })
 
 const graphData = computed(() => {
-    const nodes: any[] = []
+    const nodes: GraphNode[] = []
     const edges: any[] = []
     
     // Layout parameters
     const verticalSpacing = 120
     
-    function traverse(node: any, depth: number, angleRange: [number, number], parentX: number, parentY: number, nodeId = 'root') {
+    function traverse(node: OpeningNode, depth: number, angleRange: [number, number], parentX: number, parentY: number, nodeId = 'root') {
         const x = parentX
         const y = parentY
         
         nodes.push({
+            ...node,
             id: nodeId,
-            san: node.san,
-            weight: node.weight,
             x, y,
             isWhite: depth % 2 !== 0 // Depth 1 = Move 1 = White
         })
@@ -193,12 +203,12 @@ const graphData = computed(() => {
         const children = Object.entries(node.children)
         if (children.length === 0) return
 
-        const totalChildWeight = children.reduce((sum, [_, child]: [any, any]) => sum + child.weight, 0)
+        const totalChildWeight = children.reduce((sum, [_, child]: [any, OpeningNode]) => sum + child.weight, 0)
         if (totalChildWeight > 0) {
             let currentAngle = angleRange[0]
             const rangeWidth = angleRange[1] - angleRange[0]
 
-            children.forEach(([_, child]: [any, any], i) => {
+            children.forEach(([_, child]: [any, OpeningNode], i) => {
                 const childWeightPct = child.weight / totalChildWeight
                 const childAngleWidth = rangeWidth * childWeightPct
                 const childAngle = currentAngle + childAngleWidth / 2
@@ -231,7 +241,7 @@ const graphData = computed(() => {
 const nodes = computed(() => graphData.value.nodes)
 const edges = computed(() => graphData.value.edges)
 
-function selectNode(node: any) {
+function selectNode(node: GraphNode) {
     // Communication with Vault filtering would go here
     console.log('Selected line:', node.san)
 }
@@ -245,6 +255,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* (Styles omitted for brevity, keeping original styles) */
 .constellation-panel {
   display: flex;
   flex-direction: column;

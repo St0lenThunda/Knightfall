@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useSettingsStore } from './settingsStore'
+import { logger } from '../utils/logger'
 
 export const useEngineStore = defineStore('engine', () => {
   const isReady = ref(false)
@@ -26,7 +27,7 @@ export const useEngineStore = defineStore('engine', () => {
     worker = new Worker('/engine/stockfish.js')
     
     worker.onerror = (err) => {
-        console.error('[Engine] Worker error caught:', err)
+        logger.error('[Engine] Worker error caught:', err)
         reboot()
     }
 
@@ -59,7 +60,7 @@ export const useEngineStore = defineStore('engine', () => {
 
   function reboot() {
     if (rebootCount > 5) {
-        console.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.')
+        logger.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.')
         isAnalyzing.value = false
         return
     }
@@ -68,7 +69,7 @@ export const useEngineStore = defineStore('engine', () => {
     if (rebootResetTimer) clearTimeout(rebootResetTimer)
     rebootResetTimer = setTimeout(() => { rebootCount = 0 }, 10000)
 
-    console.warn(`[Engine] Rebooting worker (Attempt ${rebootCount})...`)
+    logger.warn(`[Engine] Rebooting worker (Attempt ${rebootCount})...`)
     if (worker) {
         worker.terminate()
         worker = null
@@ -195,12 +196,12 @@ export const useEngineStore = defineStore('engine', () => {
   function analyze(fen: string, depth = 15) {
     if (!worker) init()
     
-    console.log(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
+    logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     
     // Basic FEN validation: check for 6 fields and move turn
     const parts = fen.split(' ')
     if (parts.length < 4) {
-        console.warn('[Engine] Invalid FEN passed to analyze:', fen)
+        logger.warn('[Engine] Invalid FEN passed to analyze:', fen)
         return
     }
 
