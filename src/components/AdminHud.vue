@@ -2,9 +2,8 @@
   <Transition name="slide-up">
     <div v-if="userStore.isAdmin" class="admin-hud-wrapper" :class="{ expanded: !isCollapsed }">
       <!-- Toggle Tab -->
-      <button class="hud-toggle glass-sm" @click="isCollapsed = !isCollapsed">
+      <button class="hud-toggle glass-sm" @click="isCollapsed = !isCollapsed" :title="isCollapsed ? 'Open Diagnostics' : 'Minimize Terminal'">
         <span class="pulse-icon" :class="{ active: !isCollapsed }"></span>
-        <span class="toggle-label">{{ isCollapsed ? 'DIAGNOSTICS' : 'MINIMIZE' }}</span>
       </button>
 
       <!-- Main Panel (The Console) -->
@@ -13,7 +12,7 @@
           <header class="console-header">
             <div class="header-left">
               <span class="title">GHOSTLY TERMINAL</span>
-              <span class="version">v0.11.0.STABLE</span>
+              <span class="version">v0.13.0.STABLE</span>
             </div>
             <div class="header-right">
               <span class="uptime">UPTIME: {{ uptime }}</span>
@@ -209,21 +208,28 @@ onUnmounted(() => { clearInterval(timer); clearInterval(poll); })
 }
 
 .admin-hud-wrapper.expanded {
-  width: 40vw;
-  height: 40vh;
+  width: 60vw;
+  height: 50vh;
 }
 
 .hud-toggle {
   background: rgba(10, 10, 12, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-md);
-  padding: 8px 16px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   cursor: pointer;
   pointer-events: all;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.hud-toggle:hover {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: var(--accent);
+  transform: scale(1.1);
 }
 
 .toggle-label {

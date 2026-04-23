@@ -127,10 +127,14 @@ const filteredLib = computed(() => {
 async function importCurated(item: any) {
     const beforeCount = libraryStore.games.length
     uiStore.addToast(`Importing ${item.name}...`, 'info')
-    await libraryStore.importFromUrl(item.url, item.name)
-    const afterCount = libraryStore.games.length
-    const diff = afterCount - beforeCount
-    uiStore.addToast(`Success! Added ${diff} games to ${item.name}.`, 'success')
+    try {
+        await libraryStore.importFromUrl(item.url, item.name)
+        const afterCount = libraryStore.games.length
+        const diff = afterCount - beforeCount
+        uiStore.addToast(`Success! Added ${diff} games to ${item.name}.`, 'success')
+    } catch (err: any) {
+        uiStore.addToast(`Import failed: ${err.message || 'Check your connection'}`, 'error')
+    }
 }
 
 async function handleFileDrop(e: DragEvent) {

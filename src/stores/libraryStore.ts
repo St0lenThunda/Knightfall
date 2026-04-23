@@ -64,6 +64,23 @@ export const useLibraryStore = defineStore('library', () => {
   const sortBy = ref(localStorage.getItem('vault_sortBy') || 'addedAt')
   const sortOrder = ref(localStorage.getItem('vault_sortOrder') || 'desc')
 
+  // --- PERSONAL DATA FILTERING ---
+  /** 
+   * Games where the user is an active participant. 
+   * This excludes curated master collections for the 'Weakness DNA' analysis.
+   */
+  const personalGames = computed(() => {
+    return games.value.filter(g => {
+      // Identity Check: Must be one of the players to be 'My DNA'
+      const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
+      if (isMe) return true
+
+      // Fallback for native Knightfall games that might have 'Anonymous' or different headers
+      const tags = (g.tags || []).map(t => t.toLowerCase())
+      return tags.includes('my games')
+    })
+  })
+
   // --- SUB-COMPOSABLES (Decomposition) ---
   const idb = useLibraryIdb(games)
   
@@ -74,7 +91,7 @@ export const useLibraryStore = defineStore('library', () => {
     idb.initDb
   )
   
-  const stats = useLibraryStats(games, userStore)
+  const stats = useLibraryStats(personalGames, userStore)
   
   const filter = useLibraryFilter(
     games,
@@ -90,7 +107,15 @@ export const useLibraryStore = defineStore('library', () => {
   const cloud = useLibrarySync(games, idb.initDb)
   
   const constellation = useLibraryConstellation(
-    filter.filteredGames,
+    computed(() => {
+      // If we are in the default 'all' view with no search, 
+      // focus the constellation on 'Personal DNA' (Your games).
+      // If a specific tag or search is active, show the filtered result.
+      if (selectedTag.value === 'all' && !searchQuery.value) {
+        return personalGames.value
+      }
+      return filter.filteredGames.value
+    }),
     filter.isFiltering,
     importProgress,
     searchQuery,
@@ -214,6 +239,8 @@ export const useLibraryStore = defineStore('library', () => {
     
     // Sub-module exposures (Intel)
     ...intel,
+
+    personalGames,
     
     // Actions
     loadGames: idb.loadGames,
@@ -245,12 +272,19 @@ export const useLibraryStore = defineStore('library', () => {
       isImporting.value = true
       try {
         const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        
         const blob = await res.blob()
         if (url.toLowerCase().endsWith('.zip')) {
           await importer.importPgnZip(blob, true, [name])
         } else {
-          await importer.importPgn(await blob.text(), true, [name])
+          const text = await blob.text()
+          if (!text || text.trim().length < 10) throw new Error('Empty or invalid PGN file')
+          await importer.importPgn(text, true, [name])
         }
+      } catch (err: any) {
+        logger.error('[Library] Import from URL failed', url, err)
+        throw err // Let the UI handle the toast
       } finally { isImporting.value = false }
     },
     importPgnText: (text: string, name = 'Snippet') => importer.importPgn(text, false, [name, 'Manual Paste'])

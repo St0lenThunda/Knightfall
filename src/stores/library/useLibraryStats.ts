@@ -10,14 +10,27 @@ export function useLibraryStats(
   games: Ref<LibraryGame[]>,
   userStore: any // Access to profile and isMe helper
 ) {
+  // --- INTERNAL FILTERING ---
+  /** Games where the user is an active participant (Personal DNA). */
+  const personalGames = computed(() => {
+    return games.value.filter(g => {
+      // Identity Check: Must be one of the players to be 'My DNA'
+      const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
+      if (isMe) return true
+
+      // Fallback for native Knightfall games
+      const tags = (g.tags || []).map(t => t.toLowerCase())
+      return tags.includes('my games')
+    })
+  })
 
   /**
    * Generates the full rating progression history using the Elo formula.
    */
   const performanceHistory = computed(() => {
-    if (games.value.length === 0) return [1200]
+    if (personalGames.value.length === 0) return [1200]
     
-    const sortedGames = [...games.value].sort((a, b) => {
+    const sortedGames = [...personalGames.value].sort((a, b) => {
       const dateA = a.date ? new Date(a.date).getTime() : 0
       const dateB = b.date ? new Date(b.date).getTime() : 0
       return dateA - dateB
@@ -59,14 +72,14 @@ export function useLibraryStats(
     const days = 7
     const heatmap = Array.from({ length: weeks }, () => Array(days).fill(0))
     
-    if (games.value.length === 0) return heatmap
+    if (personalGames.value.length === 0) return heatmap
 
     const now = new Date()
     const startDate = new Date(now)
     startDate.setDate(now.getDate() - (weeks * 7))
     startDate.setDate(startDate.getDate() - startDate.getDay())
 
-    games.value.forEach(g => {
+    personalGames.value.forEach(g => {
       if (!g.date) return
       const gDate = new Date(g.date)
       const diffTime = gDate.getTime() - startDate.getTime()
@@ -83,20 +96,20 @@ export function useLibraryStats(
   })
 
   const libraryWinRate = computed(() => {
-    if (games.value.length === 0) return 0
-    const wins = games.value.filter(g => {
+    if (personalGames.value.length === 0) return 0
+    const wins = personalGames.value.filter(g => {
       const isWhite = userStore.isMe(g.white)
       return (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
     }).length
-    return Math.round((wins / games.value.length) * 100)
+    return Math.round((wins / personalGames.value.length) * 100)
   })
 
   const avgOpponentElo = computed(() => {
-    if (games.value.length === 0) return 0
+    if (personalGames.value.length === 0) return 0
     let totalElo = 0
     let ratedGames = 0
 
-    games.value.forEach(g => {
+    personalGames.value.forEach(g => {
       const isWhite = userStore.isMe(g.white)
       const oppRatingStr = isWhite ? g.blackElo : g.whiteElo
       const oppRating = oppRatingStr ? parseInt(oppRatingStr) : null
@@ -113,7 +126,7 @@ export function useLibraryStats(
   const openingStats = computed(() => {
     const stats: Record<string, { win: number, loss: number, draw: number, games: number, eco: string, description: string }> = {}
     
-    games.value.forEach(g => {
+    personalGames.value.forEach(g => {
       const opName = g.eco
         ? ecoToName(g.eco)
         : (g.event && !g.event.toLowerCase().includes('live chess') && !g.event.toLowerCase().includes('tournament')
@@ -151,12 +164,61 @@ export function useLibraryStats(
     })).sort((a, b) => b.games - a.games)
   })
 
+  const libraryWldStats = computed(() => {
+    const stats = { win: 0, loss: 0, draw: 0, total: 0 }
+    personalGames.value.forEach(g => {
+      const isMe = userStore.isMe(g.white)
+      if (g.result === '1-0') {
+        if (isMe) stats.win++
+        else stats.loss++
+      } else if (g.result === '0-1') {
+        if (isMe) stats.loss++
+        else stats.win++
+      } else if (g.result === '1/2-1/2' || g.result.includes('1/2')) {
+        stats.draw++
+      }
+      stats.total++
+    })
+    return stats
+  })
+
+  /**
+   * Breakdown of game sources in the entire vault.
+   * Prioritizes platform-specific tags to prevent miscategorization.
+   */
+  const sourceBreakdown = computed(() => {
+    const stats = {
+      knightfall: 0,
+      chessCom: 0,
+      lichess: 0,
+      other: 0
+    }
+    
+    games.value.forEach(g => {
+      const tags = (g.tags || []).map(t => t.toLowerCase())
+      
+      if (tags.includes('chess.com') || tags.includes('chesscom')) {
+        stats.chessCom++
+      } else if (tags.includes('lichess')) {
+        stats.lichess++
+      } else if (tags.includes('my games')) {
+        stats.knightfall++
+      } else {
+        stats.other++
+      }
+    })
+    
+    return stats
+  })
+
   return {
     performanceRating,
     performanceHistory,
     activityHeatmap,
     libraryWinRate,
+    libraryWldStats,
     avgOpponentElo,
-    openingStats
+    openingStats,
+    sourceBreakdown
   }
 }

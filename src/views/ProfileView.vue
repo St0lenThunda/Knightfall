@@ -235,6 +235,77 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Data Maintenance -->
+                <div class="glass activity-card maintenance-card">
+                  <div class="card-header">
+                    <h4>Data Integrity</h4>
+                  </div>
+                  <p class="muted" style="font-size: 0.75rem; margin-top: 4px;">
+                    Ensure your stats reflect unique games. Knightfall automatically deduplicates new imports, but you can manually trigger a deep scan here.
+                  </p>
+                  <div class="maintenance-actions" style="display: flex; gap: var(--space-4); margin-top: var(--space-4);">
+                    <button class="btn btn-ghost btn-xs" @click="deduplicateVault">
+                      🧹 Deduplicate Vault
+                    </button>
+                    <button class="btn btn-ghost btn-xs text-rose" @click="showWipeConfirm = true">
+                      ⚠️ Nuclear Reset
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Bulk Intelligence Center (Migrated from Vault) -->
+                <div v-if="libraryStore.games.length > 0" class="intel-center glass" :class="{ 'is-active': libraryStore.isBulkAnalyzing }">
+                  <div class="intel-header">
+                    <div class="intel-title">
+                      <span class="icon">🧠</span>
+                      <div>
+                        <div class="label">Bulk Intelligence Engine</div>
+                        <div class="status muted">{{ intelStatusText }}</div>
+                      </div>
+                    </div>
+                    <button 
+                      @click="toggleIntel" 
+                      class="btn btn-sm" 
+                      :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'"
+                    >
+                      {{ libraryStore.isBulkAnalyzing ? '⏸ Pause Engine' : '🚀 Start Intel Engine' }}
+                    </button>
+                  </div>
+
+                  <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container">
+                    <div class="intel-progress-bar">
+                      <div class="intel-progress-fill" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
+                    </div>
+                    <div class="intel-progress-stats muted">
+                      <span>{{ libraryStore.analysisProgress }}% Analyzed</span>
+                      <span v-if="libraryStore.currentAnalyzingId" class="game-id">Game: {{ libraryStore.currentAnalyzingId.slice(0, 8) }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="libraryStore.isBulkAnalyzing" class="intel-metrics glass-xs">
+                    <div class="metric">
+                      <div class="m-label">Speed</div>
+                      <div class="m-value">{{ (libraryStore.engineNodesPerSecond / 1000).toFixed(1) }}k nps</div>
+                    </div>
+                    <div class="metric">
+                      <div class="m-label">Processed</div>
+                      <div class="m-value">{{ libraryStore.totalMovesProcessed }} plies</div>
+                    </div>
+                    <div class="metric highlight-brilliant">
+                      <div class="m-label">Brilliant</div>
+                      <div class="m-value">✨ {{ libraryStore.brilliantMovesFound }}</div>
+                    </div>
+                    <div class="metric highlight-blunder">
+                      <div class="m-label">Blunders</div>
+                      <div class="m-value">🔴 {{ libraryStore.blundersFound }}</div>
+                    </div>
+                    <div class="metric">
+                      <div class="m-label">ETA</div>
+                      <div class="m-value">{{ libraryStore.estimatedTimeRemaining || 'Calculating...' }}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -245,11 +316,18 @@
               <div class="header-info">
                 <h2>Game Archive</h2>
                 <div class="header-stats">
-                  <span class="badge badge-accent">{{ libraryStore.games.length }} Games</span>
+                  <span class="badge badge-accent">{{ libraryStore.personalGames.length }} Personal DNA</span>
+                  <span v-if="libraryStore.games.length > libraryStore.personalGames.length" class="badge badge-outline">📚 {{ libraryStore.games.length - libraryStore.personalGames.length }} Library Assets</span>
+                  <span class="badge badge-outline" title="Games played natively on Knightfall">♞ {{ libraryStore.sourceBreakdown.knightfall }} Native</span>
+                  <span class="badge badge-outline" title="Imported from Chess.com/Lichess">🌍 {{ libraryStore.sourceBreakdown.chessCom + libraryStore.sourceBreakdown.lichess }} Imported</span>
+                  <span v-if="libraryStore.sourceBreakdown.other > 0" class="badge badge-outline" title="Manually uploaded or untagged games">📦 {{ libraryStore.sourceBreakdown.other }} Other</span>
                   <span class="badge">{{ ECO_COUNT }} Openings</span>
                 </div>
               </div>
               <div class="header-actions">
+                <button class="btn btn-ghost btn-sm" @click="deduplicateVault" title="Remove Duplicates">
+                  🧹 Clean
+                </button>
                 <button class="btn btn-secondary btn-sm" @click="showLabModal = true">
                   📥 Import & Sources
                 </button>
@@ -264,7 +342,8 @@
               <div class="header-info">
                 <h2>Opening Constellation</h2>
                 <div class="header-stats">
-                  <span class="badge badge-accent">{{ ECO_COUNT }} Known Variations</span>
+                  <span class="badge badge-accent">{{ libraryStore.personalGames.length }} Analyzed DNA</span>
+                  <span class="badge">{{ ECO_COUNT }} Known Variations</span>
                 </div>
               </div>
             </header>
@@ -289,6 +368,39 @@
             </header>
             <div class="modal-body">
               <LibraryLab />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Nuclear Wipe Confirmation Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showWipeConfirm" class="modal-overlay" @click.self="showWipeConfirm = false">
+          <div class="lab-modal glass-lg animated slideInUp" style="max-width: 400px; text-align: center;">
+            <header class="modal-header" style="justify-content: center; flex-direction: column; gap: var(--space-2); border: none;">
+              <span class="icon" style="font-size: 3rem; margin-bottom: 10px;">💣</span>
+              <h2 class="text-rose" style="margin: 0;">Nuclear Reset</h2>
+            </header>
+            <div class="modal-body" style="padding: var(--space-4) var(--space-8);">
+              <p style="font-size: 0.95rem; line-height: 1.5;">This will permanently delete <strong class="text-rose">ALL</strong> games, tags, and analysis data in your local Vault.</p>
+              <p class="muted" style="font-size: 0.75rem; margin-top: var(--space-6); background: rgba(244,63,94,0.05); padding: 12px; border-radius: var(--radius-md); border: 1px solid rgba(244,63,94,0.1);">
+                This action is irreversible. All local analysis and imported collections will be lost.
+              </p>
+              
+              <div class="cloud-wipe-opt" style="margin-top: var(--space-6); display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;" @click="wipeCloudToo = !wipeCloudToo">
+                <input type="checkbox" v-model="wipeCloudToo" style="cursor: pointer;" />
+                <span style="font-size: 0.8rem; font-weight: 700;" :class="{ 'text-rose': wipeCloudToo }">Also wipe my Cloud History</span>
+              </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: var(--space-4); padding: var(--space-8);">
+              <button class="btn btn-ghost flex-1" @click="showWipeConfirm = false" :disabled="isWiping">
+                Cancel
+              </button>
+              <button class="btn btn-primary bg-rose flex-1" @click="handleNuclearReset" :disabled="isWiping">
+                {{ isWiping ? 'Wiping...' : 'Destroy All Data' }}
+              </button>
             </div>
           </div>
         </div>
@@ -328,12 +440,49 @@ const editChessComUser = ref('')
 const editLichessUser = ref('')
 const isSaving = ref(false)
 const showLabModal = ref(false)
+const showWipeConfirm = ref(false)
+const wipeCloudToo = ref(false)
+const isWiping = ref(false)
+
+function toggleIntel() {
+  if (libraryStore.isBulkAnalyzing) libraryStore.stopBulkAnalysis()
+  else libraryStore.startBulkAnalysis()
+}
+
+const intelStatusText = computed(() => {
+  if (libraryStore.isBulkAnalyzing) return 'Synthesizing personal patterns and App IQ...'
+  const personal = libraryStore.personalGames.length
+  const analyzed = libraryStore.personalGames.filter(g => g.evals && g.evals.length > 0).length
+  return `DNA Coverage: ${analyzed} / ${personal} Snapshots`
+})
 
 const badgePillars = [
   { id: 'milestone', label: 'Milestones', icon: '🏅' },
   { id: 'mastery',   label: 'DNA Mastery', icon: '🧬' },
   { id: 'ritual',    label: 'Streaks & Rituals', icon: '🔥' },
 ]
+
+async function deduplicateVault() {
+  const count = await libraryStore.purgeDuplicates()
+  uiStore.addToast(`Cleanup complete. Removed ${count} duplicate games.`, 'success')
+}
+
+async function handleNuclearReset() {
+  isWiping.value = true
+  try {
+    if (wipeCloudToo.value) {
+      await libraryStore.purgeCloudLibrary()
+    }
+    await libraryStore.resetLibrary()
+    uiStore.addToast(wipeCloudToo.value ? 'Local & Cloud vaults wiped clean.' : 'Local vault wiped clean.', 'warning')
+  } catch (err) {
+    uiStore.addToast('Partial wipe failure. Check connection.', 'error')
+  } finally {
+    isWiping.value = false
+    showWipeConfirm.value = false
+    wipeCloudToo.value = false
+  }
+}
 
 onMounted(async () => {
   await userStore.fetchUserData()
@@ -410,20 +559,55 @@ async function saveProfile() {
   isSaving.value = false
 }
 
-// Stats Helpers
-const wldData = computed(() => userStore.wldStats)
-const openingStats = computed(() => userStore.openingStats)
+// Stats Helpers Tied to Personal DNA
+const wldData = computed(() => {
+  const stats = libraryStore.libraryWldStats
+  const total = stats.total || 1 // Avoid division by zero
+  return [
+    { label: 'Wins', count: stats.win, pct: Math.round((stats.win / total) * 100), color: 'var(--green)' },
+    { label: 'Losses', count: stats.loss, pct: Math.round((stats.loss / total) * 100), color: 'var(--rose)' },
+    { label: 'Draws', count: stats.draw, pct: Math.round((stats.draw / total) * 100), color: 'var(--gold)' }
+  ]
+})
+const openingStats = computed(() => libraryStore.openingStats)
 const heatmapData = computed(() => libraryStore.activityHeatmap)
 function heatColor(count: number) {
   if (count === 0) return 'rgba(255,255,255,0.04)'
   return `rgba(139,92,246, ${Math.min(1, count / 8)})`
 }
 
-// Simple Chart
+// Rating Chart Tied to Personal Data
 const chartW = 500, chartH = 120
-const ratingData = computed(() => libraryStore.performanceHistory)
-const minR = computed(() => Math.min(...ratingData.value) - 10)
-const maxR = computed(() => Math.max(...ratingData.value) + 10)
+const ratingData = computed(() => {
+  const full = userStore.ratingHistory
+  if (activePeriod.value === 'All') return full.map(h => h.rating)
+  
+  const now = new Date()
+  let limit = new Date()
+  if (activePeriod.value === '1W') limit.setDate(now.getDate() - 7)
+  else if (activePeriod.value === '1M') limit.setMonth(now.getMonth() - 1)
+  else if (activePeriod.value === '3M') limit.setMonth(now.getMonth() - 3)
+  
+  const filtered = full.filter(h => new Date(h.date) >= limit)
+  // If no games in period, show the most recent rating as a flat line
+  if (filtered.length === 0) {
+    const lastRating = full.length > 0 ? full[full.length - 1].rating : 1200
+    return [lastRating, lastRating]
+  }
+  // Ensure we have at least 2 points for a line
+  const result = filtered.map(h => h.rating)
+  if (result.length === 1) result.push(result[0])
+  return result
+})
+
+const minR = computed(() => {
+  const min = Math.min(...ratingData.value)
+  return isNaN(min) ? 1100 : min - 20
+})
+const maxR = computed(() => {
+  const max = Math.max(...ratingData.value)
+  return isNaN(max) ? 1300 : max + 20
+})
 
 const chartPoints = computed(() => ratingData.value.map((r, i) => ({
   x: (i / (Math.max(1, ratingData.value.length - 1))) * chartW,
@@ -465,7 +649,9 @@ const gridLines = computed(() => {
   display: flex; align-items: center; gap: 8px;
 }
 .profile-tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
-
+.badge-accent { background: var(--accent); color: white; border: none; }
+.badge-outline { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-muted); }
+.badge-ghost { background: rgba(255, 255, 255, 0.05); color: white; border: none; }
 .profile-content-wrapper { display: block; min-width: 0; width: 100%; }
 .profile-tab-content { min-width: 0; width: 100%; }
 
@@ -545,11 +731,18 @@ const gridLines = computed(() => {
 .profile-layout { display: grid; grid-template-columns: 350px 1fr; gap: var(--space-6); }
 .wld-card, .opening-card, .rating-chart-card, .activity-card { padding: var(--space-5); border-radius: var(--radius-lg); }
 
-.wld-visual { display: flex; align-items: center; gap: var(--space-4); }
-.wld-ring-container { position: relative; width: 100px; height: 100px; }
+.wld-visual { display: flex; align-items: center; gap: var(--space-6); }
+.wld-ring-container { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
 .wld-ring { transform: rotate(-90deg); }
 .wld-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .wld-pct { font-size: 1.2rem; font-weight: 800; }
+
+.wld-legend { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); min-width: 140px; }
+.wld-row { display: flex; align-items: center; gap: var(--space-3); width: 100%; }
+.wld-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.wld-row span:nth-child(2) { flex: 1; font-weight: 600; font-size: 0.85rem; }
+.wld-count { font-weight: 800; color: var(--text-primary); }
+.wld-pct-small { font-size: 0.75rem; min-width: 35px; text-align: right; }
 
 .opening-list { display: flex; flex-direction: column; gap: var(--space-3); }
 .opening-row { display: flex; align-items: center; gap: var(--space-3); }
@@ -577,6 +770,31 @@ const gridLines = computed(() => {
 .chess-com-tag { color: var(--teal); font-weight: 600; }
 .lichess-tag { color: var(--accent); font-weight: 600; }
 .title-badge { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border: 1px solid currentColor; border-radius: 99px; }
+.text-rose { color: var(--rose); }
+
+/* Mini Tabs / Period Switcher */
+.tabs-mini {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tab-mini {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tab-mini:hover { color: white; background: rgba(255, 255, 255, 0.05); }
+.tab-mini.active { background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4); }
 
 /* Badge Showcase Styles */
 .badge-showcase-card { padding: var(--space-5); margin-top: var(--space-4); }
@@ -634,5 +852,91 @@ const gridLines = computed(() => {
   height: 100%;
   background: var(--accent);
   transition: width 0.6s ease;
+}
+
+/* Intel Center Styles */
+.intel-center {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-left: 4px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  margin-top: var(--space-4);
+}
+.intel-center.is-active {
+  border-left-color: var(--accent);
+  background: rgba(139, 92, 246, 0.05);
+}
+.intel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.intel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.intel-title .icon { font-size: 1.5rem; }
+.intel-title .label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.intel-title .status { font-size: 0.75rem; }
+
+.intel-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.intel-progress-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.intel-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+.intel-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.game-id { opacity: 0.5; font-family: var(--font-mono); }
+
+.intel-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.2);
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric .m-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.metric .m-value {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.metric.highlight-brilliant .m-value {
+  color: var(--gold);
+}
+.metric.highlight-blunder .m-value {
+  color: #f87171;
 }
 </style>

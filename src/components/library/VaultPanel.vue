@@ -42,54 +42,6 @@
       </div>
     </div>
 
-    <!-- Intelligence Center -->
-    <div v-if="libraryStore.games.length > 0" class="intel-center glass-sm" :class="{ 'is-active': libraryStore.isBulkAnalyzing }">
-      <div class="intel-header">
-        <div class="intel-title">
-          <span class="icon">🧠</span>
-          <div>
-            <div class="label">Bulk Intelligence Engine</div>
-            <div class="status muted">{{ intelStatusText }}</div>
-          </div>
-        </div>
-        <button 
-          @click="toggleIntel" 
-          class="btn btn-sm" 
-          :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'"
-        >
-          {{ libraryStore.isBulkAnalyzing ? '⏸ Pause Engine' : '🚀 Start Intel Engine' }}
-        </button>
-      </div>
-
-      <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container">
-        <div class="intel-progress-bar">
-          <div class="intel-progress-fill" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
-        </div>
-        <div class="intel-progress-stats muted">
-          <span>{{ libraryStore.analysisProgress }}% Analyzed</span>
-          <span v-if="libraryStore.currentAnalyzingId" class="game-id">Game: {{ libraryStore.currentAnalyzingId.slice(0, 8) }}</span>
-        </div>
-      </div>
-
-      <div v-if="libraryStore.isBulkAnalyzing" class="intel-metrics glass-xs">
-        <div class="metric">
-          <div class="m-label">Speed</div>
-          <div class="m-value">{{ (libraryStore.engineNodesPerSecond / 1000).toFixed(1) }}k nps</div>
-        </div>
-        <div class="metric">
-          <div class="m-label">Processed</div>
-          <div class="m-value">{{ libraryStore.totalMovesProcessed }} plies</div>
-        </div>
-        <div class="metric highlight">
-          <div class="m-label">Brilliant</div>
-          <div class="m-value">✨ {{ libraryStore.brilliantMovesFound }}</div>
-        </div>
-        <div class="metric">
-          <div class="m-label">ETA</div>
-          <div class="m-value">{{ libraryStore.estimatedTimeRemaining || 'Calculating...' }}</div>
-        </div>
-      </div>
-    </div>
 
     <div class="vault-controls glass-sm">
       <div class="control-group">
@@ -239,15 +191,6 @@ function toggleSortOrder() {
   libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'
 }
 
-function toggleIntel() {
-  if (libraryStore.isBulkAnalyzing) libraryStore.stopBulkAnalysis()
-  else libraryStore.startBulkAnalysis()
-}
-
-const intelStatusText = computed(() => {
-  if (libraryStore.isBulkAnalyzing) return 'Analyzing moves and generating App IQ...'
-  return 'Proactively analyze all games to load your Opening Tree intelligence.'
-})
 
 const limit = ref(Number(localStorage.getItem('vault_limit')) || 20)
 const currentPage = ref(1)
@@ -549,87 +492,6 @@ function prevPage() {
 .page-info { font-size: 0.85rem; }
 .page-info strong { color: var(--accent-bright); }
 
-/* Intel Center Styles */
-.intel-center {
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  border-left: 4px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-.intel-center.is-active {
-  border-left-color: var(--accent);
-  background: rgba(139, 92, 246, 0.05);
-}
-.intel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.intel-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-.intel-title .icon { font-size: 1.5rem; }
-.intel-title .label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-.intel-title .status { font-size: 0.75rem; }
-
-.intel-progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.intel-progress-bar {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.intel-progress-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.4s ease;
-}
-.intel-progress-stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.game-id { opacity: 0.5; font-family: var(--font-mono); }
-
-.intel-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.2);
-}
-.metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.metric .m-label {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 700;
-}
-.metric .m-value {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-}
-.metric.highlight .m-value {
-  color: var(--gold);
-}
 
 /* Modal Transition */
 .modal-enter-active, .modal-leave-active { transition: all 0.3s ease; }

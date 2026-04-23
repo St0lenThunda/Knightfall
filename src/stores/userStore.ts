@@ -379,12 +379,19 @@ export const useUserStore = defineStore('user', () => {
   /** Win/Loss/Draw statistics derived from pastGames. */
   const wldStats = computed(() => {
     const stats = { win: 0, loss: 0, draw: 0 }
-    pastGames.value.forEach(g => {
+    const uniqueIds = new Set<string>()
+    const deduplicated = pastGames.value.filter(g => {
+      if (uniqueIds.has(g.id)) return false
+      uniqueIds.add(g.id)
+      return true
+    })
+
+    deduplicated.forEach(g => {
       if (g.result === 'win') stats.win++
       else if (g.result === 'loss') stats.loss++
       else stats.draw++
     })
-    const total = pastGames.value.length || 1
+    const total = deduplicated.length || 1
     return [
       { label: 'Wins',   color: 'var(--green)', count: stats.win,  pct: Math.round(stats.win / total * 100) },
       { label: 'Losses', color: 'var(--rose)',  count: stats.loss, pct: Math.round(stats.loss / total * 100) },
@@ -414,32 +421,85 @@ export const useUserStore = defineStore('user', () => {
     }).sort((a, b) => b.games - a.games)
   })
 
-  /** Pseudo rating history derived from game results. */
+  /** Actual rating history derived from unique game results, with dates for filtering. */
   const ratingHistory = computed(() => {
-    let r = 1200
-    const history = [r]
-    pastGames.value.forEach(g => {
-      if (g.result === 'win') r += 15
-      else if (g.result === 'loss') r -= 12
-      else r += 2
-      history.push(r)
+    // Helper to handle various chess date formats (YYYY.MM.DD -> YYYY-MM-DD)
+    const normalizeDate = (d: string) => {
+      if (!d || d.includes('?')) return new Date().toISOString()
+      const clean = d.replace(/\./g, '-')
+      const p = new Date(clean)
+      return isNaN(p.getTime()) ? new Date().toISOString() : p.toISOString()
+    }
+
+    let current = 1200
+    const history: { date: string, rating: number }[] = []
+    
+    // Sort games by date and deduplicate by ID to ensure history is chronological and clean
+    const uniqueIds = new Set<string>()
+    const sorted = [...pastGames.value]
+      .filter(g => {
+        if (uniqueIds.has(g.id)) return false
+        uniqueIds.add(g.id)
+        return true
+      })
+      .sort((a, b) => new Date(normalizeDate(a.date)).getTime() - new Date(normalizeDate(b.date)).getTime())
+    
+    // Add base entry before any games
+    if (sorted.length > 0) {
+      const firstDate = new Date(normalizeDate(sorted[0].date))
+      firstDate.setDate(firstDate.getDate() - 1)
+      history.push({ date: firstDate.toISOString(), rating: 1200 })
+    } else {
+      history.push({ date: new Date().toISOString(), rating: 1200 })
+    }
+
+    sorted.forEach(g => {
+      // Dynamic Elo-ish calculation based on result
+      if (g.result === 'win') current += 15
+      else if (g.result === 'loss') current -= 12
+      else current += 2
+      history.push({ date: normalizeDate(g.date), rating: current })
     })
     return history
   })
 
-  /** The most recent rating from the history. */
-  const currentRating = computed(() => ratingHistory.value[ratingHistory.value.length - 1])
+  /** The current calculated rating value. */
+  const currentRating = computed(() => {
+    const hist = ratingHistory.value
+    return hist.length > 0 ? hist[hist.length - 1].rating : 1200
+  })
 
-  /** A deterministic 12×7 heatmap for the activity grid visualization. */
+  /** An actual 12-week activity heatmap based on games and puzzles. */
   const activityHeatmap = computed(() => {
-    const seededRandom = (seed: number) => {
-      const x = Math.sin(seed++) * 10000;
-      return x - Math.floor(x);
-    }
-    const baseSeed = pastGames.value.length
-    return Array.from({ length: 12 }, (_, wi) =>
-      Array.from({ length: 7 }, (_, di) => seededRandom(wi * 7 + di + baseSeed) > 0.5 ? Math.floor(seededRandom(wi * 13 + di) * 8) : 0)
-    )
+    const weeks = 12
+    const days = 7
+    const heatmap = Array.from({ length: weeks }, () => Array(days).fill(0))
+    
+    const now = new Date()
+    const startDate = new Date(now)
+    startDate.setDate(now.getDate() - (weeks * 7))
+    startDate.setDate(startDate.getDate() - startDate.getDay())
+
+    // Combine all activity sources
+    const activities = [
+      ...pastGames.value.map(g => g.date),
+      ...puzzleAttempts.value.map(p => p.created_at)
+    ]
+
+    activities.forEach(dateStr => {
+      if (!dateStr) return
+      const d = new Date(dateStr)
+      const diffTime = d.getTime() - startDate.getTime()
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays >= 0 && diffDays < (weeks * 7)) {
+        const weekIdx = Math.floor(diffDays / 7)
+        const dayIdx = diffDays % 7
+        heatmap[weekIdx][dayIdx]++
+      }
+    })
+
+    return heatmap
   })
 
   /** Number of puzzles solved today (for progress bars). */

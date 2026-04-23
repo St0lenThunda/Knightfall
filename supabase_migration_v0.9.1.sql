@@ -16,6 +16,18 @@ CREATE TABLE IF NOT EXISTS coaching_cache (
 
 CREATE INDEX IF NOT EXISTS idx_coaching_hash ON coaching_cache(position_hash);
 
+-- Enable RLS and add public access policies for BOTH guest (anon) and logged-in (authenticated) users
+ALTER TABLE coaching_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access" ON coaching_cache;
+CREATE POLICY "Allow public read access" ON coaching_cache FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert access" ON coaching_cache;
+CREATE POLICY "Allow public insert access" ON coaching_cache FOR INSERT TO anon, authenticated WITH CHECK (true);
+
+-- Ensure roles have explicit permission to the table
+GRANT ALL ON coaching_cache TO anon, authenticated, service_role;
+
 -- 2. SRS & Gamification Tracking
 -- Tracks when a user should re-test a specific puzzle or mistake.
 DO $$ 

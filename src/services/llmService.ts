@@ -35,6 +35,63 @@ export interface SessionSummaryRequest {
 
 export class LlmService {
   private static API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+  private static resolvedModel: string | null = null
+  private static blacklistedModels: Set<string> = new Set()
+  private static canWriteToCache = true // Circuit breaker for 403s
+
+  /**
+   * Dynamically resolves the best available Flash model for the current API key.
+   * Excludes models that have recently failed with a 503 or 404.
+   */
+  private static async getBestModel(): Promise<string> {
+    // If we have a resolved model that isn't blacklisted, use it
+    if (this.resolvedModel && !this.blacklistedModels.has(this.resolvedModel)) {
+      return this.resolvedModel
+    }
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.API_KEY}`)
+      if (!response.ok) throw new Error("Failed to list models")
+      
+      const data = await response.json()
+      const models = data.models || []
+
+      // Heuristic: Find 'flash' models supporting generateContent, excluding blacklisted ones
+      const flashModels = models
+        .filter((m: any) => 
+          m.name.toLowerCase().includes('flash') && 
+          m.supportedGenerationMethods.includes('generateContent') &&
+          !this.blacklistedModels.has(m.name)
+        )
+        .sort((a: any, b: any) => {
+          const vA = parseFloat(a.name.match(/\d+\.\d+/) || [0])
+          const vB = parseFloat(b.name.match(/\d+\.\d+/) || [0])
+          return vB - vA
+        })
+
+      if (flashModels.length > 0) {
+        // Prefer 'latest' aliases only if they aren't blacklisted
+        const latestAlias = flashModels.find((m: any) => m.name.includes('latest'))
+        const selected = latestAlias ? latestAlias.name : flashModels[0].name
+        this.resolvedModel = selected
+        
+        logger.info(`[LlmService] Dynamic Discovery: Selected ${selected} (Blacklist size: ${this.blacklistedModels.size})`)
+        return selected
+      }
+
+      // If all Flash models are blacklisted, clear blacklist and try once more or fallback to Pro
+      if (this.blacklistedModels.size > 0) {
+        logger.warn("[LlmService] All Flash models blacklisted. Resetting blacklist.")
+        this.blacklistedModels.clear()
+        return this.getBestModel()
+      }
+
+      return "models/gemini-2.5-flash"
+    } catch (err) {
+      logger.warn("[LlmService] Discovery failed, using fallback:", err)
+      return "models/gemini-2.5-flash"
+    }
+  }
 
   /**
    * Explains a specific mistake using the "Coach-first" tiered approach.
@@ -97,19 +154,33 @@ export class LlmService {
     try {
       const explanation = await this.callGemini(promptTemplate)
       
-      // PERSIST TO CLOUD CACHE
-      supabase.from('coaching_cache').insert([{
-        position_hash: hash,
-        fen,
-        theme,
-        explanation_text: explanation,
-        metadata: { severity, playedMove, bestMove }
-      }]).then(() => logger.info(`[LlmService] Cached new explanation for ${theme}`))
+      // PERSIST TO CLOUD CACHE (Global Library) - Only if circuit breaker is healthy
+      if (this.canWriteToCache) {
+        const { error: persistError } = await supabase.from('coaching_cache').insert([{
+          position_hash: hash,
+          fen,
+          theme,
+          mistake_type: severity,
+          explanation_text: explanation,
+          metadata: { severity, playedMove, bestMove }
+        }])
+
+        if (persistError) {
+          if (persistError.code === '42501') { // Supabase RLS error
+            this.canWriteToCache = false
+            logger.warn(`[LlmService] Persistence disabled for session: 403 Forbidden. Your Supabase 'coaching_cache' table needs an INSERT policy for the 'anon' role.`)
+          } else {
+            logger.warn('[LlmService] Could not persist to cloud cache:', persistError.message)
+          }
+        } else {
+          logger.info(`[LlmService] Globally cached new explanation for ${theme}`)
+        }
+      }
 
       return explanation
     } catch (err) {
       logger.error('[LlmService] LLM Call failed', err)
-      return "The coach is studying the position... focus on king safety for now!"
+      return "The coach is studying the position... focus on piece activity for now!"
     }
   }
 
@@ -178,24 +249,64 @@ OUTPUT: Coaching-style explanation.
 
   // --- INTERNAL UTILS ---
 
-  private static async callGemini(prompt: string): Promise<string> {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
+  /**
+   * Executes the Gemini call with exponential backoff and model failover.
+   * Resilient against 503 (Overloaded) and 429 (Rate Limit) errors.
+   */
+  private static async callGemini(prompt: string, attempt: number = 0): Promise<string> {
+    const MAX_ATTEMPTS = 5 // Increased for better stability during outages
+    const model = await this.getBestModel()
+    const urlModel = model.startsWith('models/') ? model : `models/${model}`
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${urlModel}:generateContent?key=${this.API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
       })
-    })
-    
-    if (!response.ok) throw new Error(`Gemini Error: ${response.statusText}`)
-    
-    const start = Date.now()
-    const data = await response.json()
-    const latency = Date.now() - start
-    const tokens = data.usageMetadata?.totalTokenCount || 0
-    
-    useAdminStore().recordCacheMiss(tokens, latency)
-    
-    return data.candidates[0].content.parts[0].text.trim()
+
+      // SUCCESS PATH
+      if (response.ok) {
+        const start = Date.now()
+        const data = await response.json()
+        const latency = Date.now() - start
+        const tokens = data.usageMetadata?.totalTokenCount || 0
+        
+        useAdminStore().recordCacheMiss(tokens, latency)
+        return data.candidates[0].content.parts[0].text.trim()
+      }
+
+      // ERROR HANDLING
+      if (response.status === 404) {
+        // Model retired or deleted - blacklist and force re-discovery
+        this.blacklistedModels.add(model)
+        this.resolvedModel = null
+        if (attempt < MAX_ATTEMPTS) return this.callGemini(prompt, attempt + 1)
+      }
+
+      if (response.status === 503 || response.status === 429) {
+        // Service overloaded or rate limited
+        if (attempt < MAX_ATTEMPTS) {
+          const delay = Math.pow(2, attempt) * 1000
+          logger.warn(`[LlmService] ${response.status} detected on ${model}. Rotating model and retrying in ${delay}ms... (Attempt ${attempt + 1}/${MAX_ATTEMPTS})`)
+          
+          // ZERO-TOLERANCE ROTATION: Blacklist immediately on first 503/429
+          this.blacklistedModels.add(model)
+          this.resolvedModel = null
+
+          await new Promise(resolve => setTimeout(resolve, delay))
+          return this.callGemini(prompt, attempt + 1)
+        }
+      }
+
+      throw new Error(`Gemini Error: ${response.status} ${response.statusText}`)
+    } catch (err) {
+      if (attempt < MAX_ATTEMPTS && err instanceof Error && !err.message.includes('404')) {
+        return this.callGemini(prompt, attempt + 1)
+      }
+      throw err
+    }
   }
 }

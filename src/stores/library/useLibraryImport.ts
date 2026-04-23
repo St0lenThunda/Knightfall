@@ -2,6 +2,7 @@ import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import JSZip from 'jszip'
 import type { LibraryGame } from '../libraryStore'
+import { useUserStore } from '../userStore'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
 import { logger } from '../../utils/logger'
@@ -24,8 +25,9 @@ export function useLibraryImport(
     isImporting.value = true
     importProgress.value = 0
     
-    // Robust splitting: Split at the start of any line beginning with [Event "
-    const gameStrings = pgnContent.split(/(?=\n\[Event ")/)
+    // Robust splitting: Split at [Event " but keep it as the start of the next chunk.
+    // We filter out empty chunks that might result from multiple newlines.
+    const gameStrings = pgnContent.split(/\[Event\s+"/g).filter(s => s.trim().length > 0).map(s => `[Event "${s}`)
     
     const total = gameStrings.length
     const chess = new Chess()
@@ -39,11 +41,31 @@ export function useLibraryImport(
         safeLoadPgn(chess, raw)
         const headers = chess.header()
         
+        const white = headers['White'] || 'Unknown'
+        const black = headers['Black'] || 'Unknown'
+        
+        // Generate a stable ID based on game content to prevent duplicates
+        const id = generateGameFingerprint(white, black, raw)
+        
+        const site = (headers['Site'] || headers['Source'] || '').toLowerCase()
+        const event = (headers['Event'] || '').toLowerCase()
+        const autoTags: string[] = []
+        
+        // Platform Detection
+        if (site.includes('chess.com') || event.includes('chess.com')) autoTags.push('Chess.com')
+        if (site.includes('lichess.org') || event.includes('lichess.org') || site.includes('lichess')) autoTags.push('Lichess')
+        
+        // Identity Detection: If it's the user's game, tag it as personal DNA
+        const userStore = useUserStore()
+        if (userStore.isMe(white) || userStore.isMe(black)) {
+          autoTags.push('My Games')
+        }
+        
         const game: LibraryGame = {
-          id: crypto.randomUUID(),
+          id,
           pgn: raw,
-          white: headers['White'] || 'Unknown',
-          black: headers['Black'] || 'Unknown',
+          white,
+          black,
           result: headers['Result'] || '*',
           date: headers['Date'] || '?',
           event: headers['Event'] || 'Local Game',
@@ -51,7 +73,7 @@ export function useLibraryImport(
           movesCount: chess.history().length,
           addedAt: Date.now(),
           isCurated,
-          tags: extraTags.length > 0 ? extraTags : ['Imported']
+          tags: [...new Set([...(extraTags.length > 0 ? extraTags : ['Imported']), ...autoTags])]
         }
         newGames.push(game)
       } catch (e) {
@@ -72,7 +94,11 @@ export function useLibraryImport(
     
     return new Promise<void>((resolve) => {
       transaction.oncomplete = () => {
-        games.value = [...games.value, ...newGames]
+        // Merge without duplicates in memory
+        const existingIds = new Set(games.value.map(g => g.id))
+        const filteredNew = newGames.filter(g => !existingIds.has(g.id))
+        
+        games.value = [...games.value, ...filteredNew]
         isImporting.value = false
         importProgress.value = 100
         resolve()
