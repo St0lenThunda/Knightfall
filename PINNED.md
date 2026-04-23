@@ -1,33 +1,35 @@
-# 📌 Pinned Context: v0.10.0 "The Duolingo Release"
+# 📌 Pinned Context: v0.11.0 "Ghostly Knight & Smart Coach"
 
-> Last pinned: 2026-04-22T19:26:00
-> Session: Deployed the Progressive Learning Architecture (Curriculum + Lessons). Shifting focus to Lichess Data Ingestion.
+> Last pinned: 2026-04-23
+> Session: Finalized "Ghostly Knight" visual identity and implemented a 3-tier cost-optimized AI coaching service.
 
 ## What Was Done
-- **Gamification Core**: Implemented Hearts (5-life system), XP rewards, and Daily Streaks in `userStore.ts`.
-- **Learning Path**: Created `PathView.vue`, a vertical S-curve curriculum map with unlocked/locked states.
-- **Lesson Engine**: Created `LessonView.vue`, an interactive engine that sequences 5 targeted exercises per skill node.
-- **Interactive Review**: Created `ReviewView.vue` to allow users to "Fix Their Mistakes" from analyzed games.
-- **Time Bonus System**: Added Lightning/Quick/Solid XP bonuses in `PuzzlesView.vue`.
-- **Intelligence Layer**: Implemented SHA-256 coaching cache in `llmApi.ts` to reduce latency and costs.
+- **Ghostly Aesthetic**: Rebuilt `PathView.vue` with a 2D Noir theme using high-res B&W imagery and high-contrast Gold/Glass UI elements.
+- **Fix Your Mistakes**: Repaired the `ReviewView.vue` core. User moves are now validated against **Stockfish 16.1** best moves in real-time.
+- **LlmService**: Implemented a tiered coaching dispatcher (Deterministic → Cache → LLM) to minimize API costs and latency.
+- **Gamification Core**: Hearts (5-life system), XP rewards, and Daily Streaks are fully functional in `userStore.ts`.
+- **Learning Path**: 20-node S-curve curriculum map with dynamic unlocked/locked states.
+- **Asset Pipeline**: Migrated high-res backgrounds to `public/assets/` to satisfy Vite security policies.
 
 ## What's Next
-- [ ] **Lichess Data Ingestion**: Build the pipeline to pull PGNs and move-by-move behavior (timing, pressure) from Lichess.
-- [ ] **Weakness DNA Engine**: Map Lichess blunders to specific `skill_nodes` (e.g., if user misses a pin in a game, unlock the "Pins" lesson).
-- [ ] **DNA Dashboard**: Build radar charts visualizing tactical vs. positional health.
-- [ ] **Bite-Sized Lessons**: Populate more `skill_nodes` content (Forks, Skewers, Outposts, etc.).
-- [ ] **Sensory Feedback**: Add audio cues for "Correct Move" and "Blunder".
+- [ ] **Automated Testing**: Initialize **Vitest** (Unit) and **Playwright** (E2E) infrastructure.
+- [ ] **Core Logic Tests**: Write test suite for `gameStore.ts` move validation.
+- [ ] **Engine Contention**: Optimize worker usage to prevent locking when multiple views (Lab + Review) analyze simultaneously.
+- [ ] **Lichess Data Ingestion**: Build the pipeline to pull user PGNs and behavior metrics from Lichess.
+- [ ] **Weakness DNA Engine**: Map Lichess blunders to specific `skill_nodes` for personalized curriculum unlocking.
+- [ ] **Lesson Content**: Populate curriculum nodes with real PGN data and AI-generated micro-lessons.
 
 ## Known Issues
-- **Terminal Environment**: Local terminal is currently using Node `v14.17.0`, causing `npm run dev` to fail (Prefix `node:` requires v16+). **Fix: Run `nvm use 24.11.0` in the user terminal.**
-- **Lesson Content**: Lessons currently pull random category puzzles; need to refine `fetchPuzzleBatch` to support specific theme tags (e.g., `pin`, `fork`).
+- **0% Test Coverage**: The project currently lacks automated validation.
+- **Cold Start Cache**: LLM Service requires a warmed cache (Supabase) to maintain sub-10ms performance for new positions.
+- **Terminal Environment**: Local terminal requires `nvm use 24.11.0` for full Node 24 compatibility.
 
 ## Hot Files
-- `src/stores/curriculumStore.ts`: Defines the skill tree and progress tracking.
-- `src/views/LessonView.vue`: The instructional engine orchestrator.
-- `src/views/PathView.vue`: The visual map of the training journey.
-- `src/stores/userStore.ts`: Central hub for Hearts, XP, and Streaks.
-- `src/api/puzzleApi.ts`: Needs update for theme-specific fetching.
+- `src/services/llmService.ts`: Tiered coaching logic and prompt templates.
+- `src/views/ReviewView.vue`: Interactive mistake-fixing engine.
+- `src/views/PathView.vue`: Ghostly Knight map and progress UI.
+- `src/stores/gameStore.ts`: Core chess state and move history.
+- `src/stores/curriculumStore.ts`: Defines the skill tree and progress.
 
 ## Session Notes
-We have successfully moved from a "Static Tool" to an "Active Training Platform". The project is now architecturally ready for deep Lichess integration. Every mistake imported from Lichess can now be converted into a structured lesson node on the Path.
+We have moved from a "Static Tool" to a "Smarter Coaching Platform". The architecture is now economically sustainable due to the global explanation cache. The next major hurdle is **Infrastructure Reliability** (Testing) before we scale the Lichess ingestion.
