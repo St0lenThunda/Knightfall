@@ -15,7 +15,7 @@
 
     <div class="profile-content-wrapper">
       <Transition name="fade-slide" mode="out-in">
-        <div :key="activeTab" class="profile-tab-content">
+        <div :key="activeTab" class="profile-tab-content" :class="{ 'with-sidebar': activeTab === 'vault' }">
           
           <!-- TAB 1: OVERVIEW (The Original Profile Dashboard) -->
           <div v-if="activeTab === 'overview'" class="overview-content">
@@ -249,6 +249,11 @@
                   <span class="badge">{{ ECO_COUNT }} Openings</span>
                 </div>
               </div>
+              <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" @click="showLabModal = true">
+                  📥 Import & Sources
+                </button>
+              </div>
             </header>
             <VaultPanel />
           </div>
@@ -268,12 +273,27 @@
 
         </div>
       </Transition>
-      
-      <!-- Laboratory Sidebar (only for Vault) -->
-      <aside v-if="activeTab === 'vault'" class="profile-lab-sidebar glass">
-        <LibraryLab />
-      </aside>
     </div>
+
+    <!-- Laboratory Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showLabModal" class="modal-overlay" @click.self="showLabModal = false">
+          <div class="glass-lg lab-modal">
+            <header class="modal-header">
+              <div class="title-group">
+                <h3>Intelligence Lab</h3>
+                <p class="muted">Manage your master collections and PGN imports</p>
+              </div>
+              <button class="btn-close" @click="showLabModal = false">✕</button>
+            </header>
+            <div class="modal-body">
+              <LibraryLab />
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -307,6 +327,7 @@ const editLocation = ref('')
 const editChessComUser = ref('')
 const editLichessUser = ref('')
 const isSaving = ref(false)
+const showLabModal = ref(false)
 
 const badgePillars = [
   { id: 'milestone', label: 'Milestones', icon: '🏅' },
@@ -445,14 +466,74 @@ const gridLines = computed(() => {
 }
 .profile-tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
 
-.profile-content-wrapper { display: flex; gap: var(--space-6); }
-.profile-page.with-lab .profile-content-wrapper { display: grid; grid-template-columns: 1fr 340px; }
+.profile-content-wrapper { display: block; min-width: 0; width: 100%; }
+.profile-tab-content { min-width: 0; width: 100%; }
 
 .tab-header { padding: var(--space-4) var(--space-6); border-radius: var(--radius-lg); margin-bottom: var(--space-6); display: flex; align-items: center; justify-content: space-between; }
 .header-info { display: flex; align-items: center; gap: var(--space-6); }
 .header-stats { display: flex; gap: var(--space-2); }
 
-.profile-lab-sidebar { border-radius: var(--radius-lg); height: calc(100vh - 200px); position: sticky; top: 100px; padding: var(--space-4); }
+/* Lab Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.lab-modal {
+  width: 90%;
+  max-width: 500px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.6);
+  position: relative;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(20px);
+}
+
+.lab-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+}
+
+.lab-modal .modal-header h3 { margin: 0; color: var(--accent-bright); }
+.lab-modal .modal-body { flex: 1; overflow-y: auto; }
+
+.btn-close {
+  background: rgba(255,255,255,0.05);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.btn-close:hover { background: var(--rose); transform: rotate(90deg); }
+
+/* Modal Transitions */
+.modal-enter-active, .modal-leave-active { transition: opacity 0.3s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+
+.modal-enter-active .lab-modal, .modal-leave-active .lab-modal { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.modal-enter-from .lab-modal, .modal-leave-to .lab-modal { transform: scale(0.9) translateY(20px); }
 
 /* Profile Overview Styles */
 .profile-hero { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6); margin-bottom: var(--space-6); border-radius: var(--radius-xl); }

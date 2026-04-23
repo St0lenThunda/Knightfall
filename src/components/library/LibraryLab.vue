@@ -125,9 +125,12 @@ const filteredLib = computed(() => {
 })
 
 async function importCurated(item: any) {
+    const beforeCount = libraryStore.games.length
     uiStore.addToast(`Importing ${item.name}...`, 'info')
     await libraryStore.importFromUrl(item.url, item.name)
-    uiStore.addToast(`${item.name} added!`, 'success')
+    const afterCount = libraryStore.games.length
+    const diff = afterCount - beforeCount
+    uiStore.addToast(`Success! Added ${diff} games to ${item.name}.`, 'success')
 }
 
 async function handleFileDrop(e: DragEvent) {
@@ -142,27 +145,36 @@ function handleFileSelect(e: any) {
 }
 
 async function processFile(file: File) {
+    const beforeCount = libraryStore.games.length
     if (file.name.toLowerCase().endsWith('.zip')) {
         await libraryStore.importPgnZip(file, false, ['Upload'])
     } else {
         const text = await file.text()
         await libraryStore.importPgn(text, false, ['Upload'])
     }
-    uiStore.addToast('Import successful!', 'success')
+    const afterCount = libraryStore.games.length
+    const diff = afterCount - beforeCount
+    uiStore.addToast(`Import complete! ${diff} games added.`, 'success')
 }
 
 async function importUrlAction() {
     if (!importUrl.value) return
+    const beforeCount = libraryStore.games.length
     await libraryStore.importFromUrl(importUrl.value, 'Web Import')
     importUrl.value = ''
-    uiStore.addToast('URL imported!', 'success')
+    const afterCount = libraryStore.games.length
+    const diff = afterCount - beforeCount
+    uiStore.addToast(`URL Import complete: ${diff} games added.`, 'success')
 }
 
 async function importPgnTextAction() {
     if (!pgnText.value) return
+    const beforeCount = libraryStore.games.length
     await libraryStore.importPgnText(pgnText.value, 'manual-snippet')
     pgnText.value = ''
-    uiStore.addToast('Snippet parsed!', 'success')
+    const afterCount = libraryStore.games.length
+    const diff = afterCount - beforeCount
+    uiStore.addToast(`Snippet parsed! ${diff} games added.`, 'success')
 }
 </script>
 
@@ -271,9 +283,12 @@ async function importPgnTextAction() {
 textarea { width: 100%; height: 100px; background: var(--bg-surface); border: 1px solid var(--border); color: white; padding: 8px; font-size: 0.75rem; border-radius: 4px; resize: none; font-family: monospace; }
 
 .lab-loader {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.8);
+  position: fixed; 
+  inset: 0; 
+  background: rgba(0,0,0,0.85);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
 }
 .spinner {
   width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.1);

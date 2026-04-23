@@ -11,6 +11,7 @@ import { useLibraryStats } from './library/useLibraryStats'
 import { useLibraryFilter } from './library/useLibraryFilter'
 import { useLibrarySync } from './library/useLibrarySync'
 import { useLibraryConstellation } from './library/useLibraryConstellation'
+import { useLibraryAnalysis } from './library/useLibraryAnalysis'
 
 export interface LibraryGame {
   id: string
@@ -97,6 +98,8 @@ export const useLibraryStore = defineStore('library', () => {
     selectedTag,
     filterPerspective
   )
+  
+  const intel = useLibraryAnalysis(games, idb.persistGameUpdate)
 
   const gamesMap = computed(() => {
     const map = new Map<string, LibraryGame>()
@@ -208,6 +211,9 @@ export const useLibraryStore = defineStore('library', () => {
     
     // Sub-module exposures (Constellation)
     ...constellation,
+    
+    // Sub-module exposures (Intel)
+    ...intel,
     
     // Actions
     loadGames: idb.loadGames,
