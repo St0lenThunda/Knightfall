@@ -1,7 +1,11 @@
 import { logger } from '../utils/logger'
+import { supabase } from './supabaseClient'
+import { TaggingService } from '../services/taggingService'
 
 export interface CoachingRequest {
   fen: string
+  theme?: string
+  mistakeType?: string
   evalNumber: number
   pv: string[]
   moveSan?: string | null
@@ -74,6 +78,29 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
 
 export async function generateCoaching(req: CoachingRequest): Promise<string> {
   logger.info( `[LLM API] generateCoaching entered for move: ${req.moveSan}` )
+  
+  // 1. GENERATE HASH FOR CACHE CHECK
+  const theme = req.theme || 'General Analysis'
+  const severity = req.evalNumber > 2.0 ? 'blunder' : req.evalNumber > 0.8 ? 'mistake' : 'inaccuracy'
+  const hash = await TaggingService.generatePositionHash(req.fen, theme, severity)
+
+  // 2. CHECK SUPABASE CACHE
+  try {
+    const { data: cached } = await supabase
+      .from('coaching_cache')
+      .select('explanation_text')
+      .eq('position_hash', hash)
+      .maybeSingle()
+
+    if (cached) {
+      logger.info(`[LLM API] Cache Hit! Returning precomputed explanation.`)
+      return cached.explanation_text
+    }
+  } catch (err) {
+    logger.warn('[LLM API] Cache check failed:', err)
+  }
+
+  // 3. FALLBACK TO LLM GENERATION
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
@@ -89,6 +116,7 @@ The student (${req.playerName}) played: ${req.moveSan}
 The engine's best recommendation was: ${req.bestMove ?? 'unknown'}
 Engine's recommended line: ${req.pv.slice(0, 5).join(' ')}
 Evaluation shift: ${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed( 2 )}
+Context: This is a ${severity} categorized as ${theme}.
 
 In 2-3 high-impact, actionable sentences:
 1. Explictly state the difference between ${req.playerName}'s move (${req.moveSan}) and the best move (${req.bestMove}).
@@ -100,6 +128,19 @@ In 2-3 high-impact, actionable sentences:
     logger.info( `LLM API Request: ${prompt}` )
     const responseText = await callGemini(prompt, apiKey)
     logger.info( `LLM API Response: ${responseText}` )
+
+    // 4. PERSIST TO CACHE FOR FUTURE USERS
+    supabase.from('coaching_cache').insert([{
+      position_hash: hash,
+      fen: req.fen,
+      theme,
+      mistake_type: req.mistakeType,
+      explanation_text: responseText,
+      metadata: { severity, player: req.playerName }
+    }]).then(({ error }) => {
+      if (error) logger.warn('[LLM API] Failed to persist to cache:', error)
+    })
+
     return responseText
   } catch (err) {
     logger.error("LLM Generation failed:", err)

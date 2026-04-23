@@ -23,6 +23,8 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/',         component: HomeView },
+    { path: '/path',     component: () => import('./views/PathView.vue'),    meta: { requiresAuth: true } },
+    { path: '/lesson/:id', component: () => import('./views/LessonView.vue'), meta: { requiresAuth: true } },
     { path: '/play',     component: () => import('./views/PlayView.vue') },
     { path: '/analysis', component: () => import('./views/AnalysisView.vue'), meta: { requiresAuth: true } },
     { path: '/puzzles',  component: () => import('./views/PuzzlesView.vue') },
@@ -31,6 +33,7 @@ const router = createRouter({
     { path: '/opening-lab', component: () => import('./views/OpeningLabView.vue'), meta: { requiresAuth: true } },
     { path: '/profile',  component: () => import('./views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/library',  component: () => import('./views/LibraryView.vue'), meta: { requiresAuth: true } },
+    { path: '/review',   component: () => import('./views/ReviewView.vue'),  meta: { requiresAuth: true } },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
   ],
 })

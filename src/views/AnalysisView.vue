@@ -72,6 +72,19 @@
             <div class="eval-val" :class="evalNum > 0 ? 'pos' : 'neg'">{{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(2) }}</div>
           </div>
 
+          <!-- Fix Mistakes Mode -->
+          <div v-if="hasGame" class="review-entry-card glass-xs">
+            <div class="label" style="color: var(--rose);">ACTIVE TRAINING</div>
+            <div class="review-content">
+              <span class="icon">🧬</span>
+              <div class="text">
+                <strong>Fix Your Mistakes</strong>
+                <p>Test your intuition on the blunders from this game.</p>
+              </div>
+              <router-link to="/review" class="btn btn-primary btn-xs">Begin</router-link>
+            </div>
+          </div>
+
           <!-- AI Coaching Prose -->
           <CoachPanel />
 
@@ -668,4 +681,19 @@ function getMoveQuality(move: any, _index: number) {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+.review-entry-card {
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-left: 3px solid var(--rose);
+}
+.review-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.review-content .icon { font-size: 1.5rem; }
+.review-content .text strong { display: block; font-size: 0.9rem; }
+.review-content .text p { font-size: 0.75rem; color: var(--text-muted); line-height: 1.2; margin-top: 2px; }
 </style>

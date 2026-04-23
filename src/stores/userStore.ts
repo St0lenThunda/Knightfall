@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
+import { SRSAlgorithm, type SRSState } from '../utils/srsAlgorithm'
 import type { Session } from '@supabase/supabase-js'
 
 // ─── Exported Interfaces ──────────────────────────────────────────────────────
@@ -20,6 +21,11 @@ export interface UserProfile {
   location?: string
   avatar_url?: string
   chessComUsername?: string
+  // Gamification
+  hearts: number
+  xp: number
+  streak: number
+  last_active_at?: string
 }
 
 /**
@@ -57,6 +63,11 @@ export interface PuzzleAttempt {
   time_taken_seconds: number
   themes: string[]
   created_at: string
+  // SRS Fields
+  next_review_at?: string
+  ease_factor?: number
+  interval_days?: number
+  mastery_level?: number
 }
 
 /**
@@ -92,7 +103,12 @@ export const useUserStore = defineStore('user', () => {
 
   /** The spaced repetition queue for puzzle review scheduling. */
   const puzzleQueue = ref<QueuedPuzzle[]>([])
-  
+
+  // ─── Gamification State (Duolingo Pillar) ──────────────────────────────────
+  const hearts = computed(() => profile.value?.hearts ?? 5)
+  const xp = computed(() => profile.value?.xp ?? 0)
+  const streak = computed(() => profile.value?.streak ?? 0)
+  const maxHearts = 5
   /** Daily Gauntlet progress tracking for the current session. */
   const gauntletProgress = ref({
     date: '',
@@ -207,9 +223,24 @@ export const useUserStore = defineStore('user', () => {
 
   /**
    * Records a completed puzzle attempt to both local state and Supabase.
+   * Now integrates SRS logic to schedule future reviews.
    */
   async function submitPuzzleAttempt(puzzleId: string, solved: boolean, attempts: number, timeTaken: number, hintLevel: number, themes: string[]) {
     if (!session.value) return
+
+    // 1. Calculate SRS Update
+    // Find previous attempt for this puzzle to carry over SRS state
+    const previous = [...puzzleAttempts.value].reverse().find(a => a.puzzle_id === puzzleId)
+    const currentState: SRSState = {
+      easeFactor: previous?.ease_factor ?? 2.5,
+      interval: previous?.interval_days ?? 0,
+      masteryLevel: previous?.mastery_level ?? 0
+    }
+
+    const quality = SRSAlgorithm.mapPerformanceToQuality(solved, attempts, hintLevel)
+    const srs = SRSAlgorithm.calculateNextReview(quality, currentState)
+
+    // 2. Persist to Supabase
     const { data } = await supabase
       .from('puzzle_attempts')
       .insert([{ 
@@ -219,11 +250,92 @@ export const useUserStore = defineStore('user', () => {
         attempts,
         hints_used: hintLevel,
         time_taken_seconds: timeTaken,
-        themes 
+        themes,
+        // SRS Columns
+        next_review_at: srs.nextReviewAt.toISOString(),
+        ease_factor: srs.easeFactor,
+        interval_days: srs.interval,
+        mastery_level: srs.masteryLevel
       }])
       .select()
       .single()
+
     if (data) puzzleAttempts.value.push(data)
+
+    // 3. Award XP and check streak
+    await addXP(solved ? 15 : 5)
+    await updateStreak()
+  }
+
+  /**
+   * Awards XP to the user and persists to Supabase.
+   */
+  async function addXP(amount: number) {
+    if (!profile.value) return
+    const newXP = (profile.value.xp || 0) + amount
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ xp: newXP })
+      .eq('id', profile.value.id)
+    
+    if (!error) profile.value.xp = newXP
+  }
+
+  /**
+   * Deducts a heart for a blunder.
+   */
+  async function deductHeart() {
+    if (!profile.value || profile.value.hearts <= 0) return
+    const newHearts = profile.value.hearts - 1
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ hearts: newHearts })
+      .eq('id', profile.value.id)
+    
+    if (!error) profile.value.hearts = newHearts
+  }
+
+  /**
+   * Updates the daily streak logic.
+   */
+  async function updateStreak() {
+    if (!profile.value) return
+    
+    const today = new Date().toISOString().slice(0, 10)
+    const lastActive = profile.value.last_active_at?.slice(0, 10)
+    
+    if (lastActive === today) return // Already updated today
+
+    let newStreak = (profile.value.streak || 0)
+    
+    if (lastActive) {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yesterdayStr = yesterday.toISOString().slice(0, 10)
+      
+      if (lastActive === yesterdayStr) {
+        newStreak++ // Consecutive day
+      } else {
+        newStreak = 1 // Streak broken, restart
+      }
+    } else {
+      newStreak = 1 // First activity
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        streak: newStreak,
+        last_active_at: new Date().toISOString()
+      })
+      .eq('id', profile.value.id)
+
+    if (!error) {
+      profile.value.streak = newStreak
+      profile.value.last_active_at = new Date().toISOString()
+    }
   }
 
   /**
@@ -357,8 +469,10 @@ export const useUserStore = defineStore('user', () => {
 
   return {
     session, profile, pastGames, puzzleAttempts, puzzleQueue,
+    hearts, xp, streak, maxHearts,
     gauntletProgress, myIdentity, isMe,
     fetchUserData, submitPuzzleAttempt, submitGauntletResult,
+    addXP, deductHeart,
     wldStats, openingStats, ratingHistory, currentRating,
     activityHeatmap, solvedToday, currentStreak
   }

@@ -4,12 +4,21 @@
     Handles caching, debounced API calls to Gemini, and markdown rendering.
   -->
   <div class="coaching-section">
+    <!-- Level 1: Deterministic Tag (Instant) -->
+    <div v-if="deterministicTag" class="mistake-tag-banner animated-slide-in" :class="deterministicTag.severity">
+      <span class="tag-icon">{{ deterministicTag.category === 'tactics' ? '⚡' : deterministicTag.category === 'opening' ? '📖' : '🧱' }}</span>
+      <div class="tag-content">
+        <div class="tag-title">{{ deterministicTag.severity.toUpperCase() }}: {{ deterministicTag.theme }}</div>
+        <div class="tag-desc">Eval drop: {{ deterministicTag.evalDrop.toFixed(1) }} pawns</div>
+      </div>
+    </div>
+
     <div v-if="isCoachThinking" class="coach-thinking-compact">
       <div class="spinner"></div>
-      <span>Generating Insights...</span>
+      <span>Generating Deep Insights...</span>
     </div>
     <div v-else-if="coachResponse" class="coach-prose-wrap animated-fade-in">
-      <div class="prose-header">ANALYSIS</div>
+      <div class="prose-header">COACH'S TAKE</div>
       <div class="coach-markdown" v-html="renderedCoach"></div>
     </div>
   </div>
@@ -23,6 +32,7 @@ import { useEngineStore } from '../stores/engineStore'
 import { generateCoaching } from '../api/llmApi'
 import { renderMarkdown } from '../utils/markdown'
 import { logger } from '../utils/logger'
+import { TaggingService, type TaggedMistake } from '../services/taggingService'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
@@ -30,6 +40,7 @@ const engineStore = useEngineStore()
 
 const isCoachThinking = ref(false)
 const coachResponse = ref<string | null>(null)
+const deterministicTag = ref<TaggedMistake | null>(null)
 
 const renderedCoach = computed(() => renderMarkdown(coachResponse.value))
 
@@ -57,6 +68,32 @@ const comparisonData = computed(() => {
   
   return { playedMove, beforeFen, moveNumber: idx + 1 }
 })
+
+/**
+ * DETERMINISTIC TAGGING (Level 1 Intelligence)
+ * Monitors engine output to instantly classify moves as blunders/mistakes.
+ */
+watch(() => [engineStore.isAnalyzing, store.viewIndex], ([isEngBusy]) => {
+  // Only tag when engine finishes analyzing the BEFORE position
+  if (isEngBusy || !comparisonData.value) return
+
+  const { playedMove, beforeFen } = comparisonData.value
+  
+  // To detect a mistake, we need:
+  // 1. The eval of the position BEFORE the move (engineStore.evalScoreCp)
+  // 2. The eval of the position AFTER the move (playedMove.eval)
+  
+  const evalBefore = engineStore.evalScoreCp / 100
+  const evalAfter = playedMove.eval ?? evalBefore // Fallback to before if no data
+
+  // Identify mistake
+  deterministicTag.value = TaggingService.identifyMistake(
+    beforeFen,
+    playedMove.fen,
+    evalBefore,
+    evalAfter
+  )
+}, { immediate: true })
 
 const hasGame = computed(() => store.moveHistory.length > 0)
 
@@ -170,14 +207,123 @@ watch(() => [store.viewIndex, store.loadedGameId], () => {
 </script>
 
 <style scoped>
-.coach-thinking-compact { display: flex; align-items: center; gap: 12px; padding: var(--space-4); color: var(--text-muted); font-size: 0.85rem; }
-.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.coaching-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
+}
 
-.coach-prose-wrap { overflow-y: auto; max-height: 300px; }
-.prose-header { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; }
+/* Level 1: Mistake Tag Banner */
+.mistake-tag-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 4px solid var(--accent);
+  backdrop-filter: blur(8px);
+}
 
-.coach-markdown { font-size: 0.9rem; line-height: 1.7; color: var(--text-secondary); }
+.mistake-tag-banner.blunder { border-left-color: var(--rose); background: rgba(244, 63, 94, 0.08); }
+.mistake-tag-banner.mistake { border-left-color: var(--gold); background: rgba(251, 191, 36, 0.08); }
+.mistake-tag-banner.inaccuracy { border-left-color: var(--blue); background: rgba(96, 165, 250, 0.08); }
+
+.tag-icon {
+  font-size: 1.5rem;
+  background: rgba(255,255,255,0.05);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+.tag-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.tag-desc {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* Thinking State */
+.coach-thinking-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Level 3: Coach Prose */
+.coach-prose-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.prose-header {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-3);
+  opacity: 0.8;
+}
+
+.coach-markdown {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.coach-markdown :deep(p) { margin-bottom: var(--space-4); }
+.coach-markdown :deep(strong) { color: var(--accent); }
+
+/* Animations */
+.animated-slide-in {
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animated-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .coach-markdown :deep(h1),
 .coach-markdown :deep(h2),
 .coach-markdown :deep(h3) { color: var(--text-primary); font-weight: 800; margin: 12px 0 6px; }

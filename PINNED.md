@@ -1,30 +1,33 @@
-# 📌 Pinned Context
+# 📌 Pinned Context: v0.10.0 "The Duolingo Release"
 
-> Last pinned: 2026-04-22T00:08:00
-> Session: Centralized the "Brain" (Archetype Engine) and synchronized all analytical views with real-data signals.
+> Last pinned: 2026-04-22T19:26:00
+> Session: Deployed the Progressive Learning Architecture (Curriculum + Lessons). Shifting focus to Lichess Data Ingestion.
 
 ## What Was Done
-- **Centralized Brain**: Unified playstyle archetype and prescription logic into `coachStore`.
-- **Real-Data Dashboard**: Synchronized Dashboard, DNA Lab, and Profile metrics (Win Rate, Avg Elo, Performance Rating) via `libraryStore`.
-- **Cloud Persistence**: Integrated Supabase sync for archetype caching and player profile persistence.
-- **Visual Analytics**: Hooked up real radar charts, activity heatmaps, and rating history progression.
-- **Library Integrity**: Implemented `gameFingerprint` deduplication and resolved circular store dependencies.
-- **Stability**: Fixed all reported TypeErrors and warnings; bumped to `v0.8.0`.
+- **Gamification Core**: Implemented Hearts (5-life system), XP rewards, and Daily Streaks in `userStore.ts`.
+- **Learning Path**: Created `PathView.vue`, a vertical S-curve curriculum map with unlocked/locked states.
+- **Lesson Engine**: Created `LessonView.vue`, an interactive engine that sequences 5 targeted exercises per skill node.
+- **Interactive Review**: Created `ReviewView.vue` to allow users to "Fix Their Mistakes" from analyzed games.
+- **Time Bonus System**: Added Lightning/Quick/Solid XP bonuses in `PuzzlesView.vue`.
+- **Intelligence Layer**: Implemented SHA-256 coaching cache in `llmApi.ts` to reduce latency and costs.
 
 ## What's Next
-- [ ] **Badge Integration**: Link the `badgeEngine` to the live `archetypeReport` for milestone rewards.
-- [ ] **Opening Lab Expansion**: Use the new `archetypeReport` to recommend specific repertoires based on playstyle.
-- [ ] **Mobile Layout Audit**: Ensure high-density stat cards on the Dashboard wrap correctly on small viewports.
-- [ ] **Environment Fix**: Update the local development environment to Node 18+ to resolve `npm build` issues.
+- [ ] **Lichess Data Ingestion**: Build the pipeline to pull PGNs and move-by-move behavior (timing, pressure) from Lichess.
+- [ ] **Weakness DNA Engine**: Map Lichess blunders to specific `skill_nodes` (e.g., if user misses a pin in a game, unlock the "Pins" lesson).
+- [ ] **DNA Dashboard**: Build radar charts visualizing tactical vs. positional health.
+- [ ] **Bite-Sized Lessons**: Populate more `skill_nodes` content (Forks, Skewers, Outposts, etc.).
+- [ ] **Sensory Feedback**: Add audio cues for "Correct Move" and "Blunder".
 
 ## Known Issues
-- **Build Mismatch**: Local production build (`npm run build`) fails on Node v14.17.0; requires Node 18+ for modern Vite/Vue-TSC features.
+- **Terminal Environment**: Local terminal is currently using Node `v14.17.0`, causing `npm run dev` to fail (Prefix `node:` requires v16+). **Fix: Run `nvm use 24.11.0` in the user terminal.**
+- **Lesson Content**: Lessons currently pull random category puzzles; need to refine `fetchPuzzleBatch` to support specific theme tags (e.g., `pin`, `fork`).
 
 ## Hot Files
-- `src/stores/coachStore.ts`: Primary intelligence engine and archetype report.
-- `src/stores/libraryStore.ts`: Central data repository for all game-history metrics.
-- `src/views/HomeView.vue`: Dashboard logic and weakness signal display.
-- `src/views/DnaView.vue`: Radar chart and archetype narrative center.
+- `src/stores/curriculumStore.ts`: Defines the skill tree and progress tracking.
+- `src/views/LessonView.vue`: The instructional engine orchestrator.
+- `src/views/PathView.vue`: The visual map of the training journey.
+- `src/stores/userStore.ts`: Central hub for Hearts, XP, and Streaks.
+- `src/api/puzzleApi.ts`: Needs update for theme-specific fetching.
 
 ## Session Notes
-The application is now 100% data-driven. The "simulated" era of Knightfall is over. Every metric shown in the Intelligent Control Center is a real reflection of the user's library and performance.
+We have successfully moved from a "Static Tool" to an "Active Training Platform". The project is now architecturally ready for deep Lichess integration. Every mistake imported from Lichess can now be converted into a structured lesson node on the Path.

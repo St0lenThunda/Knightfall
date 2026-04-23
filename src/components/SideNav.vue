@@ -186,6 +186,7 @@ const navSections = computed(() => {
       showTitle: true,
       items: [
         { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
+        { path: '/path',      icon: '🛣️',  label: 'Learning Path', badge: 'LEVEL 1', auth: true },
         { path: '/play',      icon: '♟',  label: 'Play Now',   badge: 'LIVE', auth: false },
         { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',    badge: 'NEW',  auth: false },
         { path: '/gauntlet',  icon: '🔥',  label: 'Gauntlet',   badge: null,   auth: true  },

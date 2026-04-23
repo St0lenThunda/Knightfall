@@ -38,7 +38,10 @@
               <div class="label">Puzzle #{{ puzzle.id }}</div>
               <h3 style="margin-top: 4px;">{{ puzzle.title }}</h3>
             </div>
-            <div style="display:flex; gap: var(--space-2); align-items: center;">
+            <div style="display:flex; gap: var(--space-4); align-items: center;">
+              <div v-if="!puzzleSolved" class="puzzle-timer">
+                <span class="icon">⏱️</span> {{ timeTakenNow }}s
+              </div>
               <span class="badge badge-rose">Endgame</span>
               <span class="badge badge-teal">⭐ {{ puzzle.difficulty }}</span>
             </div>
@@ -138,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { useGameStore } from '../stores/gameStore'
@@ -162,7 +165,35 @@ const puzzleSolved = ref(false)
 
 // Attempt tracking
 const puzzleStartTime = ref(Date.now())
+const timeTakenNow = ref(0)
 const attemptCount = ref(0)
+
+// Timer interval
+let timerInterval: any = null
+onMounted(() => {
+  timerInterval = setInterval(() => {
+    if (!puzzleSolved.value) {
+      timeTakenNow.value = Math.round((Date.now() - puzzleStartTime.value) / 1000)
+    }
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
+})
+
+/**
+ * Calculates the XP bonus based on time taken.
+ * Lightning: < 5s (+10)
+ * Quick: < 15s (+5)
+ * Solid: < 30s (+2)
+ */
+function calculateTimeBonus(seconds: number): { amount: number; label: string } {
+  if (seconds < 5) return { amount: 10, label: 'Lightning!' }
+  if (seconds < 15) return { amount: 5, label: 'Quick!' }
+  if (seconds < 30) return { amount: 2, label: 'Solid.' }
+  return { amount: 0, label: '' }
+}
 
 const categories = [
   { id: 'endgame', icon: '🏁', label: 'Endgame' },
@@ -227,6 +258,8 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
         hintLevel.value = 0
         
         const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
+        const bonus = calculateTimeBonus(timeTaken)
+        
         userStore.submitPuzzleAttempt(
           currentPuzzle.value.id,
           true,
@@ -235,8 +268,11 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
           hintLevel.value,
           currentPuzzle.value.themes || []
         )
+
+        // Award bonus XP
+        if (bonus.amount > 0) userStore.addXP(bonus.amount)
         
-        uiStore.addToast(`Solved! +Elo (${timeTaken}s)`, 'success')
+        uiStore.addToast(`Solved! +15 XP ${bonus.amount > 0 ? `+ ${bonus.amount} ${bonus.label}` : ''}`, 'success')
         store.forceGameOver = true 
       } else {
         // If puzzleStep is now ODD, it means we just processed the player's successful move.
@@ -375,6 +411,16 @@ onMounted(() => {
 /* Puzzle card */
 .puzzle-card { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
 .puzzle-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+
+.puzzle-timer {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .puzzle-turn-indicator {
   display: flex; align-items: center; gap: var(--space-2);

@@ -39,6 +39,7 @@ export interface HistoryEntry {
   moveNumber: number
   isCapture: boolean
   isCheck: boolean
+  eval?: number // Centipawns from engine
 }
 
 export const TIME_CONTROLS: TimeControl[] = [
