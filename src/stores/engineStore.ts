@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useSettingsStore } from './settingsStore'
+import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
 
 export const useEngineStore = defineStore('engine', () => {
@@ -124,6 +125,11 @@ export const useEngineStore = defineStore('engine', () => {
     const mateMatch = msg.match(/score mate (-?\d+)/)
     const pvMatch = msg.match(/ pv (.+)/)
     const multiIdxMatch = msg.match(/multipv (\d+)/)
+    const npsMatch = msg.match(/nps (\d+)/)
+
+    if (npsMatch) {
+      useAdminStore().updateEngineMetrics(parseInt(npsMatch[1], 10))
+    }
 
     if (multiIdxMatch && pvMatch) {
       const id = parseInt(multiIdxMatch[1], 10)

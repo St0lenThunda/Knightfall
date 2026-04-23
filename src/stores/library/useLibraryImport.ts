@@ -107,7 +107,7 @@ export function useLibraryImport(
    * Saves a single game (e.g., from a live session) to the library.
    * Handles deduplication via fingerprinting.
    */
-  async function saveGameToLibrary(pgn: string, tags: string[] = []) {
+  async function saveGameToLibrary(pgn: string, tags: string[] = [], telemetry?: { clocks?: number[], evals?: any[] }) {
     const chess = new Chess()
     try {
       safeLoadPgn(chess, pgn)
@@ -137,7 +137,9 @@ export function useLibraryImport(
         addedAt: Date.now(),
         whiteElo: headers['WhiteElo'] ?? undefined,
         blackElo: headers['BlackElo'] ?? undefined,
-        tags: [...new Set(['My Games', ...tags])]
+        tags: [...new Set(['My Games', ...tags])],
+        clocks: telemetry?.clocks,
+        evals: telemetry?.evals
       }
 
       games.value.push(JSON.parse(JSON.stringify(game)))
@@ -157,6 +159,55 @@ export function useLibraryImport(
   return {
     importPgn,
     importPgnZip,
-    saveGameToLibrary
+    saveGameToLibrary,
+    importFromLichess: async (username: string, limit = 20) => {
+      const { fetchRecentLichessGames } = await import('../../api/lichessApi')
+      isImporting.value = true
+      importProgress.value = 0
+      
+      try {
+        const lichessGames = await fetchRecentLichessGames(username, limit)
+        const total = lichessGames.length
+        
+        for (let i = 0; i < total; i++) {
+          const lg = lichessGames[i]
+          const pgn = lg.pgn || ''
+          
+          const game: LibraryGame = {
+            id: lg.id,
+            pgn,
+            white: lg.players.white.user?.name || 'Anonymous',
+            black: lg.players.black.user?.name || 'Anonymous',
+            result: lg.winner === 'white' ? '1-0' : (lg.winner === 'black' ? '0-1' : '1/2-1/2'),
+            date: new Date(lg.createdAt).toISOString().split('T')[0],
+            event: `Lichess ${lg.speed} Game`,
+            eco: lg.opening?.eco || '',
+            movesCount: lg.moves.split(' ').length,
+            addedAt: Date.now(),
+            whiteElo: lg.players.white.rating.toString(),
+            blackElo: lg.players.black.rating.toString(),
+            tags: ['Lichess', lg.speed, lg.perf],
+            clocks: lg.clocks,
+            evals: lg.evals
+          }
+
+          // Persist
+          const db = await initDb()
+          const transaction = db.transaction(['games'], 'readwrite')
+          transaction.objectStore('games').put(JSON.parse(JSON.stringify(game)))
+          
+          if (!games.value.some(g => g.id === game.id)) {
+            games.value.push(game)
+          }
+
+          importProgress.value = Math.round(((i + 1) / total) * 100)
+        }
+        logger.info(`[Lichess] Successfully imported ${total} games.`)
+      } catch (err) {
+        logger.error('[Lichess] Import failed', err)
+      } finally {
+        isImporting.value = false
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@ import { logger } from '../utils/logger'
 import { supabase } from '../api/supabaseClient'
 import { TaggingService } from './taggingService'
 import { useLibraryStore } from '../stores/libraryStore'
+import { useAdminStore } from '../stores/adminStore'
 
 /**
  * LLM SERVICE (The Coach Architecture)
@@ -55,6 +56,7 @@ export class LlmService {
     
     if (localHit) {
       logger.info(`[LlmService] Local Cache Hit for ${hash.substring(0, 8)}`)
+      useAdminStore().recordCacheHit()
       return localHit
     }
 
@@ -68,6 +70,7 @@ export class LlmService {
       
       if (cloudHit) {
         logger.info(`[LlmService] Cloud Cache Hit for ${hash.substring(0, 8)}`)
+        useAdminStore().recordCacheHit()
         return cloudHit.explanation_text
       }
     } catch (err) {
@@ -185,7 +188,14 @@ OUTPUT: Coaching-style explanation.
     })
     
     if (!response.ok) throw new Error(`Gemini Error: ${response.statusText}`)
+    
+    const start = Date.now()
     const data = await response.json()
+    const latency = Date.now() - start
+    const tokens = data.usageMetadata?.totalTokenCount || 0
+    
+    useAdminStore().recordCacheMiss(tokens, latency)
+    
     return data.candidates[0].content.parts[0].text.trim()
   }
 }

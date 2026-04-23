@@ -32,7 +32,6 @@ const router = createRouter({
     { path: '/dna',      component: () => import('./views/DnaView.vue'),      meta: { requiresAuth: true } },
     { path: '/opening-lab', component: () => import('./views/OpeningLabView.vue'), meta: { requiresAuth: true } },
     { path: '/profile',  component: () => import('./views/ProfileView.vue'), meta: { requiresAuth: true } },
-    { path: '/library',  component: () => import('./views/LibraryView.vue'), meta: { requiresAuth: true } },
     { path: '/review',   component: () => import('./views/ReviewView.vue'),  meta: { requiresAuth: true } },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
   ],

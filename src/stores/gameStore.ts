@@ -11,6 +11,7 @@ import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
 import { safeLoadPgn } from '../utils/pgnParser'
 import { supabase } from '../api/supabaseClient'
+import { logger } from '../utils/logger'
 
 export type GameMode = 'local' | 'vs-computer' | 'analysis' | 'puzzle'
 export type TimeControl = { label: string; minutes: number; increment: number }
@@ -138,6 +139,15 @@ export const useGameStore = defineStore('game', () => {
   const isCheaterBusted = computed(() => suspicionScore.value > 75)
 
   function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
+    // 1. Kill any active temporal processes
+    stopClock()
+    isThinking.value = false
+    if (botWorker) {
+      botWorker.postMessage('stop')
+      botWorker.onmessage = null // Discard any pending results from the previous game
+    }
+
+    // 2. Reset Core State
     chess.value = new Chess()
     selectedSquare.value = null
     legalMoveSquares.value = []
@@ -146,17 +156,22 @@ export const useGameStore = defineStore('game', () => {
     viewIndex.value = -1
     mode.value = m
     playerColor.value = color
-    isThinking.value = false
     promotionPending.value = null
+    
+    // 3. Reset Time Controls
     if (tc) timeControl.value = tc
     whiteTime.value = timeControl.value.minutes * 60
     blackTime.value = timeControl.value.minutes * 60
+    
+    // 4. Reset Status Flags
     gameStarted.value = false
     forceGameOver.value = false
     timeOutWinner.value = null
     resignationWinner.value = null
     loadedGameId.value = null
     cheatMetrics.value = { blurCount: 0, moveTimes: [], lastTurnStartTimestamp: 0 }
+    
+    logger.info(`[GameStore] New ${m} game initialized as ${color}`)
   }
 
   function loadPosition(fenStr: string, m: GameMode = 'local', tc?: TimeControl) {
@@ -229,7 +244,7 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function makeMove(from: Square, to: Square, promotion: PieceSymbol = 'q') {
+  function makeMove(from: Square, to: Square, promotion?: PieceSymbol) {
     if (!gameStarted.value) {
       gameStarted.value = true
       cheatMetrics.value.lastTurnStartTimestamp = Date.now()
@@ -241,7 +256,21 @@ export const useGameStore = defineStore('game', () => {
        cheatMetrics.value.moveTimes.push(delta)
     }
 
-    const result = chess.value.move({ from, to, promotion })
+    // Only apply promotion if it's actually provided or if we're moving a pawn to the back rank
+    const moveData: any = { from, to }
+    
+    // Auto-promote to queen if a pawn reaches the 8th/1st rank and no promotion was specified
+    const piece = chess.value.get(from)
+    const isPawn = piece?.type === 'p'
+    const isLastRank = (piece?.color === 'w' && to[1] === '8') || (piece?.color === 'b' && to[1] === '1')
+    
+    if (promotion) {
+      moveData.promotion = promotion
+    } else if (isPawn && isLastRank) {
+      moveData.promotion = 'q'
+    }
+
+    const result = chess.value.move(moveData)
     if (!result) return
     
     // Audio SFX

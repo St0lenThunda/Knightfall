@@ -130,7 +130,7 @@
               <h3 style="color: var(--accent-bright);">Game Over</h3>
               <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: var(--space-2);">{{ store.gameResult }}</p>
               <div style="display: flex; gap: var(--space-2); justify-content: center;">
-                <button class="btn btn-primary" @click="showSetup = true">New Game</button>
+                <button class="btn btn-primary" @click="triggerNewGame">New Game</button>
                 <button class="btn btn-ghost" @click="reviewGame" :disabled="isReviewing">
                   <span v-if="isReviewing" class="spinner-sm" style="margin-right:4px"></span>
                   {{ isReviewing ? 'Loading...' : 'Review Game' }}
@@ -147,7 +147,7 @@
                 Your Suspicion Score reached <b style="color: var(--rose)">{{ store.suspicionScore.toFixed(0) }}%</b>. 
                 <br>Window Blurs: {{ store.cheatMetrics.blurCount }}
               </div>
-              <button class="btn btn-danger" @click="showSetup = true, store.newGame()">Accept Defeat</button>
+              <button class="btn btn-danger" @click="triggerNewGame">Accept Defeat</button>
             </div>
           </Transition>
         </div>
@@ -213,6 +213,11 @@ const showSetup = ref(true)
 const router = useRouter()
 
 const isReviewing = ref(false)
+
+function triggerNewGame() {
+  store.newGame(selectedMode.value, selectedColor.value, selectedTc.value)
+  showSetup.value = true
+}
 
 function reviewGame() {
   isReviewing.value = true

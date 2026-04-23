@@ -21,6 +21,7 @@ export interface UserProfile {
   location?: string
   avatar_url?: string
   chessComUsername?: string
+  lichessUsername?: string
   // Gamification
   hearts: number
   xp: number
@@ -133,7 +134,17 @@ export const useUserStore = defineStore('user', () => {
   const myIdentity = computed(() => ({
     name: profile.value?.username?.toLowerCase() || '',
     chessCom: profile.value?.chessComUsername?.toLowerCase() || '',
+    lichess: profile.value?.lichessUsername?.toLowerCase() || '',
   }))
+
+  /**
+   * Simple admin check for HUD visibility and restricted features.
+   */
+  const isAdmin = computed(() => {
+    const name = profile.value?.username?.toLowerCase()
+    const isDev = import.meta.env.DEV
+    return isDev || name === 'thunda' || name === 'admin' || name === 'tonym415'
+  })
 
   /**
    * Determines whether a given player name belongs to the current user.
@@ -145,7 +156,9 @@ export const useUserStore = defineStore('user', () => {
   function isMe(playerName: string): boolean {
     const id = myIdentity.value
     const lower = playerName.toLowerCase()
-    return lower === id.name || (!!id.chessCom && lower === id.chessCom)
+    return lower === id.name || 
+           (!!id.chessCom && lower === id.chessCom) ||
+           (!!id.lichess && lower === id.lichess)
   }
 
   // ─── Data Fetching ──────────────────────────────────────────────────────────
@@ -176,8 +189,8 @@ export const useUserStore = defineStore('user', () => {
       supabase
         .from('matches')
         .select('*')
-        .eq('user_id', session.value.user.id)
-        .order('date', { ascending: true }),
+        .or(`white_id.eq.${session.value.user.id},black_id.eq.${session.value.user.id}`)
+        .order('created_at', { ascending: true }),
     ])
 
     // --- Profile ---
@@ -185,7 +198,12 @@ export const useUserStore = defineStore('user', () => {
       profile.value = profileResult.value.data
       // Hydrate Chess.com username from localStorage (avoids DB migration)
       const savedChessComUser = localStorage.getItem('knightfall_chesscom_username')
-      if (profile.value) profile.value.chessComUsername = savedChessComUser || undefined
+      // Hydrate Lichess username from localStorage
+      const savedLichessUser = localStorage.getItem('knightfall_lichess_username')
+      if (profile.value) {
+        profile.value.chessComUsername = savedChessComUser || undefined
+        profile.value.lichessUsername = savedLichessUser || undefined
+      }
     }
 
     // --- Puzzle Attempts ---
@@ -470,7 +488,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     session, profile, pastGames, puzzleAttempts, puzzleQueue,
     hearts, xp, streak, maxHearts,
-    gauntletProgress, myIdentity, isMe,
+    gauntletProgress, myIdentity, isMe, isAdmin,
     fetchUserData, submitPuzzleAttempt, submitGauntletResult,
     addXP, deductHeart,
     wldStats, openingStats, ratingHistory, currentRating,

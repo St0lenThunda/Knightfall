@@ -18,8 +18,9 @@ const isImporting = ref(false)
 const syncProgress = ref(0)
 const syncStage = ref('')
 
-// Chess.com username is centralized in the user's profile, not a local input
+// External usernames centralized in userStore
 const chessComUser = computed(() => userStore.profile?.chessComUsername || '')
+const lichessUser = computed(() => userStore.profile?.lichessUsername || '')
 
 // Only count library games — userStore.pastGames is already included in the library
 // via saveGameToLibrary(), so adding both would double-count.
@@ -27,7 +28,9 @@ const totalGames = computed(() => libraryStore.games.length)
 const sourceBreakdown = computed(() => {
   const breakdown: Record<string, number> = {}
   libraryStore.games.forEach(g => {
-    const source = g.tags?.includes('Chess.com') ? 'Chess.com' : 'Knightfall'
+    let source = 'Knightfall'
+    if (g.tags?.includes('Chess.com')) source = 'Chess.com'
+    else if (g.tags?.includes('Lichess')) source = 'Lichess'
     breakdown[source] = (breakdown[source] || 0) + 1
   })
   return Object.entries(breakdown).filter(([_, count]) => count > 0)
@@ -107,6 +110,21 @@ async function importChessCom() {
       uiStore.addToast(msg, 'success')
       startSync() // Trigger DNA sync after import
     }
+  } catch (err: any) {
+    uiStore.addToast(err.message, 'error')
+  } finally {
+    isImporting.value = false
+  }
+}
+
+async function importLichess() {
+  if (!lichessUser.value) return
+  isImporting.value = true
+  
+  try {
+    await libraryStore.importFromLichess(lichessUser.value, 20)
+    uiStore.addToast(`Successfully imported Lichess history!`, 'success')
+    startSync()
   } catch (err: any) {
     uiStore.addToast(err.message, 'error')
   } finally {
@@ -225,6 +243,10 @@ function getAxisLabelPos(i: number) {
           <div>
             <h3 class="title-md">Your Playstyle</h3>
             <p class="trait-tag" :style="{ color: 'var(--accent-bright)' }">{{ coachStore.playstyleNarrative.title }}</p>
+            <div class="identity-badges mt-1">
+              <span v-if="chessComUser" class="id-badge">♟ {{ chessComUser }}</span>
+              <span v-if="lichessUser" class="id-badge">♘ {{ lichessUser }}</span>
+            </div>
           </div>
         </div>
 
@@ -427,10 +449,27 @@ function getAxisLabelPos(i: number) {
             </div>
           </template>
           
-          <template v-else>
+          <template v-if="lichessUser">
+            <div class="linked-account" style="margin-top: 0.5rem;">
+              <span class="linked-icon">♘</span>
+              <div class="linked-info">
+                <span class="linked-name">{{ lichessUser }}</span>
+                <span class="linked-source">Lichess</span>
+              </div>
+              <button 
+                class="btn btn-ghost btn-sm" 
+                @click="importLichess"
+                :disabled="isImporting"
+              >
+                {{ isImporting ? '⏳ Syncing...' : '📥 Sync Games' }}
+              </button>
+            </div>
+          </template>
+          
+          <template v-if="!chessComUser && !lichessUser">
             <div class="no-link-prompt">
               <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
-                Link your Chess.com account to analyze your global weaknesses.
+                Link your external accounts to analyze your global weaknesses.
               </p>
               <router-link to="/profile" class="btn btn-primary btn-sm">
                 Set up in Profile →
@@ -579,4 +618,20 @@ function getAxisLabelPos(i: number) {
 .linked-name { font-weight: 700; font-size: 0.9rem; }
 .linked-source { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .no-link-prompt { text-align: center; padding: var(--space-4); }
+
+.identity-badges {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.id-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
 </style>

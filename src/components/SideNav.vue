@@ -202,10 +202,9 @@ const navSections = computed(() => {
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'Vault',
+      title: 'Identity',
       showTitle: true,
       items: [
-        { path: '/library',   icon: '📦',  label: 'Game Vault',  badge: libraryStore.games.length > 0 ? libraryStore.games.length : null, auth: true  },
         { path: '/profile',   icon: '👤', label: 'My Profile',   badge: libraryStore.performanceRating > 0 ? `♔ ${libraryStore.performanceRating}` : null, auth: true  },
         { path: '/settings',  icon: '⚙️',  label: 'Settings',     badge: null,   auth: false },
       ].filter(i => !i.auth || !!userStore.session)

@@ -103,9 +103,10 @@ const finalFen = computed(() => {
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: var(--space-4);
+  padding: 10vh var(--space-4) var(--space-8);
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -137,6 +138,7 @@ const finalFen = computed(() => {
   display: flex;
   padding: var(--space-8);
   gap: var(--space-8);
+  min-width: 0;
 }
 
 @media (max-width: 600px) {
@@ -167,6 +169,7 @@ const finalFen = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  min-width: 0;
 }
 
 .game-header {
@@ -182,11 +185,12 @@ const finalFen = computed(() => {
   font-size: 1.5rem;
   font-weight: 800;
 }
-.p-bundle { display: flex; align-items: baseline; gap: 8px; }
-.vs { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
+.p-bundle { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.vs { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; flex-shrink: 0; }
 .white .p-name { color: white; }
 .black .p-name { color: var(--text-secondary); }
-.p-rating { font-size: 1rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 500; }
+.p-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-rating { font-size: 1rem; color: var(--text-muted); font-family: var(--font-mono); font-weight: 500; flex-shrink: 0; }
 
 .result-badge {
   display: inline-block;
@@ -208,7 +212,13 @@ const finalFen = computed(() => {
 .meta-item { display: flex; flex-direction: column; gap: 2px; }
 .meta-item:first-child { grid-column: span 2; }
 .meta-item .label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
-.meta-item .val { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.meta-item .val { 
+  font-size: 0.95rem; 
+  font-weight: 600; 
+  color: var(--text-primary); 
+  overflow-wrap: break-word; 
+  word-break: break-word;
+}
 
 .tags-section {
   display: flex;

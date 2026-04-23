@@ -28,6 +28,8 @@ export interface LibraryGame {
   blackElo?: string
   tags?: string[]
   analysisCache?: Record<string, string>
+  clocks?: number[]
+  evals?: any[]
 }
 
 export interface OpeningNode {
@@ -215,6 +217,7 @@ export const useLibraryStore = defineStore('library', () => {
     importPgn: importer.importPgn,
     importPgnZip: importer.importPgnZip,
     saveGameToLibrary: importer.saveGameToLibrary,
+    importFromLichess: importer.importFromLichess,
     
     syncCloudGames: cloud.syncCloudGames,
     purgeCloudLibrary: cloud.purgeCloudLibrary,

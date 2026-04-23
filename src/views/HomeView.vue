@@ -1,68 +1,5 @@
 <template>
   <div class="page home-page">
-    <!-- Hero section -->
-    <section class="hero">
-      <div class="hero-content">
-        <div class="hero-eyebrow">
-          <span class="badge badge-accent">✦ EARLY ACCESS</span>
-        </div>
-        <h1>Chess, <span class="text-gradient">reimagined</span>.</h1>
-        <p class="hero-subtitle">
-          AI-powered coaching. Pattern-based learning. Premium design.
-          <br>The chess platform you deserved all along.
-        </p>
-        <div class="hero-actions">
-          <RouterLink to="/play" class="btn btn-primary btn-lg" id="hero-play-btn">
-            ♟ Play Now
-          </RouterLink>
-          <RouterLink to="/puzzles" class="btn btn-ghost btn-lg" id="hero-puzzles-btn">
-            ⚡ Solve Puzzles
-          </RouterLink>
-        </div>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <span class="hero-stat-value">12k+</span>
-            <span class="hero-stat-desc">Players</span>
-          </div>
-          <div class="hero-stat-divider"></div>
-          <div class="hero-stat">
-            <span class="hero-stat-value">98%</span>
-            <span class="hero-stat-desc">Ad-free forever</span>
-          </div>
-          <div class="hero-stat-divider"></div>
-          <div class="hero-stat">
-            <span class="hero-stat-value">500ms</span>
-            <span class="hero-stat-desc">Avg. move latency</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mini preview board -->
-      <div class="hero-board glass">
-        <div class="hero-board-header">
-          <div class="player-chip">
-            <div class="player-avatar" style="background: linear-gradient(135deg, #374151, #1f2937);">♚</div>
-            <span>Engine Level 4</span>
-            <span class="badge badge-teal">1650</span>
-          </div>
-        </div>
-        <div class="mini-board">
-          <div v-for="(row, ri) in previewBoard" :key="ri" class="mini-row">
-            <div v-for="(cell, ci) in row" :key="ci" class="mini-sq" :class="(ri+ci)%2===0?'mini-light':'mini-dark'">
-              {{ cell }}
-            </div>
-          </div>
-        </div>
-        <div class="hero-board-footer">
-          <div class="player-chip">
-            <div class="player-avatar" style="background: linear-gradient(135deg, var(--accent), #7c3aed);">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
-            <span>{{ userStore.profile?.username || 'Player' }}</span>
-            <span class="badge badge-gold">{{ userStore.profile?.rating || 1200 }}</span>
-          </div>
-          <span class="badge badge-green" style="margin-left: auto;">● LIVE</span>
-        </div>
-      </div>
-    </section>
 
     <!-- Logged in view: Dashboard -->
     <template v-if="userStore.session && userStore.profile">
@@ -155,15 +92,19 @@
           <div class="glass recent-games">
             <div class="card-header">
               <h4>Recent Games</h4>
+              <RouterLink to="/profile?tab=vault" class="btn-cleanup-text">VIEW VAULT →</RouterLink>
             </div>
             <div class="game-list">
-              <div v-for="g in recentGames" :key="g.id" class="game-row">
+              <div v-for="g in recentGames" :key="g.id" class="game-row" @click="router.push('/analysis?id=' + g.id)" style="cursor:pointer;">
                 <div class="game-result-dot" :class="g.result"></div>
                 <div class="game-info">
                   <span class="game-opponent">vs {{ g.opponent }}</span>
                   <span class="game-meta muted">{{ g.control }} · {{ g.opening }}</span>
                 </div>
                 <div class="game-score" :class="g.result">{{ g.score }}</div>
+              </div>
+              <div v-if="recentGames.length === 0" class="muted" style="padding: var(--space-4); text-align:center; font-size:0.85rem;">
+                No games in archive yet.
               </div>
             </div>
           </div>
@@ -173,6 +114,70 @@
 
     <!-- Guest view: Sales / Marketing section -->
     <template v-else>
+      <!-- Hero section (Guest only) -->
+      <section class="hero">
+        <div class="hero-content">
+          <div class="hero-eyebrow">
+            <span class="badge badge-accent">✦ EARLY ACCESS</span>
+          </div>
+          <h1>Chess, <span class="text-gradient">reimagined</span>.</h1>
+          <p class="hero-subtitle">
+            AI-powered coaching. Pattern-based learning. Premium design.
+            <br>The chess platform you deserved all along.
+          </p>
+          <div class="hero-actions">
+            <RouterLink to="/play" class="btn btn-primary btn-lg" id="hero-play-btn">
+              ♟ Play Now
+            </RouterLink>
+            <RouterLink to="/puzzles" class="btn btn-ghost btn-lg" id="hero-puzzles-btn">
+              ⚡ Solve Puzzles
+            </RouterLink>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat-value">12k+</span>
+              <span class="hero-stat-desc">Players</span>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+              <span class="hero-stat-value">98%</span>
+              <span class="hero-stat-desc">Ad-free forever</span>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+              <span class="hero-stat-value">500ms</span>
+              <span class="hero-stat-desc">Avg. move latency</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini preview board -->
+        <div class="hero-board glass">
+          <div class="hero-board-header">
+            <div class="player-chip">
+              <div class="player-avatar" style="background: linear-gradient(135deg, #374151, #1f2937);">♚</div>
+              <span>Engine Level 4</span>
+              <span class="badge badge-teal">1650</span>
+            </div>
+          </div>
+          <div class="mini-board">
+            <div v-for="(row, ri) in previewBoard" :key="ri" class="mini-row">
+              <div v-for="(cell, ci) in row" :key="ci" class="mini-sq" :class="(ri+ci)%2===0?'mini-light':'mini-dark'">
+                {{ cell }}
+              </div>
+            </div>
+          </div>
+          <div class="hero-board-footer">
+            <div class="player-chip">
+              <div class="player-avatar" style="background: linear-gradient(135deg, var(--accent), #7c3aed);">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
+              <span>{{ userStore.profile?.username || 'Player' }}</span>
+              <span class="badge badge-gold">{{ userStore.profile?.rating || 1200 }}</span>
+            </div>
+            <span class="badge badge-green" style="margin-left: auto;">● LIVE</span>
+          </div>
+        </div>
+      </section>
+
       <section class="landing-sales">
         <div class="section-title-wrap">
           <h2 class="section-title">A New Era of Chess Study</h2>
