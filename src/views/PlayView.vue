@@ -2,7 +2,7 @@
   <div class="page play-page">
     <div class="play-header">
       <div>
-        <h2>Play Chess</h2>
+        <h2>Direct Combat</h2>
         <p class="muted" style="font-size: 0.9rem;">{{ modeLabel }}</p>
       </div>
       <div class="play-header-actions">

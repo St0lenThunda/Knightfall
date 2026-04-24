@@ -140,7 +140,7 @@ onUnmounted(() => {
   <div class="gauntlet-page container">
     <div class="gauntlet-header">
       <div class="header-main">
-        <h1 class="title-lg gradient-text">Daily Gauntlet</h1>
+        <h1 class="title-lg gradient-text">The Great Gauntlet</h1>
         <p class="text-secondary">5 puzzles. One shot at glory. Every day.</p>
       </div>
       

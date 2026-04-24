@@ -36,7 +36,7 @@ function getNodeClass(node: SkillNode) {
     
     <header class="path-header">
       <div class="header-glass">
-        <h1 class="title-lg text-gold">The Knight's Journey</h1>
+        <h1 class="title-lg text-gold">Knight's Path</h1>
         <p class="text-white opacity-80">Master your craft in the echoes of the grand game.</p>
       </div>
     </header>

@@ -3,10 +3,13 @@
     <!-- Header: Navigation Tabs -->
     <div class="profile-nav-tabs glass-sm">
       <button class="profile-tab" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-        👤 Overview
+        ⚡ War Room
+      </button>
+      <button class="profile-tab" :class="{ active: activeTab === 'dna' }" @click="activeTab = 'dna'">
+        🧬 Soul Mapping
       </button>
       <button class="profile-tab" :class="{ active: activeTab === 'vault' }" @click="activeTab = 'vault'">
-        🗄️ Vault
+        🗄️ Archives
       </button>
       <button class="profile-tab" :class="{ active: activeTab === 'constellation' }" @click="activeTab = 'constellation'">
         ✨ Constellation
@@ -24,285 +27,300 @@
                 <div class="profile-avatar">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
                 <div class="profile-info">
                   <!-- View Mode -->
-                  <template v-if="!isEditing">
-                    <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2);">
-                      <h2 style="margin: 0;">{{ userStore.profile?.username || 'Player' }}</h2>
-                      <span class="title-badge" :style="{ color: coachStore.achievements.title.color, borderColor: coachStore.achievements.title.color }">
-                        {{ coachStore.achievements.title.symbol }} {{ coachStore.achievements.title.label }}
-                      </span>
-                      <button class="btn-edit-inline" @click="startEdit" title="Edit username">✎</button>
+                  <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2);">
+                    <h2 style="margin: 0;">{{ userStore.profile?.username || 'Player' }}</h2>
+                    <span class="title-badge" :style="{ color: coachStore.achievements.title.color, borderColor: coachStore.achievements.title.color }">
+                      {{ coachStore.achievements.title.symbol }} {{ coachStore.achievements.title.label }}
+                    </span>
+                    <button class="btn-edit-inline" @click="router.push('/settings?tab=identity')" title="Laboratory Settings">⚙️ Settings</button>
+                  </div>
+                  <p class="muted" style="font-size: 0.9rem; margin-bottom: var(--space-3);">
+                    Joined {{ joinedDate }}<span v-if="userStore.profile?.location"> · {{ userStore.profile.location }}</span>
+                  </p>
+                  
+                  <!-- External Connections Card -->
+                  <div class="identity-connections mt-4">
+                    <div v-if="userStore.profile?.chessComUsername" class="connection-pill chess-com">
+                      <span class="icon">♟</span>
+                      <span class="name">{{ userStore.profile.chessComUsername }}</span>
+                      <span class="platform">Chess.com</span>
                     </div>
-                    <p class="muted" style="font-size: 0.9rem; margin-bottom: var(--space-3);">
-                      Joined {{ joinedDate }}<span v-if="userStore.profile?.location"> · {{ userStore.profile.location }}</span>
-                      <span v-if="userStore.profile?.chessComUsername" class="chess-com-tag"> · ♟ {{ userStore.profile.chessComUsername }}</span>
-                      <span v-if="userStore.profile?.lichessUsername" class="lichess-tag"> · ♘ {{ userStore.profile.lichessUsername }}</span>
-                    </p>
-                    <div class="profile-badges">
-                      <span v-for="b in coachStore.achievements.badges.filter(x => x.earned).slice(0, 5)" :key="b.id" class="tag">
-                        {{ b.icon }} {{ b.label }}
-                      </span>
-                      <span class="tag muted" v-if="coachStore.achievements.badges.filter(x => x.earned).length === 0">No badges yet — start playing!</span>
+                    <div v-if="userStore.profile?.lichessUsername" class="connection-pill lichess">
+                      <span class="icon">♘</span>
+                      <span class="name">{{ userStore.profile.lichessUsername }}</span>
+                      <span class="platform">Lichess</span>
                     </div>
-                  </template>
+                    <div v-if="!userStore.profile?.chessComUsername && !userStore.profile?.lichessUsername" class="muted-xs">
+                      No external DNA sources linked.
+                    </div>
+                  </div>
 
-                  <!-- Edit Mode -->
-                  <template v-else>
-                    <div style="display:flex; align-items:center; gap: var(--space-3); margin-bottom: var(--space-3);">
-                      <h2 style="margin: 0; opacity: 0.4;">{{ userStore.profile?.username }}</h2>
-                      <span style="font-size:0.8rem; color: var(--accent); font-weight: 600;">← Editing</span>
-                    </div>
-                    <form @submit.prevent="saveProfile" style="display:flex; flex-direction: column; gap: var(--space-3); max-width: 280px;">
-                      <div>
-                        <label class="label">New Username</label>
-                        <input type="text" class="input" v-model="editUsername" required autofocus />
-                      </div>
-                      <div>
-                        <label class="label">Location</label>
-                        <input type="text" class="input" v-model="editLocation" placeholder="e.g. London, UK" />
-                      </div>
-                      <div>
-                        <label class="label">Chess.com Username</label>
-                        <input type="text" class="input" v-model="editChessComUser" placeholder="e.g. hikaru" />
-                      </div>
-                      <div>
-                        <label class="label">Lichess Username</label>
-                        <input type="text" class="input" v-model="editLichessUser" placeholder="e.g. thibault" />
-                      </div>
-                      <div style="display: flex; gap: var(--space-2);">
-                        <button type="submit" class="btn btn-primary btn-sm" :disabled="isSaving">
-                          {{ isSaving ? 'Saving...' : '✓ Save Changes' }}
-                        </button>
-                        <button type="button" class="btn btn-ghost btn-sm" @click="isEditing = false" :disabled="isSaving">Cancel</button>
-                      </div>
-                    </form>
-                  </template>
+                  <div class="profile-badges mt-6">
+                    <span v-for="b in coachStore.achievements.badges.filter(x => x.earned).slice(0, 3)" :key="b.id" class="tag">
+                      {{ b.icon }} {{ b.label }}
+                    </span>
+                    <button v-if="coachStore.achievements.badges.filter(x => x.earned).length > 3" class="tag btn-ghost" @click="showBadgeModal = true">
+                      +{{ coachStore.achievements.badges.filter(x => x.earned).length - 3 }} More
+                    </button>
+                  </div>
                 </div>
 
                 <div class="profile-rating-showcase">
-                  <div class="rating-big">
-                    <div class="label">Rapid Rating</div>
-                    <div class="rating-num text-gradient">{{ userStore.currentRating }}</div>
+                  <div class="rating-big" title="A performance rating synthesized from all games in your vault using Knightfall intelligence algorithms.">
+                    <div class="label">Knightfall Elo</div>
+                    <div class="rating-num text-gradient">♔ {{ libraryStore.performanceRating }}</div>
                   </div>
-                  <div class="rating-big">
+                  <div class="rating-big" title="Your current live Rapid rating synchronized from external platforms.">
+                    <div class="label">Rapid Rating</div>
+                    <div class="rating-num" style="color: var(--teal);">{{ userStore.currentRating }}</div>
+                  </div>
+                  <div class="rating-big" title="Your estimated puzzle-solving proficiency based on processed tactical scenarios.">
                     <div class="label">Puzzle Rating</div>
                     <div class="rating-num" style="color: var(--gold);">{{ userStore.profile?.puzzle_rating ?? 1200 }}</div>
-                  </div>
-                  <div class="rating-big">
-                    <div class="label">Badges</div>
-                    <div class="rating-num" style="color: var(--teal);">{{ coachStore.achievements.earnedCount }}<span style="font-size:1rem; opacity:0.5;">/{{ coachStore.achievements.totalCount }}</span></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="profile-layout">
-              <div class="profile-left">
-                <!-- WLD -->
-                <div class="glass wld-card">
-                  <h4 style="margin-bottom: var(--space-4);">Win / Loss / Draw</h4>
-                  <div class="wld-visual">
-                    <div class="wld-ring-container">
-                      <svg viewBox="0 0 100 100" class="wld-ring">
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green)" stroke-width="12"
-                          :stroke-dasharray="`${(wldData[0].pct / 100) * 251.3} 251.3`" stroke-dashoffset="251.3" stroke-linecap="round"/>
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--rose)" stroke-width="12"
-                          :stroke-dasharray="`${(wldData[1].pct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - (wldData[0].pct / 100) * 251.3" stroke-linecap="round"/>
-                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="12"
-                          :stroke-dasharray="`${(wldData[2].pct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - ((wldData[0].pct + wldData[1].pct) / 100) * 251.3" stroke-linecap="round"/>
-                      </svg>
-                      <div class="wld-center">
-                        <div class="wld-pct">{{ wldData[0].pct }}%</div>
-                        <div class="label">Win rate</div>
-                      </div>
+            <div class="dashboard-grid-v4">
+              <!-- ROW 1: LIBRARY IQ (FULL WIDTH) -->
+              <div class="library-iq-full glass mb-6">
+                <div class="card-header">
+                  <h4>🧠 Library Intelligence Quotient</h4>
+                </div>
+                <div class="library-iq-grid mt-6">
+                  <div v-for="stat in vaultStats" :key="stat.label" class="meta-stat" :title="stat.desc">
+                    <div class="label">{{ stat.label }}</div>
+                    <div class="val" :style="{ color: stat.color || 'inherit' }">{{ stat.val }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ROW 2: RECENT ACTIVITY (2 COL) & CLINIC (1 COL) -->
+              <div class="glass card-v3 span-2">
+                <div class="card-header">
+                  <h4>Recent Activity</h4>
+                  <button @click="activeTab = 'vault'" class="btn-cleanup-text">VIEW ALL →</button>
+                </div>
+                <div class="game-list-merged mt-4">
+                  <div v-for="g in recentGames" :key="g.id" class="game-row-merged" @click="router.push('/analysis?id=' + g.id)">
+                    <div class="game-result-dot" :class="g.result"></div>
+                    <div class="game-info">
+                      <span class="game-opponent">vs {{ g.opponent }}</span>
+                      <span class="game-meta muted">{{ g.control }} · {{ g.opening }}</span>
                     </div>
-                    <div class="wld-legend">
-                      <div class="wld-row" v-for="r in wldData" :key="r.label">
-                        <div class="wld-dot" :style="{ background: r.color }"></div>
-                        <span>{{ r.label }}</span>
-                        <span class="wld-count">{{ r.count }}</span>
-                        <span class="wld-pct-small muted">{{ r.pct }}%</span>
-                      </div>
+                    <div class="game-score" :class="g.result">{{ g.score }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="miniRx.length > 0" class="glass card-v3">
+                <div class="card-header">
+                  <h4>📋 The Clinic</h4>
+                </div>
+                <div class="mini-prescriptions mt-4">
+                  <div v-for="rx in miniRx" :key="rx.id" class="mini-rx-item" :class="rx.severity">
+                    <span class="rx-icon">{{ rx.icon }}</span>
+                    <div class="rx-info">
+                      <div class="rx-title">{{ rx.title }}</div>
+                      <button @click="router.push(rx.link)" class="btn btn-xs btn-primary mt-2">{{ rx.linkText }}</button>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Top Openings -->
-                <div class="glass opening-card">
-                  <div class="card-header" style="margin-bottom: var(--space-4);">
-                    <h4>Top Openings Played</h4>
+              <!-- ROW 3: PERFORMANCE RATIO (2 COL) & DNA SNAPSHOT (1 COL) -->
+              <div class="glass card-v3 span-2">
+                <div class="card-header">
+                  <h4>Performance Ratio</h4>
+                  <div class="wld-stats-summary">
+                    <span class="wld-stat text-green">{{ libraryStore.libraryWldStats.win }}W</span>
+                    <span class="wld-stat text-gold">{{ libraryStore.libraryWldStats.draw }}D</span>
+                    <span class="wld-stat text-rose">{{ libraryStore.libraryWldStats.loss }}L</span>
                   </div>
-                  <div class="opening-list">
-                    <div v-for="o in openingStats.slice(0, 4)" :key="o.name" class="opening-row">
-                      <div class="opening-info">
-                        <div class="opening-name">{{ o.name }}</div>
-                        <div class="opening-meta muted">{{ o.games }} games</div>
-                      </div>
-                      <div class="opening-stats">
-                        <div class="mini-wld">
-                          <div class="mini-wld-bar" :style="{ width: o.winPct + '%', background: 'var(--green)' }"></div>
-                          <div class="mini-wld-bar" :style="{ width: o.drawPct + '%', background: 'var(--gold)' }"></div>
-                          <div class="mini-wld-bar" :style="{ width: o.lossPct + '%', background: 'var(--rose)' }"></div>
-                        </div>
-                        <span style="font-size:0.8rem; font-weight:700; color: var(--green);">{{ o.winPct }}%</span>
-                      </div>
+                </div>
+                <div class="wld-layout-v2 mt-6">
+                  <div class="wld-ring-container-v2">
+                    <svg viewBox="0 0 100 100" class="wld-ring">
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.winPct / 100) * 251.3} 251.3`" stroke-dashoffset="251.3" stroke-linecap="round"/>
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="var(--rose)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.lossPct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - (libraryStore.libraryWldStats.winPct / 100) * 251.3" stroke-linecap="round"/>
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.drawPct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - ((libraryStore.libraryWldStats.winPct + libraryStore.libraryWldStats.lossPct) / 100) * 251.3" stroke-linecap="round"/>
+                    </svg>
+                    <div class="wld-center">
+                      <div class="wld-pct">{{ Math.round(libraryStore.libraryWldStats.winPct) }}%</div>
+                      <div class="label">Accuracy</div>
+                    </div>
+                  </div>
+                  <div class="wld-breakdown-v2">
+                    <div class="breakdown-row" title="Total victories achieved in personal DNA games.">
+                      <div class="dot bg-green"></div>
+                      <span class="label">Wins</span>
+                      <span class="val">{{ libraryStore.libraryWldStats.win }}</span>
+                      <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.winPct) }}%</span>
+                    </div>
+                    <div class="breakdown-row" title="Total defeats sustained in personal DNA games.">
+                      <div class="dot bg-rose"></div>
+                      <span class="label">Losses</span>
+                      <span class="val">{{ libraryStore.libraryWldStats.loss }}</span>
+                      <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.lossPct) }}%</span>
+                    </div>
+                    <div class="breakdown-row" title="Games ending in a draw or stalemate.">
+                      <div class="dot bg-gold"></div>
+                      <span class="label">Draws</span>
+                      <span class="val">{{ libraryStore.libraryWldStats.draw }}</span>
+                      <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.drawPct) }}%</span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <!-- Badge Collection -->
-                <div class="glass badge-showcase-card">
-                  <div class="card-header" style="margin-bottom: var(--space-4);">
-                    <h4>Badge Showcase</h4>
-                    <span class="muted" style="font-size:0.8rem;">{{ coachStore.achievements.earnedCount }} / {{ coachStore.achievements.totalCount }} earned</span>
+              <div class="glass card-v3">
+                <div class="card-header">
+                  <h4>🧬 Weakness DNA</h4>
+                </div>
+                <div class="weakness-items mt-4">
+                  <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
+                    <div class="weakness-label">
+                      <span>{{ w.icon }} {{ w.label }}</span>
+                      <span class="muted">{{ w.pct }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                      <div class="progress-bar-fill" :style="{ width: w.pct + '%', background: w.color }"></div>
+                    </div>
                   </div>
+                </div>
+                <button @click="activeTab = 'dna'" class="btn btn-ghost btn-xs w-full mt-4">Full Lab →</button>
+              </div>
 
-                  <div v-for="pillar in badgePillars" :key="pillar.id" style="margin-bottom: var(--space-5);">
-                    <div class="badge-pillar-label">{{ pillar.icon }} {{ pillar.label }}</div>
-                    <div class="badge-grid">
-                      <div
-                        v-for="b in coachStore.achievements.badges.filter(x => x.pillar === pillar.id)"
-                        :key="b.id"
-                        class="badge-item"
-                        :class="{ 'badge-earned': b.earned, 'badge-locked': !b.earned }"
-                        :title="b.description"
-                      >
-                        <div class="badge-icon">{{ b.icon }}</div>
-                        <div class="badge-name">{{ b.label }}</div>
-                        <div v-if="!b.earned && b.progress !== undefined" class="badge-progress-bar">
-                          <div class="badge-progress-fill" :style="{ width: (b.progress * 100) + '%' }"></div>
-                        </div>
+              <!-- ROW 4: PERFORMANCE HISTORY (2 COL) & TOP OPENINGS (1 COL) -->
+              <div class="glass card-v3 span-2">
+                <div class="card-header">
+                  <h4>Performance History</h4>
+                  <div class="chart-legend">
+                    <span class="legend-item"><span class="dot bg-accent"></span> Rating</span>
+                    <span class="legend-item"><span class="dot bg-teal"></span> Avg Elo</span>
+                  </div>
+                </div>
+                <div class="perf-history-container mt-6">
+                  <div class="y-axis">
+                    <span>2400</span>
+                    <span>2000</span>
+                    <span>1600</span>
+                    <span>1200</span>
+                  </div>
+                  <div class="chart-main">
+                    <svg :viewBox="`0 0 ${chartW} ${chartH}`" class="rating-svg-full" preserveAspectRatio="none">
+                      <path :d="areaPath" fill="rgba(139,92,246,0.1)"/>
+                      <path :d="linePath" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <div class="x-axis">
+                      <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="glass card-v3">
+                <div class="card-header">
+                  <h4>Top Openings</h4>
+                </div>
+                <div class="opening-list-merged mt-4">
+                  <div v-for="o in openingStats.slice(0, 6)" :key="o.name" class="opening-row-merged">
+                    <div class="opening-info">
+                      <div class="opening-name">{{ o.name }}</div>
+                      <div class="opening-meta muted">{{ o.games }} games</div>
+                    </div>
+                    <div class="opening-stats">
+                      <div class="mini-wld">
+                        <div class="mini-wld-bar" :style="{ width: o.winPct + '%', background: 'var(--green)' }"></div>
+                        <div class="mini-wld-bar" :style="{ width: o.drawPct + '%', background: 'var(--gold)' }"></div>
+                        <div class="mini-wld-bar" :style="{ width: o.lossPct + '%', background: 'var(--rose)' }"></div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="profile-right">
-                <!-- Rating History -->
-                <div class="glass rating-chart-card">
-                  <div class="card-header" style="margin-bottom: var(--space-4);">
-                    <h4>Rating History</h4>
-                    <div class="tabs-mini">
-                      <button v-for="p in periods" :key="p" class="tab-mini" :class="{ active: activePeriod === p }" @click="activePeriod = p">{{ p }}</button>
-                    </div>
-                  </div>
-                  <div class="chart-container">
-                    <div class="y-axis">
-                      <span v-for="g in gridLines" :key="g.rating" class="axis-label">{{ g.rating }}</span>
-                    </div>
-                    <div class="chart-area">
-                      <svg :viewBox="`0 0 ${chartW} ${chartH}`" class="rating-svg" preserveAspectRatio="none">
-                        <!-- Horizontal Grid Lines -->
-                        <line v-for="g in gridLines" :key="g.rating" :x1="0" :y1="g.y" :x2="chartW" :y2="g.y" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-                        
-                        <!-- Main Path -->
-                        <path :d="areaPath" fill="rgba(139,92,246,0.2)"/>
-                        <path :d="linePath" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                  <div class="x-axis muted">
-                    <span>{{ activePeriod === 'All' ? 'Start' : 'Previous' }}</span>
-                    <span>Now</span>
-                  </div>
+              <!-- ROW 5: DATA INTEGRITY (FULL WIDTH) -->
+              <div class="glass card-v3 span-3">
+                <div class="card-header">
+                  <h4>Data Integrity & Maintenance</h4>
                 </div>
-
-                <!-- Activity Heatmap -->
-                <div class="glass activity-card">
-                  <div class="card-header" style="margin-bottom: var(--space-4);">
-                    <h4>Activity — Last 12 Weeks</h4>
-                    <div class="heatmap-legend">
-                      <span class="muted">Less</span>
-                      <div class="heat-cell" style="background: rgba(255,255,255,0.04)"></div>
-                      <div class="heat-cell" style="background: rgba(139,92,246,0.25)"></div>
-                      <div class="heat-cell" style="background: rgba(139,92,246,0.5)"></div>
-                      <div class="heat-cell" style="background: rgba(139,92,246,0.75)"></div>
-                      <div class="heat-cell" style="background: rgba(139,92,246,1)"></div>
-                      <span class="muted">More</span>
-                    </div>
-                  </div>
-                  <div class="heatmap-container">
-                    <div class="day-labels muted">
-                      <span>Mon</span>
-                      <span>Wed</span>
-                      <span>Fri</span>
-                    </div>
-                    <div class="heatmap">
-                      <div v-for="(week, wi) in heatmapData" :key="wi" class="heatmap-col">
-                        <div v-for="(day, di) in week" :key="di" class="heat-cell" :style="{ background: heatColor(day) }"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Data Maintenance -->
-                <div class="glass activity-card maintenance-card">
-                  <div class="card-header">
-                    <h4>Data Integrity</h4>
-                  </div>
-                  <p class="muted" style="font-size: 0.75rem; margin-top: 4px;">
-                    Ensure your stats reflect unique games. Knightfall automatically deduplicates new imports, but you can manually trigger a deep scan here.
+                <div class="integrity-actions mt-4 flex-col h-full justify-between">
+                  <p class="muted" style="font-size: 0.85rem;">
+                    Keep your local vault optimized by removing redundant entries or performing a complete system reset.
                   </p>
-                  <div class="maintenance-actions" style="display: flex; gap: var(--space-4); margin-top: var(--space-4);">
-                    <button class="btn btn-ghost btn-xs" @click="deduplicateVault">
-                      🧹 Deduplicate Vault
-                    </button>
-                    <button class="btn btn-ghost btn-xs text-rose" @click="showWipeConfirm = true">
-                      ⚠️ Nuclear Reset
-                    </button>
+                  <div style="display: flex; gap: var(--space-4); justify-content: flex-end;">
+                    <button class="btn btn-ghost btn-sm" @click="deduplicateVault">🧹 Clean Duplicates</button>
+                    <button class="btn btn-ghost btn-sm text-rose" @click="showWipeConfirm = true">⚠️ Nuclear Reset</button>
                   </div>
                 </div>
+              </div>
 
-                <!-- Bulk Intelligence Center (Migrated from Vault) -->
-                <div v-if="libraryStore.games.length > 0" class="intel-center glass" :class="{ 'is-active': libraryStore.isBulkAnalyzing }">
-                  <div class="intel-header">
-                    <div class="intel-title">
-                      <span class="icon">🧠</span>
-                      <div>
-                        <div class="label">Bulk Intelligence Engine</div>
-                        <div class="status muted">{{ intelStatusText }}</div>
+              <!-- ADMINISTRATIVE TASKS: FULL WIDTH AT BOTTOM -->
+              <div class="admin-full-row mt-10 mb-10">
+                <div class="admin-separator">
+                  <span class="admin-title">System Intelligence</span>
+                  <div class="admin-line"></div>
+                </div>
+
+                <!-- BULK INTELLIGENCE WITH FULL TELEMETRY -->
+                <div class="intel-center-bottom glass mt-6" :class="{ 'is-active': libraryStore.isBulkAnalyzing, 'is-finished': libraryStore.analysisProgress === 100 && !libraryStore.isBulkAnalyzing && libraryStore.totalMovesProcessed > 0 }">
+                  <div class="intel-content">
+                    <div class="intel-info">
+                      <span class="intel-icon">{{ libraryStore.analysisProgress === 100 && !libraryStore.isBulkAnalyzing ? '✅' : '🧠' }}</span>
+                      <div class="intel-text">
+                        <h3>{{ libraryStore.analysisProgress === 100 && !libraryStore.isBulkAnalyzing ? 'Synthesis Complete' : 'Bulk Intelligence & Pattern Synthesis' }}</h3>
+                        <p class="muted">{{ intelStatusText }}</p>
                       </div>
                     </div>
-                    <button 
-                      @click="toggleIntel" 
-                      class="btn btn-sm" 
-                      :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'"
-                    >
-                      {{ libraryStore.isBulkAnalyzing ? '⏸ Pause Engine' : '🚀 Start Intel Engine' }}
-                    </button>
-                  </div>
+                    
+                    <div class="intel-actions">
+                      <!-- Active Telemetry -->
+                      <div v-if="libraryStore.isBulkAnalyzing" class="intel-telemetry-active">
+                        <div class="telemetry-item">
+                          <span class="label">NPS</span>
+                          <span class="val">{{ Math.round(libraryStore.engineNodesPerSecond / 1000) }}k</span>
+                        </div>
+                        <div class="telemetry-item">
+                          <span class="label">ETA</span>
+                          <span class="val text-accent">{{ libraryStore.estimatedTimeRemaining || '--' }}</span>
+                        </div>
+                        <div class="telemetry-item">
+                          <span class="label text-rose">Blunders</span>
+                          <span class="val">{{ libraryStore.blundersFound }}</span>
+                        </div>
+                        <div class="telemetry-item">
+                          <span class="label text-teal">Brilliants</span>
+                          <span class="val">{{ libraryStore.brilliantMovesFound }}</span>
+                        </div>
+                      </div>
 
-                  <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container">
-                    <div class="intel-progress-bar">
-                      <div class="intel-progress-fill" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
-                    </div>
-                    <div class="intel-progress-stats muted">
-                      <span>{{ libraryStore.analysisProgress }}% Analyzed</span>
-                      <span v-if="libraryStore.currentAnalyzingId" class="game-id">Game: {{ libraryStore.currentAnalyzingId.slice(0, 8) }}</span>
-                    </div>
-                  </div>
+                      <!-- Finished Summary -->
+                      <div v-if="libraryStore.analysisProgress === 100 && !libraryStore.isBulkAnalyzing && libraryStore.totalMovesProcessed > 0" class="intel-summary-finish">
+                        <div class="summary-stat">
+                          <span class="val">{{ libraryStore.totalMovesProcessed }}</span>
+                          <span class="label">Moves Processed</span>
+                        </div>
+                        <div class="summary-stat">
+                          <span class="val text-rose">{{ libraryStore.blundersFound }}</span>
+                          <span class="label">Weaknesses Found</span>
+                        </div>
+                      </div>
 
-                  <div v-if="libraryStore.isBulkAnalyzing" class="intel-metrics glass-xs">
-                    <div class="metric">
-                      <div class="m-label">Speed</div>
-                      <div class="m-value">{{ (libraryStore.engineNodesPerSecond / 1000).toFixed(1) }}k nps</div>
-                    </div>
-                    <div class="metric">
-                      <div class="m-label">Processed</div>
-                      <div class="m-value">{{ libraryStore.totalMovesProcessed }} plies</div>
-                    </div>
-                    <div class="metric highlight-brilliant">
-                      <div class="m-label">Brilliant</div>
-                      <div class="m-value">✨ {{ libraryStore.brilliantMovesFound }}</div>
-                    </div>
-                    <div class="metric highlight-blunder">
-                      <div class="m-label">Blunders</div>
-                      <div class="m-value">🔴 {{ libraryStore.blundersFound }}</div>
-                    </div>
-                    <div class="metric">
-                      <div class="m-label">ETA</div>
-                      <div class="m-value">{{ libraryStore.estimatedTimeRemaining || 'Calculating...' }}</div>
+                      <!-- Progress & Toggle -->
+                      <div class="intel-main-action">
+                        <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container-v2">
+                          <div class="intel-progress-bar-v2">
+                            <div class="intel-progress-fill-v2" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
+                          </div>
+                          <span class="progress-pct-v2">{{ Math.round(libraryStore.analysisProgress) }}%</span>
+                        </div>
+                        <button @click="toggleIntel" class="btn" :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'">
+                          {{ libraryStore.isBulkAnalyzing ? 'Pause' : (libraryStore.analysisProgress === 100 ? 'Restart' : 'Start Synthesis') }}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -320,7 +338,6 @@
                   <span v-if="libraryStore.games.length > libraryStore.personalGames.length" class="badge badge-outline">📚 {{ libraryStore.games.length - libraryStore.personalGames.length }} Library Assets</span>
                   <span class="badge badge-outline" title="Games played natively on Knightfall">♞ {{ libraryStore.sourceBreakdown.knightfall }} Native</span>
                   <span class="badge badge-outline" title="Imported from Chess.com/Lichess">🌍 {{ libraryStore.sourceBreakdown.chessCom + libraryStore.sourceBreakdown.lichess }} Imported</span>
-                  <span v-if="libraryStore.sourceBreakdown.other > 0" class="badge badge-outline" title="Manually uploaded or untagged games">📦 {{ libraryStore.sourceBreakdown.other }} Other</span>
                   <span class="badge">{{ ECO_COUNT }} Openings</span>
                 </div>
               </div>
@@ -348,6 +365,20 @@
               </div>
             </header>
             <ConstellationPanel />
+          </div>
+
+          <!-- TAB 4: DNA (Consolidated Intelligence) -->
+          <div v-else-if="activeTab === 'dna'" class="dna-tab-content">
+             <header class="tab-header glass-xs">
+              <div class="header-info">
+                <h2>Weakness DNA Lab</h2>
+                <div class="header-stats">
+                  <span class="badge badge-accent">{{ libraryStore.personalGames.length }} Analyzed Snapshots</span>
+                  <span class="badge badge-outline">App IQ: {{ libraryStore.performanceRating }}</span>
+                </div>
+              </div>
+            </header>
+            <DnaPanel />
           </div>
 
         </div>
@@ -406,43 +437,71 @@
         </div>
       </Transition>
     </Teleport>
+    <!-- Badge Showcase Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showBadgeModal" class="modal-overlay" @click.self="showBadgeModal = false">
+          <div class="glass-lg badge-modal">
+            <header class="modal-header">
+              <div class="title-group">
+                <h3>Badge Showcase</h3>
+                <p class="muted">Your achievements and milestones</p>
+              </div>
+              <button class="btn-close" @click="showBadgeModal = false">✕</button>
+            </header>
+            <div class="modal-body">
+              <div v-for="pillar in badgePillars" :key="pillar.id" class="badge-pillar">
+                <div class="badge-pillar-label">{{ pillar.icon }} {{ pillar.label }}</div>
+                <div class="badge-grid">
+                  <div v-for="b in coachStore.achievements.badges.filter(x => x.pillar === pillar.id)" :key="b.id" 
+                    class="badge-item" :class="b.earned ? 'badge-earned' : 'badge-locked'"
+                    :title="b.description">
+                    <span class="badge-icon">{{ b.icon }}</span>
+                    <span class="badge-name">{{ b.label }}</span>
+                    <div v-if="!b.earned && b.progress !== undefined" class="badge-progress-bar">
+                      <div class="badge-progress-fill" :style="{ width: b.progress + '%' }"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
-import { supabase } from '../api/supabaseClient'
 
 // Tab Components
 import VaultPanel from '../components/library/VaultPanel.vue'
 import ConstellationPanel from '../components/library/ConstellationPanel.vue'
+import DnaPanel from '../components/library/DnaPanel.vue'
 import LibraryLab from '../components/library/LibraryLab.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const coachStore = useCoachStore()
 const uiStore = useUiStore()
 
-const activeTab = ref<'overview' | 'vault' | 'constellation'>('overview')
+const activeTab = ref<'overview' | 'dna' | 'vault' | 'constellation'>('overview')
 const activePeriod = ref('1M')
-const periods = ['1W', '1M', '3M', 'All']
 
-const isEditing = ref(false)
-const editUsername = ref('')
-const editLocation = ref('')
-const editChessComUser = ref('')
-const editLichessUser = ref('')
-const isSaving = ref(false)
+const isWiping = ref(false)
+
 const showLabModal = ref(false)
 const showWipeConfirm = ref(false)
+const showBadgeModal = ref(false)
 const wipeCloudToo = ref(false)
-const isWiping = ref(false)
 
 function toggleIntel() {
   if (libraryStore.isBulkAnalyzing) libraryStore.stopBulkAnalysis()
@@ -456,11 +515,76 @@ const intelStatusText = computed(() => {
   return `DNA Coverage: ${analyzed} / ${personal} Snapshots`
 })
 
+const weaknesses = computed(() => {
+  const report = coachStore.archetypeReport
+  const base = [
+    { label: report.label,  pct: report.missRate, icon: '🧬', color: 'var(--rose)' }
+  ]
+  
+  const hasTimeIssues = coachStore.dnaPrescriptions.some(rx => rx.id === 'clock-management')
+  if (hasTimeIssues) {
+    base.push({ label: 'Time Management', pct: 22, icon: '⏱', color: 'var(--teal)' })
+  } else {
+    base.push({ label: 'Structural Gaps', pct: 14, icon: '🏗️', color: 'var(--teal)' })
+  }
+
+  const hasTacticalVuln = coachStore.dnaPrescriptions.some(rx => rx.id === 'opening-vuln')
+  if (hasTacticalVuln) {
+    base.push({ label: 'Tactical Traps', pct: 31, icon: '⚠️', color: 'var(--gold)' })
+  } else {
+    base.push({ label: 'Positioning', pct: 18, icon: '♟', color: 'var(--gold)' })
+  }
+  
+  return base
+})
+
+const miniRx = computed(() => {
+  const combined = [...coachStore.dnaPrescriptions, ...coachStore.openingPrescriptions]
+  return combined
+    .filter(rx => rx.severity === 'critical' || rx.severity === 'warning')
+    .slice(0, 2)
+})
+
+
+
+const recentGames = computed(() => {
+  return [...libraryStore.games].reverse().slice(0, 5).map(g => {
+    const isWhite = userStore.isMe(g.white)
+    const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
+    const draw = g.result === '1/2-1/2'
+    
+    return {
+      id: g.id,
+      opponent: isWhite ? g.black : g.white,
+      result: won ? 'win' : (draw ? 'draw' : 'loss'),
+      control: g.event || 'Blitz',
+      opening: g.eco || '---',
+      score: g.result
+    }
+  })
+})
+
 const badgePillars = [
   { id: 'milestone', label: 'Milestones', icon: '🏅' },
   { id: 'mastery',   label: 'DNA Mastery', icon: '🧬' },
   { id: 'ritual',    label: 'Streaks & Rituals', icon: '🔥' },
 ]
+
+const vaultStats = computed(() => {
+  const totalGames = libraryStore.games.length
+  const analyzedGames = libraryStore.games.filter(g => g.evals && g.evals.length > 0).length
+  const totalMoves = libraryStore.games.reduce((acc, g) => acc + (g.movesCount || 0), 0)
+  const insights = libraryStore.blundersFound + libraryStore.brilliantMovesFound
+  
+  return [
+    { label: 'Total Vault Games', val: totalGames, desc: 'Aggregated database' },
+    { label: 'Unique Openings', val: libraryStore.openingStats.length, desc: 'Structural breadth', color: 'var(--teal)' },
+    { label: 'Analysis Coverage', val: `${totalGames > 0 ? Math.round((analyzedGames / totalGames) * 100) : 0}%`, desc: 'Engine synthesis level', color: 'var(--accent)' },
+    { label: 'Theoretical Density', val: totalGames > 0 ? (totalMoves / totalGames).toFixed(1) : '0', desc: 'Avg moves per game' },
+    { label: 'Intelligence Markers', val: insights, desc: 'Patterns recognized', color: 'var(--gold)' },
+    { label: 'Engine Workload', val: libraryStore.totalMovesProcessed.toLocaleString(), desc: 'Total moves processed' }
+  ]
+})
 
 async function deduplicateVault() {
   const count = await libraryStore.purgeDuplicates()
@@ -490,6 +614,7 @@ onMounted(async () => {
   // Handle tab from query param
   if (route.query.tab === 'vault') activeTab.value = 'vault'
   else if (route.query.tab === 'constellation') activeTab.value = 'constellation'
+  else if (route.query.tab === 'dna') activeTab.value = 'dna'
   
   // Trigger background maintenance
   libraryStore.repairVaultMetadata()
@@ -499,6 +624,7 @@ onMounted(async () => {
 watch(() => route.query.tab, (tab) => {
   if (tab === 'vault') activeTab.value = 'vault'
   else if (tab === 'constellation') activeTab.value = 'constellation'
+  else if (tab === 'dna') activeTab.value = 'dna'
   else activeTab.value = 'overview'
 })
 
@@ -517,64 +643,8 @@ const joinedDate = computed(() => {
   return new Date(raw).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 })
 
-function startEdit() {
-  editUsername.value = userStore.profile?.username ?? ''
-  editLocation.value = (userStore.profile as any)?.location ?? ''
-  editChessComUser.value = userStore.profile?.chessComUsername ?? ''
-  editLichessUser.value = userStore.profile?.lichessUsername ?? ''
-  isEditing.value = true
-}
-
-async function saveProfile() {
-  const trimmed = editUsername.value.trim()
-  if (!trimmed) return
-  isSaving.value = true
-  
-  const { error } = await supabase
-    .from('profiles')
-    .update({ 
-      username: trimmed, 
-      location: editLocation.value.trim() || null 
-    })
-    .eq('id', userStore.session?.user.id)
-  
-  if (!error) {
-    // Save platform usernames to localStorage for telemetry
-    if (editChessComUser.value.trim()) {
-      localStorage.setItem('knightfall_chesscom_username', editChessComUser.value.trim())
-    } else {
-      localStorage.removeItem('knightfall_chesscom_username')
-    }
-    
-    if (editLichessUser.value.trim()) {
-      localStorage.setItem('knightfall_lichess_username', editLichessUser.value.trim())
-    } else {
-      localStorage.removeItem('knightfall_lichess_username')
-    }
-
-    isEditing.value = false
-    uiStore.addToast('Profile updated!', 'success')
-    await userStore.fetchUserData()
-  }
-  isSaving.value = false
-}
-
 // Stats Helpers Tied to Personal DNA
-const wldData = computed(() => {
-  const stats = libraryStore.libraryWldStats
-  const total = stats.total || 1 // Avoid division by zero
-  return [
-    { label: 'Wins', count: stats.win, pct: Math.round((stats.win / total) * 100), color: 'var(--green)' },
-    { label: 'Losses', count: stats.loss, pct: Math.round((stats.loss / total) * 100), color: 'var(--rose)' },
-    { label: 'Draws', count: stats.draw, pct: Math.round((stats.draw / total) * 100), color: 'var(--gold)' }
-  ]
-})
 const openingStats = computed(() => libraryStore.openingStats)
-const heatmapData = computed(() => libraryStore.activityHeatmap)
-function heatColor(count: number) {
-  if (count === 0) return 'rgba(255,255,255,0.04)'
-  return `rgba(139,92,246, ${Math.min(1, count / 8)})`
-}
 
 // Rating Chart Tied to Personal Data
 const chartW = 500, chartH = 120
@@ -589,12 +659,10 @@ const ratingData = computed(() => {
   else if (activePeriod.value === '3M') limit.setMonth(now.getMonth() - 3)
   
   const filtered = full.filter(h => new Date(h.date) >= limit)
-  // If no games in period, show the most recent rating as a flat line
   if (filtered.length === 0) {
     const lastRating = full.length > 0 ? full[full.length - 1].rating : 1200
     return [lastRating, lastRating]
   }
-  // Ensure we have at least 2 points for a line
   const result = filtered.map(h => h.rating)
   if (result.length === 1) result.push(result[0])
   return result
@@ -620,18 +688,6 @@ const areaPath = computed(() => {
   if (!pts.length) return ''
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
   return `${line} L${chartW},${chartH} L0,${chartH} Z`
-})
-
-const gridLines = computed(() => {
-  const diff = maxR.value - minR.value
-  const steps = [0.1, 0.5, 0.9]
-  return steps.map(s => {
-    const val = minR.value + diff * s
-    return {
-      rating: Math.round(val),
-      y: chartH - ((val - minR.value) / (maxR.value - minR.value)) * chartH
-    }
-  })
 })
 </script>
 
@@ -772,6 +828,55 @@ const gridLines = computed(() => {
 .title-badge { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border: 1px solid currentColor; border-radius: 99px; }
 .text-rose { color: var(--rose); }
 
+/* Identity & Connections */
+.identity-connections {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.connection-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.connection-pill:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.connection-pill .icon { font-size: 1rem; opacity: 0.7; }
+.connection-pill .name { font-weight: 700; color: var(--text-primary); }
+.connection-pill .platform { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px; }
+
+.connection-pill.chess-com .icon { color: var(--teal); }
+.connection-pill.lichess .icon { color: var(--accent-bright); }
+
+.identity-edit-form {
+  background: rgba(255, 255, 255, 0.02);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  max-width: 600px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+.form-section h4 {
+  margin: 0 0 var(--space-4) 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-bright);
+}
+
 /* Mini Tabs / Period Switcher */
 .tabs-mini {
   display: flex;
@@ -798,145 +903,279 @@ const gridLines = computed(() => {
 
 /* Badge Showcase Styles */
 .badge-showcase-card { padding: var(--space-5); margin-top: var(--space-4); }
-.badge-pillar-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255,255,255,0.35);
-  margin-bottom: var(--space-3);
-}
-.badge-grid {
+/* Dashboard Grid v4 (3-Column Base) */
+.dashboard-grid-v4 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: var(--space-3);
-}
-.badge-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: var(--space-3) var(--space-2);
-  border-radius: var(--radius-md);
-  gap: var(--space-1);
-  transition: transform 0.2s, box-shadow 0.2s;
-  cursor: default;
-}
-.badge-item:hover { transform: translateY(-2px); }
-.badge-earned {
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-.badge-locked {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  opacity: 0.5;
-  filter: grayscale(0.6);
-}
-.badge-icon { font-size: 1.4rem; line-height: 1; }
-.badge-name {
-  font-size: 0.65rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: rgba(255,255,255,0.8);
-}
-.badge-progress-bar {
-  width: 100%;
-  height: 2px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 1px;
-  margin-top: 4px;
-  overflow: hidden;
-}
-.badge-progress-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.6s ease;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  animation: fadeIn 0.4s ease;
 }
 
-/* Intel Center Styles */
-.intel-center {
-  padding: var(--space-4) var(--space-5);
+.card-v3 {
+  padding: var(--space-6);
   border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 220px;
+}
+
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+
+.card-v3 h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Performance Ratio V2 */
+.wld-stats-summary { display: flex; gap: var(--space-4); }
+.wld-stat { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 800; }
+
+.wld-layout-v2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-4) 0;
+}
+
+.wld-ring-container-v2 {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.wld-breakdown-v2 {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  border-left: 4px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  margin-top: var(--space-4);
 }
-.intel-center.is-active {
-  border-left-color: var(--accent);
-  background: rgba(139, 92, 246, 0.05);
-}
-.intel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.intel-title {
+
+.breakdown-row {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  font-size: 0.9rem;
 }
-.intel-title .icon { font-size: 1.5rem; }
-.intel-title .label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-.intel-title .status { font-size: 0.75rem; }
 
-.intel-progress-container {
+.breakdown-row .dot { width: 8px; height: 8px; border-radius: 50%; }
+.breakdown-row .label { flex: 1; font-weight: 600; }
+.breakdown-row .val { font-family: var(--font-mono); font-weight: 800; }
+.breakdown-row .pct { font-size: 0.75rem; width: 40px; text-align: right; }
+
+/* Performance History V2 (Axes & Legend) */
+.chart-legend { display: flex; gap: var(--space-4); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.legend-item .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.perf-history-container {
+  display: flex;
+  gap: var(--space-4);
+  height: 160px;
+}
+
+.y-axis {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 10px 0 25px 0;
 }
-.intel-progress-bar {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-  overflow: hidden;
+
+.chart-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
-.intel-progress-fill {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.4s ease;
-}
-.intel-progress-stats {
+
+.rating-svg-full { flex: 1; width: 100%; min-height: 120px; overflow: visible; }
+
+.x-axis {
   display: flex;
   justify-content: space-between;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+  padding: 0 10px;
 }
-.game-id { opacity: 0.5; font-family: var(--font-mono); }
 
-.intel-metrics {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.2);
+/* Library IQ Header */
+.library-iq-full {
+  grid-column: span 3;
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), transparent);
 }
-.metric {
+
+.library-iq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-8);
+}
+
+/* Admin Grid Fix */
+.admin-full-row { grid-column: span 3; }
+
+.integrity-actions {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  height: 100%;
 }
-.metric .m-label {
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 700;
+
+/* Bulk Intel Bottom Styles */
+.intel-center-bottom {
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(45, 212, 191, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
-.metric .m-value {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
+
+.intel-center-bottom.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 32px rgba(139, 92, 246, 0.2);
 }
-.metric.highlight-brilliant .m-value {
-  color: var(--gold);
+
+.intel-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-8);
 }
-.metric.highlight-blunder .m-value {
-  color: #f87171;
+
+.intel-info { display: flex; align-items: center; gap: var(--space-5); }
+.intel-icon { font-size: 3rem; filter: drop-shadow(0 0 12px var(--accent)); }
+.intel-text h3 { margin: 0 0 4px 0; font-size: 1.5rem; font-weight: 800; }
+
+.intel-actions { display: flex; align-items: center; gap: var(--space-8); flex: 1; justify-content: flex-end; }
+
+/* Active Telemetry Bar */
+.intel-telemetry-active {
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.telemetry-item .label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2px; opacity: 0.6; }
+.telemetry-item .val { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; }
+
+/* Finished Summary */
+.intel-summary-finish {
+  display: flex;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  background: rgba(45, 212, 191, 0.05);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(45, 212, 191, 0.1);
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.summary-stat .val { font-size: 1.2rem; font-weight: 900; }
+.summary-stat .label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); }
+
+/* Progress V2 (Compact) */
+.intel-main-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 200px;
+}
+
+.intel-progress-container-v2 { flex: 1; display: flex; align-items: center; gap: 10px; }
+.intel-progress-bar-v2 { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.intel-progress-fill-v2 { height: 100%; background: var(--accent-gradient); transition: width 0.4s ease; }
+.progress-pct-v2 { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 800; color: var(--accent-bright); }
+
+/* Card Finish State */
+.intel-center-bottom.is-finished {
+  border-color: rgba(45, 212, 191, 0.3);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), transparent);
+}
+
+/* Shared Overrides */
+.weakness-items { display: flex; flex-direction: column; gap: var(--space-4); }
+.weakness-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+.progress-bar { height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; }
+.progress-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+.game-list-merged { display: flex; flex-direction: column; gap: 4px; }
+.game-row-merged {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+/* Personal DNA KPI Grid */
+.personal-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-3);
+}
+.kpi-mini-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.kpi-mini-item .icon { font-size: 1.2rem; opacity: 0.8; }
+.kpi-mini-item .kpi-content { display: flex; flex-direction: column; }
+.kpi-mini-item .val { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); line-height: 1; }
+.kpi-mini-item .label { font-size: 0.55rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; margin-top: 4px; }
+
+.card-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+}
+
+.meta-stat { padding: var(--space-4); background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); }
+.meta-stat .label { font-size: 0.6rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; margin-bottom: 4px; }
+.meta-stat .val { font-size: 1.4rem; font-weight: 800; }
+
+.admin-separator { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-6); }
+.admin-title { position: absolute; background: var(--bg-surface); padding: 0 var(--space-4); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-muted); z-index: 2; }
+.admin-line { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); }
+
+@media (max-width: 1400px) {
+  .dashboard-grid-v4 { grid-template-columns: repeat(2, 1fr); }
+  .library-iq-full, .span-2, .span-3, .admin-full-row { grid-column: span 2; }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid-v4 { grid-template-columns: 1fr; }
+  .library-iq-full, .span-2, .span-3, .admin-full-row { grid-column: span 1; }
+  .intel-content { flex-direction: column; align-items: flex-start; }
+  .intel-actions { width: 100%; min-width: 0; }
+  .wld-layout-v2 { flex-direction: column; gap: var(--space-6); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

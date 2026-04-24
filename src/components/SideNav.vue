@@ -17,8 +17,9 @@
       </div>
       <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
-        <div class="user-rating">
-          <span class="badge badge-gold">♔ {{ libraryStore.performanceRating }}</span>
+        <div class="user-rating" style="display: flex; gap: 6px; margin-top: 2px;">
+          <span class="badge badge-gold" title="Performance Rating">♔ {{ libraryStore.performanceRating }}</span>
+          <span class="badge badge-accent" title="Analyzed Personal Games">🧬 {{ libraryStore.personalGames.length }}</span>
         </div>
       </div>
     </div>
@@ -182,31 +183,30 @@ const navSections = computed(() => {
 
   return [
     {
-      title: 'Arena',
+      title: 'The Grand Arena',
       showTitle: true,
       items: [
-        { path: '/',          icon: '⬡',  label: 'Dashboard',  badge: null,   auth: false },
-        { path: '/path',      icon: '🛣️',  label: 'Learning Path', badge: 'LEVEL 1', auth: true },
-        { path: '/play',      icon: '♟',  label: 'Play Now',   badge: 'LIVE', auth: false },
-        { path: '/puzzles',   icon: '⚡',  label: 'Puzzles',    badge: 'NEW',  auth: false },
-        { path: '/gauntlet',  icon: '🔥',  label: 'Gauntlet',   badge: null,   auth: true  },
+        { path: '/path',      icon: '🛣️',  label: "Knight's Path", badge: 'LEVEL 1', auth: true },
+        { path: '/play',      icon: '♟',  label: 'Direct Combat',   badge: 'LIVE', auth: false },
+        { path: '/puzzles',   icon: '⚡',  label: 'Siege Trials',    badge: 'NEW',  auth: false },
+        { path: '/gauntlet',  icon: '🔥',  label: 'The Great Gauntlet',   badge: null,   auth: true  },
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'The Clinic',
+      title: 'The Apothecary',
       showTitle: true,
       items: [
-        { path: '/dna',       icon: '🧬',  label: 'DNA Lab',     badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true  },
-        { path: '/opening-lab', icon: '📖', label: 'Opening Lab',  badge: null,   auth: true  },
-        { path: '/analysis',  icon: '🔬', label: 'Game Analysis', badge: null,   auth: true  },
+        { path: '/profile?tab=dna', icon: '🧬',  label: 'Soul Mapping',     badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true  },
+        { path: '/opening-lab', icon: '📖', label: 'Stratagem Forge',  badge: null,   auth: true  },
+        { path: '/analysis',  icon: '🔬', label: "Oracle's Review", badge: null,   auth: true  },
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'Identity',
+      title: 'The High Keep',
       showTitle: true,
       items: [
-        { path: '/profile',   icon: '👤', label: 'My Profile',   badge: libraryStore.performanceRating > 0 ? `♔ ${libraryStore.performanceRating}` : null, auth: true  },
-        { path: '/settings',  icon: '⚙️',  label: 'Settings',     badge: null,   auth: false },
+        { path: '/profile',   icon: '⬡', label: 'War Room',   badge: libraryStore.personalGames.length > 0 ? `🧬 ${libraryStore.personalGames.length}` : null, auth: true  },
+        { path: '/settings',  icon: '⚙️',  label: 'Codex of Rites',     badge: null,   auth: false },
       ].filter(i => !i.auth || !!userStore.session)
     }
   ]

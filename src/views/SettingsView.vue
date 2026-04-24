@@ -1,7 +1,7 @@
 <template>
   <div class="page settings-page">
     <div class="settings-header">
-      <h1>Dashboard Settings</h1>
+      <h1>Codex of Rites</h1>
       <p class="muted">Customize your laboratory environment and engine parameters</p>
     </div>
 
@@ -153,9 +153,60 @@
               </div>
             </div>
 
-            <!-- ACCOUNT SETTINGS -->
-            <div v-if="activeTab === 'account'" class="settings-group">
-              <h3>Identity</h3>
+            <!-- IDENTITY & DNA SETTINGS -->
+            <div v-if="activeTab === 'identity'" class="settings-group">
+              <h3>Knightfall Identity</h3>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Public Username</div>
+                  <div class="desc">How you appear in the global laboratory rankings and DNA profiles</div>
+                </div>
+                <div class="setting-action">
+                  <input type="text" v-model="editUsername" class="custom-input" placeholder="Enter username..." />
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Geographic Location</div>
+                  <div class="desc">Displayed on your profile coordinates and local mapping</div>
+                </div>
+                <div class="setting-action">
+                  <input type="text" v-model="editLocation" class="custom-input" placeholder="City, Country..." />
+                </div>
+              </div>
+
+              <h3>External DNA Sources</h3>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Chess.com Integration</div>
+                  <div class="desc">External handle for PGN intelligence ingestion</div>
+                </div>
+                <div class="setting-action">
+                  <input type="text" v-model="editChessComUser" class="custom-input" placeholder="Chess.com username" />
+                </div>
+              </div>
+
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="label">Lichess Integration</div>
+                  <div class="desc">External handle for open-source DNA synchronization</div>
+                </div>
+                <div class="setting-action">
+                  <input type="text" v-model="editLichessUser" class="custom-input" placeholder="Lichess username" />
+                </div>
+              </div>
+
+              <div class="settings-actions mt-6">
+                <button @click="saveIdentity" class="btn btn-primary" :disabled="isSaving">
+                  {{ isSaving ? 'Save Identity' : 'Save Changes' }}
+                </button>
+                <button @click="syncAllIntelligence" class="btn btn-ghost" :disabled="isSyncing">
+                  {{ isSyncing ? 'Synchronizing DNA...' : '⚡ Manual DNA Sync' }}
+                </button>
+              </div>
+
+              <h3>Authentication & Session</h3>
               <div class="setting-row" v-if="userStore.profile">
                 <div class="setting-info">
                   <div class="label">Connected as {{ userStore.profile.username }}</div>
@@ -184,24 +235,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUserStore } from '../stores/userStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import { supabase } from '../api/supabaseClient'
+import { fetchRecentChessComGames } from '../api/chessComApi'
 
 const settings = useSettingsStore()
 const userStore = useUserStore()
 const router = useRouter()
+const route = useRoute()
 
 const activeTab = ref('general')
 
+onMounted(() => {
+  if (route.query.tab) {
+    activeTab.value = route.query.tab as string
+  }
+})
+
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) activeTab.value = newTab as string
+})
+
 const tabs = [
-  { id: 'general', label: 'General', icon: '⚙️' },
-  { id: 'board', label: 'Board & Style', icon: '🎨' },
-  { id: 'engine', label: 'Engine', icon: '🧠' },
-  { id: 'account', label: 'Account', icon: '👤' },
-]
+    { id: 'general', label: 'General', icon: '⚙️' },
+    { id: 'board', label: 'Board & Style', icon: '🎨' },
+    { id: 'engine', label: 'Engine', icon: '🧠' },
+    { id: 'identity', label: 'Identity & DNA', icon: '🧬' },
+  ]
+  
+  // Identity Form State
+  const editUsername = ref(userStore.profile?.username || '')
+  const editLocation = ref(userStore.profile?.location || '')
+  const editChessComUser = ref(userStore.profile?.chessComUsername || '')
+  const editLichessUser = ref(userStore.profile?.lichessUsername || '')
+  const isSaving = ref(false)
+  const isSyncing = ref(false)
+  
+  const libraryStore = useLibraryStore()
+  
+  async function saveIdentity() {
+    isSaving.value = true
+    try {
+      await userStore.updateProfile({
+        username: editUsername.value,
+        location: editLocation.value,
+        chessComUsername: editChessComUser.value,
+        lichessUsername: editLichessUser.value
+      })
+    } finally {
+      isSaving.value = false
+    }
+  }
+  
+  async function syncAllIntelligence() {
+    isSyncing.value = true
+    try {
+      // Logic for syncing from Chess.com/Lichess (imported from previous ProfileView logic)
+      if (editChessComUser.value.trim()) {
+        const games = await fetchRecentChessComGames(editChessComUser.value.trim(), 12)
+        for (const game of games) {
+          await libraryStore.saveGameToLibrary(game.pgn, ['Chess.com'])
+        }
+      }
+      // Add Lichess logic if needed
+    } finally {
+      isSyncing.value = false
+    }
+  }
 
 const boardThemes = [
   { id: 'classic', label: 'Classic', color: '#8ca2ad' },
@@ -302,14 +406,23 @@ function handleSignIn() {
 .setting-info .label { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
 .setting-info .desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
 
-.custom-select {
+.custom-select, .custom-input {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   outline: none;
-  min-width: 180px;
+  min-width: 220px;
+  transition: all 0.2s;
+}
+.custom-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+
+.settings-actions {
+  display: flex;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 
 .toggle-switch {

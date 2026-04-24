@@ -2,7 +2,7 @@
   <div class="page puzzles-page">
     <div class="puzzles-header">
       <div>
-        <h2>⚡ Puzzle Training</h2>
+        <h2>⚡ Siege Trials</h2>
         <p class="muted" style="font-size: 0.9rem;">Targeted by your Weakness DNA</p>
       </div>
       <div class="puzzle-stats">

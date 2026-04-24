@@ -179,7 +179,13 @@ export function useLibraryStats(
       }
       stats.total++
     })
-    return stats
+    
+    return {
+      ...stats,
+      winPct: stats.total > 0 ? (stats.win / stats.total) * 100 : 0,
+      lossPct: stats.total > 0 ? (stats.loss / stats.total) * 100 : 0,
+      drawPct: stats.total > 0 ? (stats.draw / stats.total) * 100 : 0
+    }
   })
 
   /**
@@ -191,10 +197,18 @@ export function useLibraryStats(
       knightfall: 0,
       chessCom: 0,
       lichess: 0,
+      curated: 0,
       other: 0
     }
     
     games.value.forEach(g => {
+      const isPersonal = userStore.isMe(g.white) || userStore.isMe(g.black)
+      
+      if (!isPersonal) {
+        stats.curated++
+        return
+      }
+      
       const tags = (g.tags || []).map(t => t.toLowerCase())
       
       if (tags.includes('chess.com') || tags.includes('chesscom')) {

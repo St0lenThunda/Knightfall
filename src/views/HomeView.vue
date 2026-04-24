@@ -263,6 +263,11 @@ const libraryStore = useLibraryStore()
 const gameStore = useGameStore()
 const coachStore = useCoachStore()
 
+// If logged in, the Profile is now the Dashboard
+if (userStore.session && userStore.profile) {
+  router.replace('/profile')
+}
+
 // Mini preview board (simplified static)
 const previewBoard = [
   ['♜','♞','♝','♛','♚','♝','','♜'],

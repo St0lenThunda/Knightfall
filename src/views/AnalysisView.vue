@@ -2,7 +2,7 @@
   <div class="page analysis-page">
     <div class="analysis-header">
       <div>
-        <h2>🔬 Game Analysis</h2>
+        <h2>🔬 Oracle's Review</h2>
         <p class="muted" style="font-size: 0.9rem;">AI-powered coaching, not just engine numbers</p>
       </div>
       <div style="display:flex; gap: var(--space-2);">

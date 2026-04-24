@@ -366,6 +366,48 @@ export const useUserStore = defineStore('user', () => {
     gauntletProgress.value.history.push({ date, time: totalTime })
   }
 
+  /**
+   * Updates the user's profile in Supabase and synchronizes local state.
+   * Handles localStorage persistence for platform handles to avoid DB schema mismatches.
+   */
+  async function updateProfile(updates: Partial<UserProfile>) {
+    if (!session.value || !profile.value) return { error: 'No active session' }
+
+    // Synchronize platform handles to localStorage (Secondary persistence)
+    if (updates.chessComUsername !== undefined) {
+      if (updates.chessComUsername) localStorage.setItem('knightfall_chesscom_username', updates.chessComUsername)
+      else localStorage.removeItem('knightfall_chesscom_username')
+    }
+    if (updates.lichessUsername !== undefined) {
+      if (updates.lichessUsername) localStorage.setItem('knightfall_lichess_username', updates.lichessUsername)
+      else localStorage.removeItem('knightfall_lichess_username')
+    }
+
+    // Update Primary Identity in Supabase
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        username: updates.username ?? profile.value.username,
+        location: updates.location ?? profile.value.location,
+        avatar_url: updates.avatar_url ?? profile.value.avatar_url
+      })
+      .eq('id', session.value.user.id)
+      .select()
+      .single()
+
+    if (!error && data) {
+      profile.value = {
+        ...profile.value,
+        ...data,
+        // Re-hydrate local-only fields
+        chessComUsername: updates.chessComUsername ?? profile.value.chessComUsername,
+        lichessUsername: updates.lichessUsername ?? profile.value.lichessUsername
+      }
+    }
+    
+    return { data, error }
+  }
+
   // ─── Auth Lifecycle ─────────────────────────────────────────────────────────
 
   /** React to Supabase auth state changes (login, logout, token refresh). */
@@ -550,7 +592,7 @@ export const useUserStore = defineStore('user', () => {
     hearts, xp, streak, maxHearts,
     gauntletProgress, myIdentity, isMe, isAdmin,
     fetchUserData, submitPuzzleAttempt, submitGauntletResult,
-    addXP, deductHeart,
+    addXP, deductHeart, updateProfile,
     wldStats, openingStats, ratingHistory, currentRating,
     activityHeatmap, solvedToday, currentStreak
   }

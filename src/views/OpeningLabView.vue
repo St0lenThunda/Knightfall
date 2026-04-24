@@ -74,7 +74,7 @@ function startTraining(openingId: string) {
   <div class="opening-lab container">
     <div class="lab-header">
       <div class="header-main">
-        <h1 class="title-lg gradient-text">Opening Lab</h1>
+        <h1 class="title-lg gradient-text">Stratagem Forge</h1>
         <p class="text-secondary">Master the first 10 moves. Build a bulletproof repertoire.</p>
       </div>
       
