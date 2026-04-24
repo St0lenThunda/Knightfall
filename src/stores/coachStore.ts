@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { evaluateBadges } from '../utils/badgeEngine'
-import { useLibraryStore } from './libraryStore'
-import { useUserStore } from './userStore'
+import { useLibraryStore, type LibraryGame } from './libraryStore'
+import { useUserStore, type PuzzleAttempt } from './userStore'
 import { supabase } from '../api/supabaseClient'
 
 /**
@@ -43,7 +43,7 @@ export const useCoachStore = defineStore('coach', () => {
     // --- Signal 1: Puzzle failures ---
     const failures = userStore.puzzleAttempts.filter(a => !a.solved)
     let totalSignals = 0
-    failures.forEach((a: any) => {
+    failures.forEach((a: PuzzleAttempt) => {
       a.themes.forEach((t: string) => {
         const cat = ['endgame', 'opening'].includes(t) ? t
           : ['mate', 'tactics', 'middlegame', 'backRankMate'].includes(t) ? 'tactics'
@@ -155,12 +155,12 @@ export const useCoachStore = defineStore('coach', () => {
     }
 
     // --- Signal 2: Game Length (Phase Vulnerability) ---
-    const losses = allGames.filter((g: any) => {
+    const losses = allGames.filter((g: LibraryGame) => {
       const isWhite = userStore.isMe(g.white)
       return (g.result === '0-1' && isWhite) || (g.result === '1-0' && !isWhite)
     })
     if (losses.length > 0) {
-      const avgLossMoves = Math.round(losses.reduce((s: number, g: any) => s + g.movesCount, 0) / losses.length)
+      const avgLossMoves = Math.round(losses.reduce((s: number, g: LibraryGame) => s + g.movesCount, 0) / losses.length)
       if (avgLossMoves < 25) {
         rx.push({ id: 'opening-vuln', icon: '🎬', title: 'Opening Vulnerability', desc: `Critical: Your losses average only ${avgLossMoves} moves. You are likely falling into opening traps.`, link: '/opening-lab', linkText: 'Study Openings →', severity: 'critical', category: 'dna' })
       } else if (avgLossMoves > 55) {

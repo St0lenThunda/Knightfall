@@ -4,6 +4,20 @@ import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
 
+export interface MultiPV {
+  id: number
+  score: string
+  moves: string[]
+}
+
+export interface EngineInfo {
+  depth?: number
+  evalScoreCp?: number
+  evalMate?: number | null
+  pv?: string[]
+  multiPvs?: MultiPV[]
+}
+
 export const useEngineStore = defineStore('engine', () => {
   const isReady = ref(false)
   const isAnalyzing = ref(false)
@@ -15,13 +29,13 @@ export const useEngineStore = defineStore('engine', () => {
   const bestMove = ref('')
   const currentDepth = ref(0)
   const pv = ref<string[]>([]) // Principal variation
-  const multiPvs = ref<any[]>([])
+  const multiPvs = ref<MultiPV[]>([])
   
   let worker: Worker | null = null
-  let pendingInfo: any = null
-  let infoThrottleTimeout: any = null
+  let pendingInfo: EngineInfo | null = null
+  let infoThrottleTimeout: ReturnType<typeof setTimeout> | null = null
   let rebootCount = 0
-  let rebootResetTimer: any = null
+  let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
 
   function init() {
     if (worker) return
@@ -95,10 +109,10 @@ export const useEngineStore = defineStore('engine', () => {
       // For multi-PV, we need to merge based on the PV index
       if (data.multiPvs) {
          if (!pendingInfo.multiPvs) pendingInfo.multiPvs = []
-         data.multiPvs.forEach((newPv: any) => {
-            const existingIdx = pendingInfo.multiPvs.findIndex((p: any) => p.id === newPv.id)
-            if (existingIdx > -1) pendingInfo.multiPvs[existingIdx] = newPv
-            else pendingInfo.multiPvs.push(newPv)
+         data.multiPvs.forEach((newPv: MultiPV) => {
+            const existingIdx = pendingInfo!.multiPvs!.findIndex((p: MultiPV) => p.id === newPv.id)
+            if (existingIdx > -1) pendingInfo!.multiPvs![existingIdx] = newPv
+            else pendingInfo!.multiPvs!.push(newPv)
          })
       } else {
          Object.assign(pendingInfo, data)
@@ -116,8 +130,8 @@ export const useEngineStore = defineStore('engine', () => {
     }
   }
 
-  function extractInfoData(msg: string) {
-    const data: any = {}
+  function extractInfoData(msg: string): EngineInfo | null {
+    const data: EngineInfo = {}
     const depthMatch = msg.match(/depth (\d+)/)
     if (depthMatch) data.depth = parseInt(depthMatch[1], 10)
     
@@ -163,7 +177,7 @@ export const useEngineStore = defineStore('engine', () => {
     return Object.keys(data).length > 0 ? data : null
   }
 
-  function applyInfo(data: any) {
+  function applyInfo(data: EngineInfo) {
     if (data.depth !== undefined && data.depth > currentDepth.value) {
       currentDepth.value = data.depth
     }
@@ -178,7 +192,7 @@ export const useEngineStore = defineStore('engine', () => {
       pv.value = data.pv
     }
     if (data.multiPvs) {
-      data.multiPvs.forEach((newPv: any) => {
+      data.multiPvs.forEach((newPv: MultiPV) => {
         const idx = multiPvs.value.findIndex(p => p.id === newPv.id)
         if (idx > -1) multiPvs.value[idx] = newPv
         else multiPvs.value.push(newPv)

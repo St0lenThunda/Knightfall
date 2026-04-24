@@ -242,6 +242,8 @@ export const useLibraryStore = defineStore('library', () => {
 
     personalGames,
     
+    analyzedGamesCount: computed(() => games.value.filter(g => g.evals && g.evals.length > 0).length),
+    
     // Actions
     loadGames: idb.loadGames,
     resetLibrary: idb.resetLibrary,

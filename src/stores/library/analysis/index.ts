@@ -9,6 +9,11 @@ import { useAnalysisTelemetry } from './telemetry'
 import { useAnalysisInsights } from './insights'
 import { useAnalysisWorker } from './worker'
 
+export interface Evaluation {
+  score: number
+  isMate: boolean
+}
+
 /**
  * Knightfall Bulk Intelligence Engine (Modular V2)
  * 
@@ -26,7 +31,7 @@ export function useLibraryAnalysis(
   // Global Queue Pointer
   let queue: LibraryGame[] = []
   let nextQueueIndex = 0
-
+ 
   // Module Initialization
   const telemetry = useAnalysisTelemetry()
   const insights = useAnalysisInsights()
@@ -39,7 +44,7 @@ export function useLibraryAnalysis(
     currentIndex: number
     currentMoveIndex: number
     currentPositions: string[]
-    currentEvals: any[]
+    currentEvals: Evaluation[]
     isProcessing: boolean
     gameId: string
     id: number
@@ -338,8 +343,11 @@ export function useLibraryAnalysis(
   }
 
   // Handle Insight Completion from Global Event
-  function handleInsightComplete(e: any) {
-    const { gameId, fen, explanation } = e.detail
+  function handleInsightComplete(e: Event) {
+    const detail = (e as CustomEvent).detail
+    if (!detail) return
+    
+    const { gameId, fen, explanation } = detail
     const targetGame = games.value.find(g => g.id === gameId)
     if (targetGame) {
       if (!targetGame.analysisCache) targetGame.analysisCache = {}

@@ -112,7 +112,7 @@ function getNodeClass(node: SkillNode) {
 .background-ghost {
   position: fixed;
   inset: 0;
-  background-image: url('/assets/ghostly_knight_bg.png');
+  background-image: url('/assets/ghostly_knight_bg.webp');
   background-size: cover;
   background-position: center;
   z-index: 1;

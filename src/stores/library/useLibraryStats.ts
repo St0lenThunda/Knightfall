@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
 import type { LibraryGame } from '../libraryStore'
 import { ecoToName, ecoToDescription } from '../../utils/ecoLookup'
+import type { useUserStore } from '../userStore'
 
 /**
  * Composable for statistical computations on the game library.
@@ -8,7 +9,7 @@ import { ecoToName, ecoToDescription } from '../../utils/ecoLookup'
  */
 export function useLibraryStats(
   games: Ref<LibraryGame[]>,
-  userStore: any // Access to profile and isMe helper
+  userStore: ReturnType<typeof useUserStore> // Access to profile and isMe helper
 ) {
   // --- INTERNAL FILTERING ---
   /** Games where the user is an active participant (Personal DNA). */

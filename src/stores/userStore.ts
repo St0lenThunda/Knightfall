@@ -161,7 +161,20 @@ export const useUserStore = defineStore('user', () => {
            (!!id.lichess && lower === id.lichess)
   }
 
-  // ─── Data Fetching ──────────────────────────────────────────────────────────
+  /** Internal interface for the raw record structure from the Supabase `matches` table. */
+  interface MatchRow {
+    id: string
+    white_id: string
+    black_id: string
+    white_username?: string
+    black_username?: string
+    result?: string
+    time_control?: string
+    opening?: string
+    date: string
+    pgn?: string
+    eco?: string
+  }
 
   /**
    * Hydrates all user data from Supabase in parallel.
@@ -195,7 +208,7 @@ export const useUserStore = defineStore('user', () => {
 
     // --- Profile ---
     if (profileResult.status === 'fulfilled' && profileResult.value.data) {
-      profile.value = profileResult.value.data
+      profile.value = profileResult.value.data as UserProfile
       // Hydrate Chess.com username from localStorage (avoids DB migration)
       const savedChessComUser = localStorage.getItem('knightfall_chesscom_username')
       // Hydrate Lichess username from localStorage
@@ -208,12 +221,13 @@ export const useUserStore = defineStore('user', () => {
 
     // --- Puzzle Attempts ---
     if (puzzleResult.status === 'fulfilled' && puzzleResult.value.data) {
-      puzzleAttempts.value = puzzleResult.value.data
+      puzzleAttempts.value = puzzleResult.value.data as PuzzleAttempt[]
     }
 
     // --- Match History ---
     if (matchResult.status === 'fulfilled' && matchResult.value.data) {
-      pastGames.value = matchResult.value.data.map((m: Record<string, any>) => {
+      const rows = matchResult.value.data as MatchRow[]
+      pastGames.value = rows.map((m) => {
         const amWhite = m.white_id === session.value!.user.id
         let res: PastGame['result'] = 'draw'
         if (m.result?.startsWith('1-0')) res = amWhite ? 'win' : 'loss'
