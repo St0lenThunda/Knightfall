@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useLibraryStore, type OpeningNode } from '../../stores/libraryStore'
+import { logger } from '../../utils/logger'
 
 /**
  * Visual Graph Node representation.
@@ -243,7 +244,7 @@ const edges = computed(() => graphData.value.edges)
 
 function selectNode(node: GraphNode) {
     // Communication with Vault filtering would go here
-    console.log('Selected line:', node.san)
+    logger.info('[Constellation] Selected line:', node.san)
 }
 
 onMounted(() => {

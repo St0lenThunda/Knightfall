@@ -8,6 +8,8 @@ import { logger } from '../../../utils/logger'
 import { useAnalysisTelemetry } from './telemetry'
 import { useAnalysisInsights } from './insights'
 import { useAnalysisWorker } from './worker'
+import { LichessCurator } from '../../../services/curatorService'
+import { fetchCloudEval } from '../../../api/lichessApi'
 
 export interface Evaluation {
   score: number
@@ -44,7 +46,11 @@ export function useLibraryAnalysis(
     currentIndex: number
     currentMoveIndex: number
     currentPositions: string[]
+    currentMoves: string[] // Added for move context
     currentEvals: Evaluation[]
+    currentTotalCpl: number // Tracking ACPL
+    currentMissedWins: number
+    currentTheoryMoves: number
     isProcessing: boolean
     gameId: string
     id: number
@@ -59,7 +65,11 @@ export function useLibraryAnalysis(
       currentIndex: -1,
       currentMoveIndex: 0,
       currentPositions: [],
+      currentMoves: [],
       currentEvals: [],
+      currentTotalCpl: 0,
+      currentMissedWins: 0,
+      currentTheoryMoves: 0,
       isProcessing: false,
       gameId: '',
       id: i
@@ -70,7 +80,7 @@ export function useLibraryAnalysis(
    * Main Worker Message Handler Factory
    */
   function createMessageHandler(inst: EngineInstance) {
-    return (msg: string) => {
+    return async function(msg: string) {
       if (msg.includes('Stockfish')) {
         setTimeout(() => {
           if (!inst.engine.isEngineReady.value) inst.engine.sendToWorker('uci')
@@ -94,6 +104,7 @@ export function useLibraryAnalysis(
         const mateMatch = msg.match(/score mate (-?\d+)/)
         const depthMatch = msg.match(/depth (\d+)/)
         const npsMatch = msg.match(/nps (\d+)/)
+        const pvMatch = msg.match(/ pv (\w+)/) // Extract best move from PV
         
         // Sum NPS across all workers for the UI
         if (npsMatch) {
@@ -104,84 +115,167 @@ export function useLibraryAnalysis(
         if (cpMatch || mateMatch) {
           const depth = depthMatch ? parseInt(depthMatch[1], 10) : 0
           const score = cpMatch ? parseInt(cpMatch[1], 10) : (mateMatch ? parseInt(mateMatch[1], 10) * 10000 : 0)
-          inst.currentEvals[inst.currentMoveIndex] = { score, isMate: !!mateMatch }
           
           if (depth >= 12 && !inst.isProcessing) {
-            inst.isProcessing = true 
-            const prevEval = inst.currentMoveIndex > 0 ? inst.currentEvals[inst.currentMoveIndex - 1]?.score : 0
-            const swing = score - prevEval
-            
-            // WEAKNESS DNA ISOLATION: 
-            // We only increment blunders/brilliants for the user's personal games
-            // to keep the dashboard stats clean from master collection noise.
-            const game = queue[inst.currentIndex]
-            // For modularity, we'll use a direct name check since we have the game object
-            const tags = (game?.tags || []).map(t => t.toLowerCase())
-            const userStore = useUserStore()
-            const isPersonal = tags.includes('my games') || 
-                               (game && (userStore.isMe(game.white) || userStore.isMe(game.black)))
-
-            if (swing > 200) {
-              if (isPersonal) {
-                telemetry.brilliantMovesFound.value++
-                insights.queueInsight({
-                  fen: inst.currentPositions[inst.currentMoveIndex],
-                  theme: 'Brilliant Discovery',
-                  severity: 'brilliant',
-                  gameId: inst.gameId
-                })
-              }
-            } else if (swing < -200) {
-              if (isPersonal) {
-                telemetry.blundersFound.value++
-                insights.queueInsight({
-                  fen: inst.currentPositions[inst.currentMoveIndex],
-                  theme: 'Critical Blunder',
-                  severity: 'blunder',
-                  gameId: inst.gameId
-                })
-              }
-            }
+            const bestMove = pvMatch ? pvMatch[1] : 'N/A'
+            applyEvaluationDNA(inst, score, !!mateMatch, bestMove)
           }
         }
       } else if (msg.startsWith('bestmove')) {
-        inst.engine.isWaitingForBestMove.value = false
-        inst.isProcessing = false
-        inst.currentMoveIndex++
-        telemetry.totalMovesProcessed.value++
-        
-        updateETA()
-        
-        setTimeout(() => {
-          if (isBulkAnalyzing.value) processNextMove(inst)
-        }, 50) 
+        advancePly(inst)
+      }
+    }
+  }
+
+  /**
+   * Advances the engine to the next move in the game
+   */
+  function advancePly(inst: EngineInstance) {
+    inst.engine.isWaitingForBestMove.value = false
+    inst.isProcessing = false
+    inst.currentMoveIndex++
+    telemetry.totalMovesProcessed.value++
+    
+    updateETA()
+    
+    setTimeout(() => {
+      if (isBulkAnalyzing.value) processNextMove(inst)
+    }, 50) 
+  }
+
+  /**
+   * Universal Evaluation Post-Processor
+   * Handles ACPL, Insights, and Theory for any evaluation source.
+   */
+  async function applyEvaluationDNA(inst: EngineInstance, score: number, isMate: boolean, bestMove: string) {
+    inst.isProcessing = true 
+    inst.currentEvals[inst.currentMoveIndex] = { score, isMate }
+    
+    const prevEval = inst.currentMoveIndex > 0 ? inst.currentEvals[inst.currentMoveIndex - 1]?.score : 0
+    
+    // SIDE-TO-MOVE ADJUSTMENT:
+    // Evaluations are relative to the side whose turn it is.
+    // If it was white's turn and score dropped, it's a loss for white.
+    const swing = score - prevEval
+    const cpl = Math.max(0, -swing) 
+    inst.currentTotalCpl += cpl
+    
+    const game = queue[inst.currentIndex]
+    const tags = (game?.tags || []).map(t => t.toLowerCase())
+    const userStore = useUserStore()
+    const isPersonal = tags.includes('my games') || 
+                       (game && (userStore.isMe(game.white) || userStore.isMe(game.black)))
+
+    const playedMove = inst.currentMoves[inst.currentMoveIndex] || 'N/A'
+
+    // --- THEORY ALIGNMENT (First 12 moves) ---
+    if (inst.currentMoveIndex < 12) {
+      try {
+        const report = await LichessCurator.getTheoryReport(inst.currentPositions[inst.currentMoveIndex], playedMove)
+        if (report && report.isTheory) inst.currentTheoryMoves++
+      } catch (e) { /* silent fail */ }
+    }
+
+    if (swing > 200) {
+      if (isPersonal) {
+        telemetry.brilliantMovesFound.value++
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Brilliant Discovery',
+          severity: 'brilliant',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
+    } else if (swing < -150 && prevEval > 200) {
+       if (isPersonal) {
+         inst.currentMissedWins++
+         insights.queueInsight({
+           fen: inst.currentPositions[inst.currentMoveIndex],
+           theme: 'Missed Opportunity',
+           severity: 'missed-win',
+           gameId: inst.gameId,
+           bestMove,
+           playedMove
+         })
+       }
+    } else if (swing < -200) {
+      if (isPersonal) {
+        telemetry.blundersFound.value++
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Critical Blunder',
+          severity: 'blunder',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
+    } else if (swing < -100) {
+      if (isPersonal) {
+        telemetry.mistakesFound.value++
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Strategic Mistake',
+          severity: 'mistake',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
+    } else if (swing < -50) {
+      if (isPersonal) {
+        telemetry.inaccuraciesFound.value++
       }
     }
   }
 
   /**
    * Starts the bulk engine
+   * @param forceRestart - If true, re-analyzes all games even if they have evals
    */
-  function startBulkAnalysis() {
+  function startBulkAnalysis(forceRestart = false) {
     if (isBulkAnalyzing.value) return
     
-    queue = games.value.filter(g => !g.evals || g.evals.length < g.movesCount)
+    const totalCount = games.value.length
+    const alreadyAnalyzedCount = games.value.filter(g => g.evals && g.evals.length > 0).length
+    const isCompleted = totalCount > 0 && (alreadyAnalyzedCount / totalCount) >= 0.95
+
+    // AUTO-FORCE: If the user clicks start on a finished/near-finished vault,
+    // we assume they want to re-run for new metrics/theory.
+    if (forceRestart || isCompleted) {
+      logger.info(`[Intel Hub] ${isCompleted ? 'Auto-Restarting' : 'Force Restarting'} synthesis for ${totalCount} games.`)
+      
+      // DEEP MUTATION: Ensure reactivity triggers across all components
+      games.value = games.value.map(g => ({
+        ...g,
+        evals: [],
+        analysisCache: {} 
+      }))
+    }
+
+    // Refresh counts after possible mutation
+    const currentAnalyzedCount = totalCount - games.value.filter(g => !g.evals || g.evals.length < (g.movesCount || 1)).length
+    
+    if (totalCount > 0) {
+      telemetry.analysisProgress.value = Math.round((currentAnalyzedCount / totalCount) * 100)
+    }
+
+    queue = games.value.filter(g => !g.evals || g.evals.length < (g.movesCount || 1))
+    
     if (queue.length === 0) {
-      logger.info('[Bulk Analysis] All games already analyzed.')
+      logger.info('[Intel Hub] Vault is already fully synthesized.')
+      isBulkAnalyzing.value = false
       return
     }
 
+    logger.info(`[Intel Hub] Starting synthesis for ${queue.length} games...`)
     isBulkAnalyzing.value = true
     nextQueueIndex = 0
     startTime = Date.now()
     telemetry.resetTelemetry()
 
-    const totalCount = games.value.length
-    if (totalCount > 0) {
-      const analyzedCount = totalCount - queue.length
-      telemetry.analysisProgress.value = Math.round((analyzedCount / totalCount) * 100)
-    }
-    
     // Spawn all workers in the pool
     pool.forEach(inst => {
       inst.engine.initWorker(createMessageHandler(inst))
@@ -230,13 +324,18 @@ export function useLibraryAnalysis(
       chess.loadPgn(game.pgn)
       const history = chess.history()
       inst.currentPositions = []
+      inst.currentMoves = []
       inst.currentMoveIndex = 0
       inst.currentEvals = []
+      inst.currentTotalCpl = 0
+      inst.currentMissedWins = 0
+      inst.currentTheoryMoves = 0
       
       const tempChess = new Chess()
       inst.currentPositions.push(tempChess.fen())
       
       for (const move of history) {
+        inst.currentMoves.push(move)
         if (!tempChess.move(move)) break
         inst.currentPositions.push(tempChess.fen())
       }
@@ -268,18 +367,30 @@ export function useLibraryAnalysis(
       return
     }
 
-    // BOOK-SMART SKIP: Bypass the first 8 plies (standard opening theory)
-    if (inst.currentMoveIndex < 8) {
-      inst.currentMoveIndex++
-      processNextMove(inst)
+    const fen = inst.currentPositions[inst.currentMoveIndex]
+    if (!fen || fen.length < 10) {
+      advancePly(inst)
       return
     }
 
-    const fen = inst.currentPositions[inst.currentMoveIndex]
-    if (!fen || fen.length < 10) {
-      inst.currentMoveIndex++
-      processNextMove(inst)
-      return
+    // --- CLOUD-FIRST STRATEGY ---
+    // We check the Lichess Cloud Eval database first.
+    // This allows instant high-depth analysis for common/theoretical positions.
+    try {
+      const cloudData = await fetchCloudEval(fen)
+      if (cloudData && cloudData.pvs && cloudData.pvs.length > 0) {
+        const topPv = cloudData.pvs[0]
+        const score = topPv.cp ?? (topPv.mate ? topPv.mate * 10000 : 0)
+        const isMate = !!topPv.mate
+        const bestMove = topPv.moves?.split(' ')[0] || 'N/A'
+        
+        logger.info(`[Intel] Cloud Eval Hijack for move ${inst.currentMoveIndex} (Depth ${cloudData.depth})`)
+        await applyEvaluationDNA(inst, score, isMate, bestMove)
+        advancePly(inst)
+        return
+      }
+    } catch (e) {
+      // If cloud fetch fails (offline or rate limit), we silently fall back to local Stockfish
     }
 
     inst.engine.sendToWorker(`position fen ${fen}`)
@@ -301,6 +412,14 @@ export function useLibraryAnalysis(
   async function finalizeGame(inst: EngineInstance) {
     const game = queue[inst.currentIndex]
     game.evals = [...inst.currentEvals]
+    game.acpl = Math.round(inst.currentTotalCpl / Math.max(1, inst.currentMoves.length))
+    game.missedWins = inst.currentMissedWins
+    
+    const theoryGames = Math.min(inst.currentMoves.length, 12)
+    game.theoreticalAccuracy = theoryGames > 0 
+      ? Math.round((inst.currentTheoryMoves / theoryGames) * 100) 
+      : 0
+
     await persistGameUpdate(game)
     
     inst.currentEvals = []
@@ -332,13 +451,21 @@ export function useLibraryAnalysis(
       }
     })
     
-    const remainingMs = (remainingPlies * msPerPly) / NUM_WORKERS
+    const remainingMs = remainingPlies * msPerPly
     
-    if (remainingMs < 5000) telemetry.estimatedTimeRemaining.value = 'Finishing...'
-    else {
-      const mins = Math.floor(remainingMs / 60000)
-      const secs = Math.floor((remainingMs % 60000) / 1000)
-      telemetry.estimatedTimeRemaining.value = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+    if (remainingMs < 5000) {
+      telemetry.estimatedTimeRemaining.value = '00:00'
+      return
+    }
+
+    const hours = Math.floor(remainingMs / 3600000)
+    const mins = Math.floor((remainingMs % 3600000) / 60000)
+    const secs = Math.floor((remainingMs % 60000) / 1000)
+    
+    if (hours > 0) {
+      telemetry.estimatedTimeRemaining.value = `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    } else {
+      telemetry.estimatedTimeRemaining.value = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
     }
   }
 

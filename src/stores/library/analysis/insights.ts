@@ -7,6 +7,8 @@ interface InsightTask {
   theme: string
   severity: string
   gameId: string
+  bestMove: string
+  playedMove: string
   attempts: number
 }
 
@@ -44,8 +46,8 @@ export function useAnalysisInsights() {
       
       const explanation = await LlmService.explainMistake({
         fen: task.fen,
-        bestMove: 'N/A',
-        playedMove: 'N/A',
+        bestMove: task.bestMove,
+        playedMove: task.playedMove,
         theme: task.theme,
         severity: task.severity,
         isManualTrigger: true

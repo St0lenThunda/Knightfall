@@ -29,7 +29,7 @@ export function useLibraryStats(
    * Generates the full rating progression history using the Elo formula.
    */
   const performanceHistory = computed(() => {
-    if (personalGames.value.length === 0) return [1200]
+    if (personalGames.value.length === 0) return [{ date: new Date().toISOString(), rating: 1200 }]
     
     const sortedGames = [...personalGames.value].sort((a, b) => {
       const dateA = a.date ? new Date(a.date).getTime() : 0
@@ -37,9 +37,10 @@ export function useLibraryStats(
       return dateA - dateB
     })
 
+    const firstDate = sortedGames[0].date || new Date().toISOString()
+    const history = [{ date: firstDate, rating: 1200 }]
     let currentElo = 1200
     const K = 32
-    const history = [1200]
 
     sortedGames.forEach(g => {
       const isWhite = userStore.isMe(g.white)
@@ -54,7 +55,10 @@ export function useLibraryStats(
 
       const E = 1 / (1 + Math.pow(10, (oppRating - currentElo) / 400))
       currentElo = currentElo + K * (S - E)
-      history.push(Math.round(currentElo))
+      history.push({ 
+        date: g.date || new Date().toISOString(), 
+        rating: Math.round(currentElo) 
+      })
     })
 
     return history
@@ -62,7 +66,7 @@ export function useLibraryStats(
 
   const performanceRating = computed(() => {
     const history = performanceHistory.value
-    return history.length > 0 ? history[history.length - 1] : 1200
+    return history.length > 0 ? history[history.length - 1].rating : 1200
   })
 
   /**
@@ -226,14 +230,52 @@ export function useLibraryStats(
     return stats
   })
 
+  /**
+   * Calculates the overall tactical accuracy based on ACPL across all analyzed games.
+   */
+  const globalAccuracy = computed(() => {
+    const analyzed = games.value.filter(g => g.acpl !== undefined && g.acpl !== null)
+    if (analyzed.length === 0) return 0
+    
+    // Convert ACPL to a 0-100 scale (approximate)
+    // 0 ACPL = 100%, 100 ACPL = ~50%
+    const totalAccuracy = analyzed.reduce((sum, g) => {
+      const accuracy = Math.max(0, 100 - (g.acpl! / 2))
+      return sum + accuracy
+    }, 0)
+    
+    return Math.round(totalAccuracy / analyzed.length)
+  })
+
+  /**
+   * Calculates unique openings across the ENTIRE vault (not just personal).
+   */
+  const vaultOpeningStats = computed(() => {
+    const openings = new Set<string>()
+    games.value.forEach(g => {
+      let op = g.eco || g.event
+      
+      // FALLBACK: If data is missing, try a quick regex scan of the PGN
+      if (!op || op === 'Unknown') {
+        const match = g.pgn.match(/\[(ECO|Opening) "(.*?)"\]/)
+        if (match) op = match[2]
+      }
+      
+      openings.add(op || 'Unknown')
+    })
+    return Array.from(openings)
+  })
+
   return {
     performanceRating,
     performanceHistory,
     activityHeatmap,
     libraryWinRate,
     libraryWldStats,
+    globalAccuracy,
     avgOpponentElo,
     openingStats,
+    vaultOpeningStats,
     sourceBreakdown
   }
 }

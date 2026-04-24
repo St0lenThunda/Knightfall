@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/userStore'
 import { useLibraryStore } from '../../stores/libraryStore'
@@ -18,21 +18,28 @@ defineProps<{
 const emit = defineEmits(['showBadgeModal', 'showWipeConfirm', 'toggleIntel', 'deduplicateVault', 'switchTab'])
 
 // Stats Helpers
+/** Temporarily hidden with the Library IQ section
 const vaultStats = computed(() => {
   const totalGames = libraryStore.games.length
-  const analyzedGames = libraryStore.games.filter(g => g.evals && g.evals.length > 0).length
-  const totalMoves = libraryStore.games.reduce((acc, g) => acc + (g.movesCount || 0), 0)
-  const insights = libraryStore.blundersFound + libraryStore.brilliantMovesFound
+  const analyzedGames = libraryStore.games.filter(g => g.evals && g.evals.length > 0)
+  const analyzedCount = analyzedGames.length
+  const insights = libraryStore.blundersFound + libraryStore.brilliantMovesFound + libraryStore.mistakesFound
   
+  // THEORY WEIGHT: Should be based on how many moves we've actually verified in analyzed games
+  const theoryWeight = analyzedCount > 0 
+    ? (libraryStore.totalMovesProcessed / (analyzedCount * 40)) * 100 
+    : 0
+
   return [
     { label: 'Total Vault Games', val: totalGames, desc: 'Aggregated database' },
-    { label: 'Unique Openings', val: libraryStore.openingStats.length, desc: 'Structural breadth', color: 'var(--teal)' },
-    { label: 'Analysis Coverage', val: `${totalGames > 0 ? Math.round((analyzedGames / totalGames) * 100) : 0}%`, desc: 'Engine synthesis level', color: 'var(--accent)' },
-    { label: 'Theoretical Density', val: totalGames > 0 ? (totalMoves / totalGames).toFixed(1) : '0', desc: 'Avg moves per game' },
-    { label: 'Intelligence Markers', val: insights, desc: 'Patterns recognized', color: 'var(--gold)' },
+    { label: 'Unique Openings', val: libraryStore.vaultOpeningStats.length, desc: 'Structural breadth', color: 'var(--teal)' },
+    { label: 'Analysis Coverage', val: `${totalGames > 0 ? Math.round((analyzedCount / totalGames) * 100) : 0}%`, desc: 'Engine synthesis level', color: 'var(--accent)' },
+    { label: 'Theoretical Accuracy', val: `${Math.min(100, Math.round(theoryWeight))}%`, desc: 'Alignment in analyzed games', color: 'var(--gold)' },
+    { label: 'Intelligence Markers', val: insights, desc: 'Patterns recognized', color: 'var(--accent)' },
     { label: 'Engine Workload', val: libraryStore.totalMovesProcessed.toLocaleString(), desc: 'Total moves processed' }
   ]
 })
+*/
 
 const recentGames = computed(() => {
   return [...libraryStore.games].reverse().slice(0, 5).map(g => {
@@ -71,20 +78,48 @@ const intelStatusText = computed(() => {
 // Rating Chart Logic
 const chartW = 500, chartH = 120
 
+const chartFilter = ref('ALL')
+const filteredRatingHistory = computed(() => {
+  const full = libraryStore.performanceHistory
+  if (chartFilter.value === 'ALL') return full
+  
+  const now = new Date()
+  const limit = new Date()
+  if (chartFilter.value === '1M') limit.setMonth(now.getMonth() - 1)
+  else if (chartFilter.value === '3M') limit.setMonth(now.getMonth() - 3)
+  else if (chartFilter.value === '1Y') limit.setFullYear(now.getFullYear() - 1)
+  
+  const filtered = full.filter(h => h.date && new Date(h.date) >= limit)
+  
+  // To avoid the chart "starting from nothing", we find the rating just before this period
+  const before = full.filter(h => h.date && new Date(h.date) < limit)
+  if (before.length > 0) {
+    const startValue = before[before.length - 1].rating
+    return [{ date: limit.toISOString(), rating: startValue }, ...filtered]
+  }
+  
+  return filtered
+})
+
 const ratingData = computed(() => {
-  const full = userStore.ratingHistory
-  const result = full.map(h => h.rating)
-  if (result.length < 2) return [1200, 1200]
+  const result = filteredRatingHistory.value.map(h => h.rating)
+  if (result.length === 0) return [1200, 1200]
+  if (result.length === 1) return [result[0], result[0]]
   return result
 })
 
 const minR = computed(() => {
   const min = Math.min(...ratingData.value)
-  return isNaN(min) ? 1100 : min - 20
+  if (isNaN(min)) return 1100
+  // Add a bit of padding so the line isn't touching the bottom
+  return min - 50 
 })
+
 const maxR = computed(() => {
   const max = Math.max(...ratingData.value)
-  return isNaN(max) ? 1300 : max + 20
+  if (isNaN(max)) return 1300
+  // Add a bit of padding so the line isn't touching the top
+  return max + 50
 })
 
 const chartPoints = computed(() => ratingData.value.map((r, i) => ({
@@ -165,7 +200,8 @@ const openingStats = computed(() => libraryStore.openingStats)
     </div>
 
     <div class="dashboard-grid-v4">
-      <div class="library-iq-full glass mb-6">
+      <!-- Temporarily hidden to focus on personal DNA -->
+      <!-- <div class="library-iq-full glass mb-6">
         <div class="card-header">
           <h4>🧠 Library Intelligence Quotient</h4>
         </div>
@@ -175,7 +211,7 @@ const openingStats = computed(() => libraryStore.openingStats)
             <div class="val" :style="{ color: stat.color || 'inherit' }">{{ stat.val }}</div>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <div class="glass card-v3 span-2">
         <div class="card-header">
@@ -210,25 +246,32 @@ const openingStats = computed(() => libraryStore.openingStats)
       </div>
 
       <div class="glass card-v3 span-2">
-        <div class="card-header">
-          <h4>Performance Ratio</h4>
-          <div class="wld-stats-summary">
-            <span class="wld-stat text-green">{{ libraryStore.libraryWldStats.win }}W</span>
-            <span class="wld-stat text-gold">{{ libraryStore.libraryWldStats.draw }}D</span>
-            <span class="wld-stat text-rose">{{ libraryStore.libraryWldStats.loss }}L</span>
+        <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+          <h4 style="margin: 0;">Performance Ratio</h4>
+          <div class="wld-stats-summary" style="opacity: 0.6; font-size: 0.8rem;">
+            Total DNA Games: {{ libraryStore.libraryWldStats.total }}
           </div>
         </div>
-        <div class="wld-layout-v2 mt-6">
+        <div class="wld-layout-v2 mt-4">
           <div class="wld-ring-container-v2">
             <svg viewBox="0 0 100 100" class="wld-ring">
               <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.winPct / 100) * 251.3} 251.3`" stroke-dashoffset="251.3" stroke-linecap="round"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--rose)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.lossPct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - (libraryStore.libraryWldStats.winPct / 100) * 251.3" stroke-linecap="round"/>
-              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="12" :stroke-dasharray="`${(libraryStore.libraryWldStats.drawPct / 100) * 251.3} 251.3`" :stroke-dashoffset="251.3 - ((libraryStore.libraryWldStats.winPct + libraryStore.libraryWldStats.lossPct) / 100) * 251.3" stroke-linecap="round"/>
+              <!-- Wins (Green) -->
+              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--green)" stroke-width="12" 
+                      :stroke-dasharray="`${(libraryStore.libraryWldStats.winPct / 100) * 251.3} 251.3`" 
+                      stroke-dashoffset="0" />
+              <!-- Losses (Rose) -->
+              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--rose)" stroke-width="12" 
+                      :stroke-dasharray="`${(libraryStore.libraryWldStats.lossPct / 100) * 251.3} 251.3`" 
+                      :stroke-dashoffset="-((libraryStore.libraryWldStats.winPct / 100) * 251.3)" />
+              <!-- Draws (Gold) -->
+              <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="12" 
+                      :stroke-dasharray="`${(libraryStore.libraryWldStats.drawPct / 100) * 251.3} 251.3`" 
+                      :stroke-dashoffset="-(((libraryStore.libraryWldStats.winPct + libraryStore.libraryWldStats.lossPct) / 100) * 251.3)" />
             </svg>
             <div class="wld-center">
               <div class="wld-pct">{{ Math.round(libraryStore.libraryWldStats.winPct) }}%</div>
-              <div class="label">Accuracy</div>
+              <div class="label">Win Rate</div>
             </div>
           </div>
           <div class="wld-breakdown-v2">
@@ -272,28 +315,37 @@ const openingStats = computed(() => libraryStore.openingStats)
         <button @click="$emit('switchTab', 'dna')" class="btn btn-ghost btn-xs w-full mt-4">Full Lab →</button>
       </div>
 
-      <div class="glass card-v3 span-2">
+      <div class="glass card-v3 span-2" style="align-self: flex-start;">
         <div class="card-header">
           <h4>Performance History</h4>
-          <div class="chart-legend">
-            <span class="legend-item"><span class="dot bg-accent"></span> Rating</span>
-            <span class="legend-item"><span class="dot bg-teal"></span> Avg Elo</span>
+          <div class="chart-filters-container">
+            <div class="chart-legend-mini">
+              <span class="dot bg-accent"></span>
+              <span class="muted">Rating DNA</span>
+            </div>
+            <div class="chart-filters">
+              <button v-for="f in ['1M', '3M', '1Y', 'ALL']" :key="f" 
+                      @click="chartFilter = f" 
+                      class="btn-filter" :class="{ active: chartFilter === f }">
+                {{ f }}
+              </button>
+            </div>
           </div>
         </div>
-        <div class="perf-history-container mt-6">
+        <div class="perf-history-container mt-4">
           <div class="y-axis">
-            <span>2400</span>
-            <span>2000</span>
-            <span>1600</span>
-            <span>1200</span>
+            <span>{{ maxR }}</span>
+            <span>{{ Math.round((maxR + minR) / 2) }}</span>
+            <span>{{ minR }}</span>
           </div>
           <div class="chart-main">
             <svg :viewBox="`0 0 ${chartW} ${chartH}`" class="rating-svg-full" preserveAspectRatio="none">
               <path :d="areaPath" fill="rgba(139,92,246,0.1)"/>
               <path :d="linePath" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
             </svg>
-            <div class="x-axis">
-              <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+            <div class="x-axis" style="margin-top: var(--space-4);">
+              <span>{{ chartFilter === 'ALL' ? 'Vault Start' : new Date(filteredRatingHistory[0]?.date).toLocaleDateString() }}</span>
+              <span>Today</span>
             </div>
           </div>
         </div>
@@ -302,6 +354,11 @@ const openingStats = computed(() => libraryStore.openingStats)
       <div class="glass card-v3">
         <div class="card-header">
           <h4>Top Openings</h4>
+          <div class="opening-legend-mini">
+            <span class="legend-item"><span class="dot-xs bg-green"></span> W</span>
+            <span class="legend-item"><span class="dot-xs bg-rose"></span> L</span>
+            <span class="legend-item"><span class="dot-xs bg-gold"></span> D</span>
+          </div>
         </div>
         <div class="opening-list-merged mt-4">
           <div v-for="o in openingStats.slice(0, 6)" :key="o.name" class="opening-row-merged">
@@ -324,13 +381,25 @@ const openingStats = computed(() => libraryStore.openingStats)
         <div class="card-header">
           <h4>Data Integrity & Maintenance</h4>
         </div>
-        <div class="integrity-actions mt-4 flex-col h-full justify-between">
-          <p class="muted" style="font-size: 0.85rem;">
-            Keep your local vault optimized by removing redundant entries or performing a complete system reset.
-          </p>
-          <div style="display: flex; gap: var(--space-4); justify-content: flex-end;">
+        <div class="integrity-grid mt-6">
+          <div class="integrity-item">
+            <button class="btn btn-ghost btn-sm" @click="libraryStore.syncCloudGames()">🔄 Refresh Cloud DNA</button>
+            <p class="muted">Synchronize your local library with the cloud to download games played on other devices.</p>
+          </div>
+          
+          <div class="integrity-item">
+            <button class="btn btn-ghost btn-sm" @click="libraryStore.pushLocalGamesToCloud()">☁️ Push Vault to Cloud</button>
+            <p class="muted">Back up your local collection to Supabase for cross-device access and permanent safety.</p>
+          </div>
+
+          <div class="integrity-item">
             <button class="btn btn-ghost btn-sm" @click="emit('deduplicateVault')">🧹 Clean Duplicates</button>
+            <p class="muted">Scan your entire vault for redundant entries and upgrade legacy games to high-precision IDs.</p>
+          </div>
+
+          <div class="integrity-item">
             <button class="btn btn-ghost btn-sm text-rose" @click="emit('showWipeConfirm')">⚠️ Nuclear Reset</button>
+            <p class="muted">Wipe your entire local and cloud library. <strong class="text-rose">This action is permanent.</strong> Use with caution.</p>
           </div>
         </div>
       </div>
@@ -358,15 +427,19 @@ const openingStats = computed(() => libraryStore.openingStats)
                   <span class="val">{{ Math.round(libraryStore.engineNodesPerSecond / 1000) }}k</span>
                 </div>
                 <div class="telemetry-item">
-                  <span class="label">ETA</span>
-                  <span class="val text-accent">{{ libraryStore.estimatedTimeRemaining || '--' }}</span>
-                </div>
-                <div class="telemetry-item">
                   <span class="label text-rose">Blunders</span>
                   <span class="val">{{ libraryStore.blundersFound }}</span>
                 </div>
                 <div class="telemetry-item">
-                  <span class="label text-teal">Brilliants</span>
+                  <span class="label" style="color: #fb923c;">Mistakes</span>
+                  <span class="val">{{ libraryStore.mistakesFound }}</span>
+                </div>
+                <div class="telemetry-item">
+                  <span class="label text-gold">Inaccuracy</span>
+                  <span class="val">{{ libraryStore.inaccuraciesFound }}</span>
+                </div>
+                <div class="telemetry-item">
+                  <span class="label text-teal">Brilliant</span>
                   <span class="val">{{ libraryStore.brilliantMovesFound }}</span>
                 </div>
               </div>
@@ -378,16 +451,27 @@ const openingStats = computed(() => libraryStore.openingStats)
                 </div>
                 <div class="summary-stat">
                   <span class="val text-rose">{{ libraryStore.blundersFound }}</span>
-                  <span class="label">Weaknesses Found</span>
+                  <span class="label">Blunders</span>
+                </div>
+                <div class="summary-stat">
+                  <span class="val" style="color: #fb923c;">{{ libraryStore.mistakesFound }}</span>
+                  <span class="label">Mistakes</span>
+                </div>
+                <div class="summary-stat">
+                  <span class="val text-gold">{{ libraryStore.inaccuraciesFound }}</span>
+                  <span class="label">Inaccuracies</span>
                 </div>
               </div>
 
               <div class="intel-main-action">
-                <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container-v2">
+                <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container-v2" style="width: 100%;">
                   <div class="intel-progress-bar-v2">
                     <div class="intel-progress-fill-v2" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
                   </div>
-                  <span class="progress-pct-v2">{{ Math.round(libraryStore.analysisProgress) }}%</span>
+                  <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; font-family: monospace;">
+                    <span class="muted">{{ Math.round(libraryStore.analysisProgress) }}% Complete</span>
+                    <span class="text-accent">Rem: {{ libraryStore.estimatedTimeRemaining || '--' }}</span>
+                  </div>
                 </div>
                 <button @click="emit('toggleIntel')" class="btn" :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'">
                   {{ libraryStore.isBulkAnalyzing ? 'Pause' : (libraryStore.analysisProgress === 100 ? 'Restart' : 'Start Synthesis') }}
@@ -481,24 +565,48 @@ const openingStats = computed(() => libraryStore.openingStats)
 .wld-ring-container-v2 { position: relative; width: 120px; height: 120px; }
 .wld-ring { transform: rotate(-90deg); }
 .wld-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.wld-pct { font-size: 1.5rem; font-weight: 900; }
+.wld-pct { font-size: 1.5rem; font-weight: 900; margin-bottom: 4px; }
 
 .wld-breakdown-v2 { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
-.breakdown-row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-md); }
+.breakdown-row { 
+  display: grid; 
+  grid-template-columns: 8px 1fr 40px 45px; 
+  align-items: center; 
+  gap: var(--space-4); 
+  padding: var(--space-2) var(--space-4); 
+  background: rgba(255, 255, 255, 0.02); 
+  border-radius: var(--radius-md); 
+}
 .dot { width: 8px; height: 8px; border-radius: 50%; }
-.breakdown-row .label { flex: 1; font-weight: 600; font-size: 0.85rem; }
-.breakdown-row .val { font-weight: 800; min-width: 30px; text-align: right; }
+.bg-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.bg-rose { background: var(--rose); box-shadow: 0 0 8px var(--rose); }
+.bg-gold { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.bg-accent { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.breakdown-row .label { font-weight: 600; font-size: 0.85rem; }
+.breakdown-row .val { font-weight: 800; text-align: right; }
+.breakdown-row .pct { font-size: 0.75rem; text-align: right; }
 
 .weakness-items { display: flex; flex-direction: column; gap: var(--space-4); }
 .weakness-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
 .progress-bar { height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; }
 .progress-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
 
-.perf-history-container { display: flex; gap: var(--space-4); height: 150px; }
-.y-axis { display: flex; flex-direction: column; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; font-family: var(--font-mono); }
+.chart-filters-container { display: flex; align-items: center; gap: var(--space-6); }
+.chart-legend-mini { display: flex; align-items: center; gap: var(--space-2); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.chart-filters { display: flex; gap: 4px; background: rgba(255,255,255,0.03); padding: 2px; border-radius: var(--radius-md); }
+.btn-filter { padding: 4px 10px; font-size: 0.65rem; font-weight: 800; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+.btn-filter.active { background: var(--accent); color: white; box-shadow: 0 0 8px var(--accent); }
+.btn-filter:hover:not(.active) { background: rgba(255,255,255,0.05); }
+
+.perf-history-container { display: flex; gap: var(--space-4); height: 140px; margin-bottom: var(--space-8); padding: 0 var(--space-4); }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; font-family: var(--font-mono); padding: 4px 0; }
 .chart-main { flex: 1; position: relative; display: flex; flex-direction: column; }
 .rating-svg-full { flex: 1; width: 100%; overflow: visible; }
-.x-axis { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; margin-top: var(--space-2); }
+.x-axis { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; margin-top: var(--space-4); }
+
+.opening-legend-mini { display: flex; gap: var(--space-4); font-size: 0.65rem; font-weight: 800; opacity: 0.6; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.dot-xs { width: 6px; height: 6px; border-radius: 50%; }
 
 .opening-list-merged { display: flex; flex-direction: column; gap: 4px; }
 .opening-row-merged { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) var(--space-4); background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-md); }
@@ -528,14 +636,18 @@ const openingStats = computed(() => libraryStore.openingStats)
 .telemetry-item .val { font-family: var(--font-mono); font-weight: 800; }
 
 .summary-stat { display: flex; flex-direction: column; align-items: center; }
-.summary-stat .val { font-size: 1.2rem; font-weight: 900; }
-.summary-stat .label { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); }
+.wld-center .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
 
 .intel-main-action { display: flex; align-items: center; gap: var(--space-4); min-width: 240px; }
 .intel-progress-container-v2 { flex: 1; display: flex; align-items: center; gap: 10px; }
 .intel-progress-bar-v2 { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
 .intel-progress-fill-v2 { height: 100%; background: var(--accent-gradient); transition: width 0.4s ease; }
 .progress-pct-v2 { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 800; color: var(--accent-bright); }
+
+.integrity-grid { display: flex; flex-direction: column; gap: var(--space-4); }
+.integrity-item { display: grid; grid-template-columns: 200px 1fr; align-items: center; gap: var(--space-6); padding: var(--space-4); background: rgba(255,255,255,0.02); border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.05); }
+.integrity-item p { margin: 0; font-size: 0.85rem; }
+.integrity-item .btn { justify-content: flex-start; }
 
 .meta-stat { padding: var(--space-4); background: rgba(255, 255, 255, 0.02); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.05); }
 .meta-stat .label { font-size: 0.6rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; margin-bottom: 4px; }

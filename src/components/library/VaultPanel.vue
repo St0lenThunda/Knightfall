@@ -96,8 +96,8 @@
 
     <div v-if="viewMode === 'grid'" class="vault-grid">
       <GameCard 
-        v-for="game in displayedGames" 
-        :key="game.id" 
+        v-for="(game, index) in displayedGames" 
+        :key="game.id + index" 
         :game="game" 
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"
@@ -115,8 +115,8 @@
         <div class="col-actions"></div>
       </div>
       <GameRow
-        v-for="game in displayedGames"
-        :key="game.id"
+        v-for="(game, index) in displayedGames"
+        :key="game.id + index"
         :game="game"
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"

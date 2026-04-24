@@ -31,6 +31,10 @@ export interface LibraryGame {
   analysisCache?: Record<string, string>
   clocks?: number[]
   evals?: any[]
+  acpl?: number
+  missedWins?: number
+  theoreticalAccuracy?: number
+  cloudId?: string // Native Supabase UUID for cloud push
 }
 
 export interface OpeningNode {
@@ -124,7 +128,10 @@ export const useLibraryStore = defineStore('library', () => {
     filterPerspective
   )
   
-  const intel = useLibraryAnalysis(games, idb.persistGameUpdate)
+  const intel = useLibraryAnalysis(games, async (game: LibraryGame) => {
+    await idb.persistGameUpdate(game)
+    await cloud.pushGameAnalysis(game)
+  })
 
   const gamesMap = computed(() => {
     const map = new Map<string, LibraryGame>()
@@ -188,30 +195,13 @@ export const useLibraryStore = defineStore('library', () => {
 
   /**
    * Deduplication engine: Purges games with identical move sequences.
+   * Now triggers the deep IDB upgrade to the new fingerprinting standard.
    */
   async function purgeDuplicates() {
-    const seen = new Set<string>()
-    const toDelete: string[] = []
-    
-    games.value.forEach(g => {
-      // Create a move-only fingerprint
-      const moveText = g.pgn.replace(/\[.*?\]/sg, '').replace(/\s+/g, ' ').trim()
-      const fingerprint = `${g.white.toLowerCase()}-${g.black.toLowerCase()}-${moveText}`
-      
-      if (seen.has(fingerprint)) {
-        toDelete.push(g.id)
-      } else {
-        seen.add(fingerprint)
-      }
-    })
-
-    if (toDelete.length > 0) {
-      for (const id of toDelete) {
-        await idb.deleteGame(id)
-      }
-      logger.info(`[Library] Purged ${toDelete.length} duplicates.`)
-    }
-    return toDelete.length
+    const beforeCount = games.value.length
+    await idb.purgeDuplicates()
+    const afterCount = games.value.length
+    return beforeCount - afterCount
   }
 
   // --- PERSISTENCE WATCHERS ---
@@ -256,6 +246,7 @@ export const useLibraryStore = defineStore('library', () => {
     
     syncCloudGames: cloud.syncCloudGames,
     purgeCloudLibrary: cloud.purgeCloudLibrary,
+    pushLocalGamesToCloud: cloud.pushLocalGamesToCloud,
     
     updateGameAnalysis,
     repairVaultMetadata,

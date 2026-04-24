@@ -106,11 +106,61 @@ export function useLibraryIdb(games: Ref<LibraryGame[]>) {
     await initDb()
   }
 
+  /**
+   * Identifies and removes duplicate games based on the new high-precision fingerprint.
+   * This also "upgrades" all existing games to the new ID standard.
+   */
+  async function purgeDuplicates() {
+    const { generateGameFingerprint } = await import('../../utils/gameFingerprint')
+    const activeDb = await initDb()
+    
+    logger.info('[IDB] Starting vault deduplication and ID upgrade...')
+    
+    // 1. Gather all current unique games
+    const uniqueMap = new Map<string, LibraryGame>()
+    let totalScanned = 0
+
+    for (const game of games.value) {
+      totalScanned++
+      const newId = generateGameFingerprint(game.white, game.black, game.pgn)
+      
+      const existing = uniqueMap.get(newId)
+      if (!existing) {
+        uniqueMap.set(newId, { ...game, id: newId })
+      } else {
+        // Keep the one with more analysis if possible
+        const existingEvals = (existing.evals || []).length
+        const currentEvals = (game.evals || []).length
+        if (currentEvals > existingEvals) {
+          uniqueMap.set(newId, { ...game, id: newId })
+        }
+      }
+    }
+
+    const uniqueGames = Array.from(uniqueMap.values())
+    const duplicateCount = totalScanned - uniqueGames.length
+    
+    logger.info(`[IDB] Found ${duplicateCount} duplicates. Upgrading ${uniqueGames.length} games.`)
+
+    // 2. Nuclear Swap: Clear and Re-fill
+    const transaction = activeDb.transaction(['games'], 'readwrite')
+    const store = transaction.objectStore('games')
+    store.clear()
+    
+    uniqueGames.forEach(g => store.put(JSON.parse(JSON.stringify(g))))
+
+    transaction.oncomplete = () => {
+      games.value = uniqueGames
+      logger.info('[IDB] Vault upgrade complete.')
+    }
+  }
+
   return {
     initDb,
     loadGames,
     deleteGame,
     persistGameUpdate,
-    resetLibrary
+    resetLibrary,
+    purgeDuplicates
   }
 }

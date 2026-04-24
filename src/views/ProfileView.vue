@@ -207,7 +207,7 @@ const wipeCloudToo = ref(false)
 
 function toggleIntel() {
   if (libraryStore.isBulkAnalyzing) libraryStore.stopBulkAnalysis()
-  else libraryStore.startBulkAnalysis()
+  else libraryStore.startBulkAnalysis() // The engine will auto-force if completed
 }
 
 

@@ -154,11 +154,27 @@ export const useUserStore = defineStore('user', () => {
    * @returns true if the name matches the current user's identity
    */
   function isMe(playerName: string): boolean {
+    if (!playerName) return false
     const id = myIdentity.value
-    const lower = playerName.toLowerCase()
-    return lower === id.name || 
-           (!!id.chessCom && lower === id.chessCom) ||
-           (!!id.lichess && lower === id.lichess)
+    const lower = playerName.toLowerCase().trim()
+    
+    // Exact matches first (Fast path)
+    if (lower === id.name || (!!id.chessCom && lower === id.chessCom) || (!!id.lichess && lower === id.lichess)) {
+      return true
+    }
+
+    // Fuzzy Check: Handle "Lastname, Firstname" or "Firstname Lastname"
+    // Many PGNs use "Carlsen, Magnus" vs "Magnus Carlsen"
+    const parts = lower.split(/[\s,]+/).filter(p => p.length > 2)
+    const myParts = id.name.split(/[\s,]+/).filter(p => p.length > 2)
+    
+    if (myParts.length > 0 && parts.length > 0) {
+      // If we find a full match of the username within the parts, or vice versa
+      const match = myParts.every(p => parts.includes(p)) || parts.every(p => myParts.includes(p))
+      if (match) return true
+    }
+
+    return false
   }
 
   /** Internal interface for the raw record structure from the Supabase `matches` table. */
@@ -511,9 +527,12 @@ export const useUserStore = defineStore('user', () => {
 
     sorted.forEach(g => {
       // Dynamic Elo-ish calculation based on result
-      if (g.result === 'win') current += 15
-      else if (g.result === 'loss') current -= 12
-      else current += 2
+      // We use a basic K=20 factor and an expected score floor
+      let delta = 2
+      if (g.result === 'win') delta = 15
+      else if (g.result === 'loss') delta = -12
+      
+      current = Math.max(100, current + delta)
       history.push({ date: normalizeDate(g.date), rating: current })
     })
     return history

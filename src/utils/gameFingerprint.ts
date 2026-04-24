@@ -17,18 +17,25 @@ export function generateGameFingerprint(white: string, black: string, pgn: strin
     .replace(/\s+/g, ' ')         // Collapse whitespace
     .trim()
 
-  // 2. Normalize player names (lowercase, trimmed)
+  // 2. Extract Date if available
+  const dateMatch = pgn.match(/\[Date "(.*?)"\]/)
+  const date = dateMatch ? dateMatch[1] : 'unknown'
+
+  // 3. Normalize metadata
   const p1 = white.toLowerCase().trim()
   const p2 = black.toLowerCase().trim()
 
-  // 3. Create the canonical string
-  // We use the first 500 characters of moves which is usually 100+ moves
-  // and plenty for uniqueness combined with names.
-  const canonical = `${p1}|${p2}|${movesOnly.slice(0, 500)}`
-
-  // 4. Simple "hash" to keep the ID readable but unique
-  // In a real app we might use SHA-256, but a base64-encoded 
-  // truncated string is fine for our client-side needs.
-  // We'll use a simple character-based mapping.
-  return btoa(canonical.slice(0, 200)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32)
+  // 4. Create a robust canonical string
+  const rawId = `${p1}|${p2}|${date}|${movesOnly}`
+  
+  // 5. DJB2-like hash for uniqueness
+  let hash = 5381
+  for (let i = 0; i < rawId.length; i++) {
+    hash = (hash * 33) ^ rawId.charCodeAt(i)
+  }
+  
+  const hexHash = (hash >>> 0).toString(16)
+  const shortNames = btoa(`${p1.slice(0, 5)}|${p2.slice(0, 5)}`).replace(/[^a-zA-Z]/g, '')
+  
+  return `${shortNames}${hexHash}${movesOnly.length}`.slice(0, 32)
 }
