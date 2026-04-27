@@ -6,6 +6,9 @@
         <p class="muted" style="font-size: 0.9rem;">{{ modeLabel }}</p>
       </div>
       <div class="play-header-actions">
+        <button class="btn btn-ghost btn-sm" @click="showHistory = !showHistory" :class="{ active: showHistory }">
+          {{ showHistory ? '📋 Hide Intel' : '📋 Show Intel' }}
+        </button>
         <button class="btn btn-ghost btn-sm" @click="store.undoMove()" :disabled="store.moveHistory.length === 0">
           ↩ Undo
         </button>
@@ -18,10 +21,10 @@
       </div>
     </div>
 
-    <div class="play-layout" :class="{ 'game-active': !showSetup }">
+    <div class="play-layout" :class="{ 'game-active': !showSetup, 'history-open': showHistory }">
       <!-- Left: setup panel (shown when no game started) -->
       <Transition name="slide-right">
-        <div class="setup-panel glass" v-if="showSetup">
+        <div class="setup-panel glass" v-show="showSetup">
           <h3 style="margin-bottom: var(--space-5);">New Game</h3>
 
           <!-- Mode select -->
@@ -101,7 +104,6 @@
       <!-- Board area -->
       <div class="board-area">
         <!-- Player info top -->
-        <!-- Top Player Bar (Always the Opponent) -->
         <PlayerBar
           :name="opponentName"
           :rating="opponentRating"
@@ -139,21 +141,58 @@
             </div>
           </Transition>
 
+          <!-- Anti-Cheat Warning (Yellow Card) -->
+          <Transition name="fade-up">
+            <div class="anti-cheat-warning glass-sm" v-if="store.suspicionScore >= 60 && !store.isCheaterBusted">
+              <span class="warning-icon">⚠️</span>
+              <div class="warning-content">
+                <div class="warning-title">Security Alert</div>
+                <div class="warning-text">Suspicious behavior detected ({{ store.suspicionScore.toFixed(0) }}%). <b>Fair play is monitored.</b></div>
+              </div>
+            </div>
+          </Transition>
+
           <Transition name="fade-up">
             <div class="game-over-overlay cheat-busted glass" v-if="store.isCheaterBusted">
-              <h3 style="color: var(--rose); font-size: 1.5rem; text-transform: uppercase;">Anti-Cheat Triggered</h3>
-              <p style="font-weight: 600; font-size: 1rem; margin-bottom: var(--space-2);">Suspicious behavior detected.</p>
-              <div class="muted" style="margin-bottom: var(--space-3); font-size: 0.85rem; max-width: 300px; text-align: center;">
-                Your Suspicion Score reached <b style="color: var(--rose)">{{ store.suspicionScore.toFixed(0) }}%</b>. 
-                <br>Window Blurs: {{ store.cheatMetrics.blurCount }}
+              <div class="cheat-header">
+                <span class="cheat-icon">⚠️</span>
+                <h3 style="color: var(--rose); font-size: 1.5rem; text-transform: uppercase;">Anti-Cheat Triggered</h3>
               </div>
-              <button class="btn btn-danger" @click="triggerNewGame">Accept Defeat</button>
+              <p style="font-weight: 600; font-size: 1rem; margin-bottom: var(--space-2);">Suspicious behavior detected.</p>
+              
+              <div class="cheat-forensics glass-sm">
+                <div class="forensic-item">
+                  <span class="label">Robotic Rhythm:</span>
+                  <span class="value" :style="{ color: store.antiCheat.roboticScore.value > 50 ? 'var(--rose)' : 'inherit' }">
+                    {{ store.antiCheat.roboticScore.value.toFixed(0) }}%
+                  </span>
+                </div>
+                <div class="forensic-item">
+                  <span class="label">Engine Correlation:</span>
+                  <span class="value" :style="{ color: store.antiCheat.correlationScore.value > 50 ? 'var(--rose)' : 'inherit' }">
+                    {{ ((store.antiCheat.engineMatches.value / (store.antiCheat.totalAnalyzedMoves.value || 1)) * 100).toFixed(0) }}%
+                  </span>
+                </div>
+                <div class="forensic-item">
+                  <span class="label">Window Blurs:</span>
+                  <span class="value">{{ store.antiCheat.blurCount.value }}</span>
+                </div>
+                <div class="forensic-item">
+                  <span class="label">Total Suspicion:</span>
+                  <span class="value" style="color: var(--rose); font-weight: 800;">{{ store.suspicionScore.toFixed(0) }}%</span>
+                </div>
+              </div>
+              
+              <p class="muted" style="font-size: 0.75rem; margin-top: var(--space-3); max-width: 280px;">
+                Knightfall uses statistical analysis to ensure fair play. Robotic move times or tab switching during play will trigger this lock.
+              </p>
+              
+              <button class="btn btn-danger" style="margin-top: var(--space-4);" @click="triggerNewGame">Accept Defeat</button>
             </div>
           </Transition>
         </div>
 
         <!-- Player info bottom -->
-        <!-- Bottom Player Bar (Always the Me) -->
         <PlayerBar
           :name="playerName"
           :rating="playerRating"
@@ -165,27 +204,29 @@
       </div>
 
       <!-- Right: move history + eval + Tactical Pulse -->
-      <div class="side-panel glass">
-        <!-- Eval bar ( hidden in local pass & play to prevent cheating ) -->
-        <div class="eval-section" v-if="store.mode === 'vs-computer'">
-          <div class="eval-bar-vertical">
-            <div class="eval-white-fill" :style="{ height: evalPercent + '%' }"></div>
-          </div>
-          <div class="eval-info">
-            <div class="eval-score" :class="evalNumber > 0 ? 'positive' : 'negative'">
-              {{ evalNumber > 0 ? '+' : '' }}{{ evalNumber.toFixed(1) }}
+      <Transition name="slide-left">
+        <div class="side-panel glass" v-if="showHistory">
+          <!-- Eval bar -->
+          <div class="eval-section" v-if="store.mode === 'vs-computer'">
+            <div class="eval-bar-vertical">
+              <div class="eval-white-fill" :style="{ height: evalPercent + '%' }"></div>
             </div>
-            <div class="label" style="font-size: 0.65rem;">EVAL</div>
+            <div class="eval-info">
+              <div class="eval-score" :class="evalNumber > 0 ? 'positive' : 'negative'">
+                {{ evalNumber > 0 ? '+' : '' }}{{ evalNumber.toFixed(1) }}
+              </div>
+              <div class="label" style="font-size: 0.65rem;">EVAL</div>
+            </div>
           </div>
+          <div class="divider" v-if="store.mode === 'vs-computer'"></div>
+
+          <!-- TACTICAL PULSE -->
+          <TacticalPulse />
+          <div class="divider" v-if="store.mode === 'vs-computer' && store.gameActive"></div>
+
+          <MoveHistory />
         </div>
-        <div class="divider" v-if="store.mode === 'vs-computer'"></div>
-
-        <!-- TACTICAL PULSE (Extracted Component) -->
-        <TacticalPulse />
-        <div class="divider" v-if="store.mode === 'vs-computer' && store.gameActive"></div>
-
-        <MoveHistory />
-      </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -209,9 +250,9 @@ engineStore.init()
 
 const flipped = ref(false)
 const showSetup = ref(true)
+const showHistory = ref(false) // Hidden by default
 
 const router = useRouter()
-
 const isReviewing = ref(false)
 
 function triggerNewGame() {
@@ -221,8 +262,6 @@ function triggerNewGame() {
 
 function reviewGame() {
   isReviewing.value = true
-
-  // Ensure PGN headers are set before navigating (the isGameOver watcher is async and may not have finished)
   const isWhite = store.playerColor === 'w'
   const pName = userStore.profile?.username || 'Guest'
   const oName = selectedMode.value === 'vs-computer' ? store.activeBot.name : 'Player 2'
@@ -237,7 +276,6 @@ function reviewGame() {
     'BlackElo': String((selectedMode.value === 'local' || isWhite) ? store.activeBot.rating : (userStore.profile?.rating || 1200)),
   }
   Object.entries(headers).forEach(([k, v]) => store.chess.setHeader(k, v))
-
   store.mode = 'analysis'
   store.viewIndex = -1
   router.push('/analysis')
@@ -258,7 +296,6 @@ const colors: { value: Color; icon: string; label: string }[] = [
 ]
 
 const userStore = useUserStore()
-
 const playerName    = computed(() => userStore.profile?.username || 'Guest')
 const playerRating  = computed(() => userStore.profile?.rating || 1200)
 const playerAvatar  = computed(() => userStore.profile?.username?.charAt(0).toUpperCase() || '?')
@@ -270,8 +307,6 @@ const modeLabel = computed(() => {
   if (selectedMode.value === 'vs-computer') return 'You vs Computer · ' + selectedTc.value.label
   return 'Local · Pass & Play · ' + selectedTc.value.label
 })
-
-// Clock logic now lives in gameStore — no more setInterval in views!
 
 function startGame() {
   store.newGame(selectedMode.value, selectedColor.value, selectedTc.value)
@@ -288,7 +323,7 @@ function startGame() {
       flipped.value = false
     }
   } else {
-    flipped.value = false // Pass & play always starts on White
+    flipped.value = false
   }
 }
 
@@ -297,8 +332,6 @@ function resign() {
   store.stopClock()
 }
 
-// Watch FEN for pass & play camera flipping only.
-// Blunder detection is now handled inside TacticalPulse.vue
 watch(() => store.fen, () => {
   if (store.gameActive && store.mode === 'local') {
     flipped.value = store.turn === 'b'
@@ -314,6 +347,9 @@ function handleWindowBlur() {
 
 onMounted(() => {
   window.addEventListener('blur', handleWindowBlur)
+  if (!!(window as any).Playwright || navigator.userAgent.includes('Playwright')) {
+    (window as any).gameStore = store
+  }
 })
 
 onUnmounted(() => { 
@@ -322,7 +358,6 @@ onUnmounted(() => {
   engineStore.stop()
 })
 
-// Watch for busted state to force resignation
 watch(() => store.isCheaterBusted, (busted) => {
   if (busted && !store.isGameOver) {
     store.resign(store.playerColor)
@@ -345,29 +380,34 @@ watch(() => store.isCheaterBusted, (busted) => {
 
 .play-layout {
   display: grid;
-  grid-template-columns: 280px auto 260px;
+  grid-template-columns: 280px auto 0px;
   gap: var(--space-5);
   align-items: start;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.play-layout.history-open {
+  grid-template-columns: 280px auto 260px;
 }
 .play-layout.game-active {
-  grid-template-columns: auto 260px;
+  grid-template-columns: 0px auto 0px;
+}
+.play-layout.game-active.history-open {
+  grid-template-columns: 0px auto 260px;
 }
 
 @media (max-width: 1200px) {
-  .play-layout, .play-layout.game-active { grid-template-columns: auto 220px; }
-  .setup-panel { display: none; }
+  .play-layout { grid-template-columns: 1fr 260px; }
+  .setup-panel { position: absolute; top: 0; left: 0; z-index: 50; width: 300px; height: 100%; }
 }
 @media (max-width: 760px) {
   .play-layout { grid-template-columns: 1fr; }
   .side-panel { display: none; }
 }
 
-/* Setup panel */
-.setup-panel { padding: var(--space-6); }
+.setup-panel { padding: var(--space-6); overflow-y: auto; max-height: 100%; }
 .setup-section { margin-bottom: var(--space-5); }
-
 .mode-grid { display: flex; flex-direction: column; gap: var(--space-2); }
 .mode-btn {
   display: flex; align-items: center; gap: var(--space-3);
@@ -411,9 +451,9 @@ watch(() => store.isCheaterBusted, (busted) => {
 .bot-name { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px; }
 .bot-desc { font-size: 0.75rem; line-height: 1.3; }
 
-.tc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.tc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); }
 .tc-btn {
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -423,11 +463,11 @@ watch(() => store.isCheaterBusted, (busted) => {
   font-size: 0.82rem;
   font-weight: 600;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 .tc-btn:hover { background: var(--bg-card); }
 .tc-btn.active { border-color: var(--teal); background: var(--teal-dim); color: var(--teal); }
 
-/* Board area */
 .board-area {
   display: flex;
   flex-direction: column;
@@ -465,7 +505,6 @@ watch(() => store.isCheaterBusted, (busted) => {
   background: rgba(15,8,10,0.9) !important;
 }
 
-/* Thinking indicator */
 .thinking-bar {
   display: flex; align-items: center; gap: var(--space-3);
   font-size: 0.85rem; color: var(--text-muted);
@@ -488,7 +527,6 @@ watch(() => store.isCheaterBusted, (busted) => {
   30% { transform: translateY(-5px); }
 }
 
-/* Side panel */
 .side-panel {
   display: flex;
   flex-direction: column;
@@ -496,7 +534,6 @@ watch(() => store.isCheaterBusted, (busted) => {
   min-height: 0;
 }
 
-/* Eval bar */
 .eval-section {
   display: flex;
   align-items: center;
@@ -530,7 +567,59 @@ watch(() => store.isCheaterBusted, (busted) => {
 .slide-right-enter-from { opacity: 0; transform: translateX(-20px); }
 .slide-right-leave-to  { opacity: 0; transform: translateX(-20px); }
 
+.slide-left-enter-active, .slide-left-leave-active { transition: all 0.3s var(--ease); }
+.slide-left-enter-from { opacity: 0; transform: translateX(20px); }
+.slide-left-leave-to  { opacity: 0; transform: translateX(20px); }
+
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.25s ease; }
 .fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(6px); }
+
+.cheat-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+.cheat-icon { font-size: 2rem; animation: pulse-red 2s infinite; }
+.cheat-forensics {
+  width: 100%;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  border: 1px solid rgba(244,63,94,0.3);
+  text-align: left;
+}
+.forensic-item {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.forensic-item .label { color: var(--text-muted); }
+.forensic-item .value { font-weight: 700; }
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+.anti-cheat-warning {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid rgba(245,158,11,0.5);
+  background: rgba(20,15,5,0.9);
+  color: #f59e0b;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 15px rgba(245,158,11,0.2);
+  min-width: 280px;
+  backdrop-filter: blur(8px);
+}
+.warning-icon { font-size: 1.2rem; }
+.warning-title { font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.warning-text { font-size: 0.85rem; }
 
 </style>

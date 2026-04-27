@@ -22,13 +22,30 @@
       <div class="puzzle-board-area">
         <!-- Category pills -->
         <div class="category-pills">
-          <button
-            v-for="cat in categories" :key="cat.id"
-            class="cat-pill" :class="{ active: activeCat === cat.id }"
+          <button 
+            v-for="cat in categories" 
+            :key="cat.id"
+            class="pill"
+            :class="{ active: activeCat === cat.id }"
             @click="setCat(cat.id)"
           >
-            {{ cat.icon }} {{ cat.label }}
+            {{ cat.label }}
           </button>
+        </div>
+
+        <!-- MERCENARY TACTICS (External Sources) -->
+        <div class="external-sources glass-sm">
+          <div class="sources-header">
+            <span class="muted">MERCENARY TACTICS</span>
+          </div>
+          <div class="sources-actions">
+            <button class="btn btn-ghost btn-sm" @click="importLichessDaily">
+              <span class="icon">♞</span> Lichess Daily
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="importChesscomDaily">
+              <span class="icon">♟</span> Chess.com Daily
+            </button>
+          </div>
         </div>
 
         <!-- Puzzle card -->
@@ -66,9 +83,20 @@
           </div>
 
           <!-- Controls -->
+          <div v-if="puzzleSolved && currentPuzzle?.explanation" class="puzzle-feedback correct" style="margin-top: var(--space-4);">
+            <div class="feedback-icon">🎓</div>
+            <div>
+              <div class="feedback-title">Coach's Insight</div>
+              <div class="feedback-msg">{{ currentPuzzle.explanation }}</div>
+            </div>
+          </div>
+
           <div class="puzzle-controls">
             <button class="btn btn-ghost btn-sm" @click="showHint" :disabled="puzzleSolved">
               💡 {{ hintLevel === 0 ? 'Hint' : hintLevel === 1 ? 'Show Move' : 'Hint Shown' }}
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="revealSolution" :disabled="puzzleSolved" title="Viewing the solution awards 0 XP">
+              📝 Solution
             </button>
             <button class="btn btn-ghost btn-sm" @click="loadNextPuzzle(true)">
               Skip →
@@ -98,12 +126,14 @@
           <div class="xp-bar" style="margin-top: var(--space-5);">
             <div class="progress-row" style="margin-bottom: var(--space-2);">
               <span class="muted" style="font-size:0.85rem;">XP toward next rank</span>
-              <span class="badge badge-gold">Tactician</span>
+              <span class="badge badge-gold">{{ userStore.nextTitle || 'Knight' }}</span>
             </div>
             <div class="progress-bar">
-              <div class="progress-bar-fill" style="width: 63%; background: linear-gradient(90deg, var(--gold), #f59e0b);"></div>
+              <div class="progress-bar-fill" :style="{ width: userStore.levelProgress + '%', background: 'linear-gradient(90deg, var(--gold), #f59e0b)' }"></div>
             </div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">630 / 1000 XP</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">
+              {{ userStore.xp }} / {{ userStore.xpForNextLevel }} XP
+            </div>
           </div>
         </div>
 
@@ -142,12 +172,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { fetchDailyPuzzle } from '../api/lichessApi'
+import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
 import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
+import { useCurriculumStore } from '../stores/curriculumStore'
 import ChessBoard from '../components/ChessBoard.vue'
 import type { Square, PieceSymbol } from 'chess.js'
 
@@ -162,6 +195,7 @@ const solvedToday = computed(() => userStore.solvedToday)
 const activeCat = ref(coachStore.archetypeReport.category || 'mixed')
 const hintLevel = ref(0)
 const puzzleSolved = ref(false)
+const solutionUsed = ref(false)
 
 // Attempt tracking
 const puzzleStartTime = ref(Date.now())
@@ -199,6 +233,7 @@ const categories = [
   { id: 'endgame', icon: '🏁', label: 'Endgame' },
   { id: 'tactics', icon: '⚡', label: 'Tactics' },
   { id: 'opening', icon: '📖', label: 'Opening' },
+  { id: 'Personal Mistake', icon: '🎯', label: 'Mistakes' },
   { id: 'mixed',   icon: '🎲', label: 'Mixed' },
 ]
 
@@ -252,41 +287,48 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
     if (uci === expected || uci.slice(0,4) === expected.slice(0,4)) {
       puzzleStep.value++
       
-      // Check if end of solution
-      if (puzzleStep.value >= currentPuzzle.value.solution.length) {
-        puzzleSolved.value = true
-        hintLevel.value = 0
-        
-        const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
-        const bonus = calculateTimeBonus(timeTaken)
-        
-        userStore.submitPuzzleAttempt(
-          currentPuzzle.value.id,
-          true,
-          Math.max(1, attemptCount.value),
-          timeTaken,
-          hintLevel.value,
-          currentPuzzle.value.themes || []
-        )
-
-        // Award bonus XP
-        if (bonus.amount > 0) userStore.addXP(bonus.amount)
-        
-        uiStore.addToast(`Solved! +15 XP ${bonus.amount > 0 ? `+ ${bonus.amount} ${bonus.label}` : ''}`, 'success')
-        store.forceGameOver = true 
-      } else {
-        // If puzzleStep is now ODD, it means we just processed the player's successful move.
-        // It is now the opponent's turn. Schedule the automated reply!
-        if (puzzleStep.value % 2 !== 0) {
+        // Check if end of solution
+        if (puzzleStep.value >= currentPuzzle.value.solution.length) {
+          if (puzzleSolved.value) return // Guard against double submission
+          puzzleSolved.value = true
           hintLevel.value = 0
-          uiStore.addToast('Good move! Keep going...', 'info', 2000)
           
-          const oppMove = currentPuzzle.value.solution[puzzleStep.value]
-          setTimeout(() => {
-            store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
-          }, 350)
+          const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
+          const bonus = calculateTimeBonus(timeTaken)
+          
+          userStore.submitPuzzleAttempt(
+            currentPuzzle.value.id,
+            true,
+            Math.max(1, attemptCount.value),
+            timeTaken,
+            hintLevel.value,
+            currentPuzzle.value.themes || []
+          )
+
+          // Award bonus XP only if solution was NOT used
+          if (!solutionUsed.value) {
+            userStore.addXP(15) // Base XP
+            if (bonus.amount > 0) userStore.addXP(bonus.amount)
+            uiStore.addToast(`Solved! +15 XP ${bonus.amount > 0 ? `+ ${bonus.amount} ${bonus.label}` : ''}`, 'success')
+          } else {
+            uiStore.addToast(`Learned! (0 XP awarded for viewing solution)`, 'info')
+          }
+          
+          store.forceGameOver = true 
+        } else {
+          // If it's the opponent's turn to respond, play the move automatically
+          if (puzzleStep.value % 2 !== 0) {
+            hintLevel.value = 0
+            uiStore.addToast('Good move! Keep going...', 'info', 2000)
+            
+            const oppMove = currentPuzzle.value.solution[puzzleStep.value]
+            setTimeout(() => {
+              if (!puzzleSolved.value) {
+                store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
+              }
+            }, 400)
+          }
         }
-      }
     } else {
       // If it's the player's turn to guess, and they guessed wrong, bounce the piece back.
       if (puzzleStep.value % 2 === 0) {
@@ -309,13 +351,83 @@ function showHint() {
 const queuePuzzles = ref<Puzzle[]>([])
 const weakness = computed(() => coachStore.archetypeReport)
 
-function setCat(id: string) {
+async function revealSolution() {
+  if (!currentPuzzle.value || puzzleSolved.value) return
+  
+  solutionUsed.value = true
+  
+  const playRemaining = async () => {
+    // Only continue if not solved and it's our turn (even step)
+    // The watch handles the opponent's reply (odd steps)
+    if (!currentPuzzle.value || puzzleSolved.value) return
+    
+    if (puzzleStep.value % 2 === 0) {
+      const expected = currentPuzzle.value.solution[puzzleStep.value]
+      if (expected) {
+        store.makeMove(expected.slice(0,2) as Square, expected.slice(2,4) as Square, (expected[4] || 'q') as PieceSymbol)
+      }
+    }
+    
+    // If not solved, wait and check again
+    if (!puzzleSolved.value) {
+      setTimeout(playRemaining, 800)
+    }
+  }
+
+  uiStore.addToast('Oracle revealing the path...', 'info')
+  playRemaining()
+}
+
+async function setCat(id: string) {
   activeCat.value = id
+  await nextPuzzle()
+}
+
+async function importLichessDaily() {
+  const data = await fetchDailyPuzzle()
+  if (data) {
+    const puzzle: Puzzle = {
+      id: `lichess-${data.puzzle.id}`,
+      title: 'Lichess Daily Puzzle',
+      rating: data.puzzle.rating,
+      themes: data.puzzle.themes,
+      fen: data.game.fen,
+      lastMove: data.puzzle.initialMove,
+      solution: data.puzzle.solution,
+      category: 'External'
+    }
+    currentPuzzle.value = puzzle
+    activeCat.value = 'mixed'
+    // The board will react to currentPuzzle changes
+  }
+}
+
+async function importChesscomDaily() {
+  const data = await fetchChesscomDailyPuzzle()
+  if (data) {
+    const puzzle: Puzzle = {
+      id: `chesscom-daily`,
+      title: 'Chess.com Daily Puzzle',
+      rating: 1500,
+      themes: ['Daily Challenge'],
+      fen: data.fen,
+      lastMove: '', 
+      solution: [], 
+      category: 'External'
+    }
+    currentPuzzle.value = puzzle
+    activeCat.value = 'mixed'
+  }
+}
+
+async function nextPuzzle() {
   queuePuzzles.value = [] // clear queue to fetch new category
   loadNextPuzzle()
 }
 
 async function loadNextPuzzle(skipped = false) {
+  const curriculumStore = useCurriculumStore()
+  
   // If skipping an incomplete puzzle, record the failed attempt
   if (skipped && currentPuzzle.value && !puzzleSolved.value) {
     const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
@@ -330,23 +442,35 @@ async function loadNextPuzzle(skipped = false) {
   }
 
   puzzleSolved.value = false
+  solutionUsed.value = false
   hintLevel.value = 0
   attemptCount.value = 0
   store.forceGameOver = false
   
   if (queuePuzzles.value.length === 0) {
-    // Check Spaced Repetition Queue first
-    const now = new Date()
-    const due = userStore.puzzleQueue
-      .filter(q => new Date(q.next_review) <= now)
-      .sort((a, b) => new Date(a.next_review).getTime() - new Date(b.next_review).getTime())
-      .slice(0, 10)
+    // Check Personal Puzzles first if in that mode
+    if (activeCat.value === 'Personal Mistake') {
+      if (curriculumStore.personalPuzzles.length === 0) {
+        await curriculumStore.generatePersonalPuzzles()
+      }
+      queuePuzzles.value = [...curriculumStore.personalPuzzles]
+    }
 
-    if (due.length > 0) {
-      uiStore.addToast(`Loading ${due.length} review puzzles...`, 'info')
-      for (const item of due) {
-        const p = await fetchPuzzleById(item.puzzle_id)
-        if (p) queuePuzzles.value.push(p)
+    // Check Spaced Repetition Queue next
+    if (queuePuzzles.value.length === 0) {
+      const now = new Date()
+      const queue = userStore.puzzleQueue || []
+      const due = queue
+        .filter(q => new Date(q.next_review) <= now)
+        .sort((a, b) => new Date(a.next_review).getTime() - new Date(b.next_review).getTime())
+        .slice(0, 10)
+
+      if (due.length > 0) {
+        uiStore.addToast(`Loading ${due.length} review puzzles...`, 'info')
+        for (const item of due) {
+          const p = await fetchPuzzleById(item.puzzle_id)
+          if (p) queuePuzzles.value.push(p)
+        }
       }
     }
 
@@ -363,8 +487,8 @@ async function loadNextPuzzle(skipped = false) {
   puzzleStep.value = 0
   puzzleStartTime.value = Date.now()
 
-  // Refill batch if low and NOT purely in review mode
-  if (queuePuzzles.value.length < 3) {
+  // Refill batch if low and NOT in personal/review mode
+  if (queuePuzzles.value.length < 3 && activeCat.value !== 'Personal Mistake') {
     const more = await fetchPuzzleBatch(activeCat.value, 3)
     queuePuzzles.value.push(...more)
   }
@@ -392,8 +516,26 @@ onMounted(() => {
 @media (max-width: 900px) { .puzzles-layout { grid-template-columns: 1fr; } }
 
 /* Categories */
-.category-pills { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
-.cat-pill {
+.category-pills {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.external-sources {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  border-radius: var(--radius-lg);
+}
+
+.sources-header { font-weight: 800; font-size: 0.7rem; letter-spacing: 0.1em; }
+.sources-actions { display: flex; gap: var(--space-2); }
+
+.puzzle-card {
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);

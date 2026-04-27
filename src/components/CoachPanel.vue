@@ -18,7 +18,13 @@
       <span>Generating Deep Insights...</span>
     </div>
     <div v-else-if="coachResponse" class="coach-prose-wrap animated-fade-in">
-      <div class="prose-header">COACH'S TAKE</div>
+      <div class="prose-header">
+        <span>COACH'S TAKE</span>
+        <div v-if="currentMoveQuality" class="quality-badge-wrap" :class="currentMoveQuality.label">
+          <span class="label-text">{{ currentMoveQuality.label.toUpperCase() }}</span>
+          <span class="icon-pill">{{ currentMoveQuality.icon }}</span>
+        </div>
+      </div>
       <div class="coach-markdown" v-html="renderedCoach"></div>
     </div>
   </div>
@@ -33,10 +39,14 @@ import { generateCoaching } from '../api/llmApi'
 import { renderMarkdown } from '../utils/markdown'
 import { logger } from '../utils/logger'
 import { TaggingService, type TaggedMistake } from '../services/taggingService'
+import { useAdminStore } from '../stores/adminStore'
+import { useUserStore } from '../stores/userStore'
+import { getMoveQuality } from '../utils/analysisUtils'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
+const userStore = useUserStore()
 
 const isCoachThinking = ref(false)
 const coachResponse = ref<string | null>(null)
@@ -51,12 +61,41 @@ const currentGame = computed(() => {
 
 const playerNames = computed(() => {
   const headers = store.chess.header()
-  const w = headers.White
-  const b = headers.Black
-  return {
-      white: (w && w !== '?') ? w : 'White',
-      black: (b && b !== '?') ? b : 'Black',
+  let w = (headers.White && headers.White !== '?') ? headers.White : 'White'
+  let b = (headers.Black && headers.Black !== '?') ? headers.Black : 'Black'
+
+  // 1. Prioritize Library Game metadata (more stable than PGN headers)
+  if (currentGame.value) {
+    if (w === 'White' || w === 'Unknown' || w === '?') w = currentGame.value.white
+    if (b === 'Black' || b === 'Unknown' || b === '?') b = currentGame.value.black
   }
+
+  // 2. Resolve 'White'/'Black' to the user's name if authenticated
+  const myUsername = userStore.profile?.username || userStore.displayName
+  if ((w === 'White' || w === 'Unknown') && userStore.isAuthenticated) w = myUsername
+  if ((b === 'Black' || b === 'Unknown') && userStore.isAuthenticated) b = myUsername
+  
+  return { white: w, black: b }
+})
+
+const userSide = computed(() => {
+  const myUsername = userStore.profile?.username
+  if (!myUsername) return 'White' // Default for guests
+  if (playerNames.value.white === myUsername) return 'White'
+  if (playerNames.value.black === myUsername) return 'Black'
+  return 'White' // Default fallback
+})
+
+const gameSeed = computed(() => {
+  if (!store.loadedGameId) return 0
+  return store.loadedGameId.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
+})
+
+const currentMoveQuality = computed(() => {
+  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+  const move = store.moveHistory[idx]
+  if (!move) return null
+  return getMoveQuality(move, idx, gameSeed.value)
 })
 
 const comparisonData = computed(() => {
@@ -151,6 +190,8 @@ async function askCoach() {
 
       logger.info(`[Coach] Calling generateCoaching for player: ${playerName}`)
 
+      const isUserMove = side === userSide.value
+
       const response = await generateCoaching({
         fen: beforeFen,
         evalNumber: eval_,
@@ -160,7 +201,8 @@ async function askCoach() {
         side,
         bestMove,
         playerName,
-        opponentName
+        opponentName,
+        isUserMove
       })
 
       if (store.viewIndex !== currentViewIndex) {
@@ -173,6 +215,8 @@ async function askCoach() {
 
       // PERSIST TO CACHE
       if (store.loadedGameId && response) {
+          const adminStore = useAdminStore()
+          adminStore.movesAnalyzed++
           libraryStore.updateGameAnalysis(store.loadedGameId, currentFen, response)
       }
   } catch (err) {
@@ -288,13 +332,54 @@ watch(() => [store.viewIndex, store.loadedGameId], () => {
 }
 
 .prose-header {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--accent);
-  letter-spacing: 0.1em;
-  margin-bottom: var(--space-3);
-  opacity: 0.8;
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  margin-bottom: var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
+.quality-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  padding: 2px 4px 2px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.quality-badge-wrap .label-text {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.quality-badge-wrap .icon-pill {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: white;
+}
+
+.quality-badge-wrap.great .icon-pill { background: var(--teal); box-shadow: 0 0 10px var(--teal-dim); }
+.quality-badge-wrap.best .icon-pill { background: var(--teal); }
+.quality-badge-wrap.good .icon-pill { background: var(--accent); }
+.quality-badge-wrap.inaccuracy .icon-pill { background: var(--gold); }
+.quality-badge-wrap.mistake .icon-pill { background: var(--orange); }
+.quality-badge-wrap.blunder .icon-pill { background: var(--rose); box-shadow: 0 0 10px var(--rose-dim); }
+.quality-badge-wrap.blunder .label-text { color: var(--rose); opacity: 1; }
+.quality-badge-wrap.great .label-text { color: var(--teal); opacity: 1; }
 
 .coach-markdown {
   font-family: var(--font-body);

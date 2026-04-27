@@ -44,14 +44,30 @@ export function useLibraryIdb(games: Ref<LibraryGame[]>) {
    * Loads all games from IndexedDB into memory.
    */
   async function loadGames() {
+    const startTime = Date.now()
     const activeDb = await initDb()
+    
     return new Promise<void>((resolve) => {
       const transaction = activeDb.transaction(['games'], 'readonly')
       const store = transaction.objectStore('games')
       const request = store.getAll()
 
       request.onsuccess = () => {
-        games.value = request.result || []
+        const result = request.result || []
+        games.value = result
+        
+        // Update Admin Telemetry
+        import('../adminStore').then(({ useAdminStore }) => {
+          const adminStore = useAdminStore()
+          adminStore.coldBootLatency = Date.now() - startTime
+          
+          // Rough estimate of DB size: Stringified PGN + Metadata overhead
+          const totalBytes = result.reduce((acc, g) => {
+            return acc + (g.pgn.length * 2) + 500 // 2 bytes per char + approx metadata overhead
+          }, 0)
+          adminStore.vaultSizeBytes = totalBytes
+        })
+        
         resolve()
       }
     })

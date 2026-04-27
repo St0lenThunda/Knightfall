@@ -43,6 +43,8 @@ interface EvalInput {
     missRate: number
     radarScores: Record<string, number>
   }
+  xp?: number
+  level?: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -382,17 +384,17 @@ function archetypeBadges(input: EvalInput): Badge[] {
 // ─── Pillar 4: Tiered Title ────────────────────────────────────────────────────
 
 export function computeTitle(input: EvalInput, masteryCount: number): ChessTitle {
-  const { profile, pastGames } = input
+  const { profile, pastGames, xp = 0, level = 1 } = input
   const games = pastGames.length
   const rating = profile?.rating ?? 0
   const puzzleRating = profile?.puzzle_rating ?? 0
 
-  if (games >= 500 && rating >= 2000 && puzzleRating >= 1800) return TITLES[6]
-  if (games >= 200 && rating >= 1700 && puzzleRating >= 1600 && masteryCount >= 8) return TITLES[5]
-  if (games >= 100 && rating >= 1500 && puzzleRating >= 1400 && masteryCount >= 5) return TITLES[4]
-  if (games >= 50  && rating >= 1400 && puzzleRating >= 1300 && masteryCount >= 3) return TITLES[3]
-  if (games >= 25  && puzzleRating >= 1300 && masteryCount >= 1) return TITLES[2]
-  if (games >= 10  && puzzleRating >= 1200) return TITLES[1]
+  if (games >= 500 && rating >= 2000 && puzzleRating >= 1800 && level >= 50) return TITLES[6]
+  if (games >= 200 && rating >= 1700 && puzzleRating >= 1600 && masteryCount >= 8 && level >= 20) return TITLES[5]
+  if (games >= 100 && rating >= 1500 && puzzleRating >= 1400 && masteryCount >= 5 && level >= 10) return TITLES[4]
+  if (games >= 50  && rating >= 1400 && puzzleRating >= 1300 && masteryCount >= 3 && level >= 5) return TITLES[3]
+  if (games >= 25  && puzzleRating >= 1300 && masteryCount >= 1 && level >= 3) return TITLES[2]
+  if (games >= 10  && puzzleRating >= 1200 && level >= 2) return TITLES[1]
   return TITLES[0]
 }
 

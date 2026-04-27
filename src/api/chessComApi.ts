@@ -1,67 +1,61 @@
 /**
  * Chess.com Public API Service
- * 
- * We use this to fetch a user's game history for DNA analysis.
- * Chess.com PubAPI is rate-limited and read-only, but doesn't require an API key.
  */
+import { logger } from '../utils/logger'
 
-export interface ChessComGame {
+export interface ChesscomPuzzle {
+  title: string
   url: string
+  publish_time: number
+  fen: string
   pgn: string
-  time_control: string
-  end_time: number
-  rated: boolean
-  white: { username: string, rating: number, result: string }
-  black: { username: string, rating: number, result: string }
-}
-
-export interface ChessComArchive {
-  archives: string[]
+  image: string
 }
 
 /**
- * Fetches the list of monthly archives for a player.
- * Each archive URL points to games for a specific month.
+ * Fetches the Chess.com Daily Puzzle.
  */
-export async function getPlayerArchives(username: string): Promise<string[]> {
-  const response = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`)
-  if (!response.ok) throw new Error('Could not find Chess.com player')
-  const data: ChessComArchive = await response.json()
-  return data.archives
-}
-
-/**
- * Fetches games from a specific archive URL.
- */
-export async function getGamesFromArchive(archiveUrl: string): Promise<ChessComGame[]> {
-  const response = await fetch(archiveUrl)
-  if (!response.ok) return []
-  const data = await response.json()
-  return data.games || []
-}
-
-/**
- * High-level function to fetch recent history (last X months).
- */
-export async function fetchRecentChessComGames(username: string, months = 3): Promise<ChessComGame[]> {
-  const archives = await getPlayerArchives(username)
-  const recentArchives = archives.slice(-months) // Take last N months
-  
-  const allGames: ChessComGame[] = []
-  
-  for (const url of recentArchives) {
-    const games = await getGamesFromArchive(url)
-    allGames.push(...games)
+export async function fetchChesscomDailyPuzzle(): Promise<ChesscomPuzzle | null> {
+  try {
+    const response = await fetch('https://api.chess.com/pub/puzzle')
+    if (!response.ok) return null
+    return await response.json()
+  } catch (err) {
+    logger.error('[ChesscomApi] Failed to fetch daily puzzle:', err)
+    return null
   }
-  
-  return allGames
 }
 
 /**
- * Fetches player statistics (ratings, W/L/D) from Chess.com.
+ * Fetches recent games for a Chess.com user.
+ * Note: Chess.com archives games by month.
  */
-export async function getPlayerStats(username: string): Promise<any> {
-  const response = await fetch(`https://api.chess.com/pub/player/${username}/stats`)
-  if (!response.ok) return null
-  return await response.json()
+export async function fetchRecentChesscomGames(username: string): Promise<any[]> {
+  try {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    
+    const response = await fetch(`https://api.chess.com/pub/player/${username}/games/${year}/${month}`)
+    if (!response.ok) return []
+    const data = await response.json()
+    return data.games || []
+  } catch (err) {
+    logger.error('[ChesscomApi] Failed to fetch games:', err)
+    return []
+  }
+}
+
+/**
+ * Fetches Chess.com user stats.
+ */
+export async function getChesscomUserStats(username: string): Promise<any> {
+  try {
+    const response = await fetch(`https://api.chess.com/pub/player/${username}/stats`)
+    if (!response.ok) return null
+    return await response.json()
+  } catch (err) {
+    logger.error('[ChesscomApi] Failed to fetch stats:', err)
+    return null
+  }
 }

@@ -14,6 +14,7 @@ import { fetchCloudEval } from '../../../api/lichessApi'
 export interface Evaluation {
   score: number
   isMate: boolean
+  bestMove?: string // The engine's preferred move for this position
 }
 
 /**
@@ -149,7 +150,7 @@ export function useLibraryAnalysis(
    */
   async function applyEvaluationDNA(inst: EngineInstance, score: number, isMate: boolean, bestMove: string) {
     inst.isProcessing = true 
-    inst.currentEvals[inst.currentMoveIndex] = { score, isMate }
+    inst.currentEvals[inst.currentMoveIndex] = { score, isMate, bestMove }
     
     const prevEval = inst.currentMoveIndex > 0 ? inst.currentEvals[inst.currentMoveIndex - 1]?.score : 0
     

@@ -5,7 +5,7 @@
       <RouterView />
     </main>
     <ToastProvider />
-    <AdminHud />
+    <AdminHud v-if="!isTesting" />
   </div>
 </template>
 
@@ -16,9 +16,19 @@ import ToastProvider from './components/ToastProvider.vue'
 import AdminHud from './components/AdminHud.vue'
 import { useLibraryStore } from './stores/libraryStore'
 import { useUserStore } from './stores/userStore'
+import { ref, onMounted } from 'vue'
 
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
+const isTesting = ref(false)
+
+onMounted(() => {
+  isTesting.value = !!(window as any).Playwright || navigator.userAgent.includes('Playwright')
+  if (isTesting.value) {
+    (window as any).store = userStore
+    // We'll also need the game store, but we'll grab it in PlayView or similar
+  }
+})
 
 const init = async () => {
   await userStore.fetchUserData()

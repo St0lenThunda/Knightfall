@@ -1,20 +1,29 @@
+import { ref, computed, shallowRef, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed, watch, shallowRef } from 'vue'
 import { Chess } from 'chess.js'
-import type { Square, PieceSymbol, Color } from 'chess.js'
-import nedImg from '../assets/ned.webp'
-import tanyaImg from '../assets/tanya.webp'
-import garyImg from '../assets/gary.webp'
-import { initAudio } from '../utils/audio'
-import { useSettingsStore } from './settingsStore'
+import type { Color, PieceSymbol, Square } from 'chess.js'
+import { logger } from '../utils/logger'
 import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
-import { safeLoadPgn } from '../utils/pgnParser'
-import { supabase } from '../api/supabaseClient'
-import { logger } from '../utils/logger'
+import { useEngineStore } from './engineStore'
+import { useAntiCheat } from '../composables/useAntiCheat'
+import { useAdminStore } from './adminStore'
 
-export type GameMode = 'local' | 'vs-computer' | 'analysis' | 'puzzle'
-export type TimeControl = { label: string; minutes: number; increment: number }
+export type GameMode = 'local' | 'vs-computer' | 'puzzle' | 'analysis'
+
+export interface TimeControl {
+  minutes: number
+  increment: number
+  label: string
+}
+
+export const TIME_CONTROLS: TimeControl[] = [
+  { minutes: 1, increment: 0, label: '1m | 0s' },
+  { minutes: 3, increment: 0, label: '3m | 0s' },
+  { minutes: 3, increment: 2, label: '3m | 2s' },
+  { minutes: 10, increment: 5, label: '10m | 5s' },
+  { minutes: 30, increment: 0, label: '30m | 0s' },
+]
 
 export interface Bot {
   id: string
@@ -23,90 +32,56 @@ export interface Bot {
   description: string
   avatar: string
   depth: number
-  skillLevel: number
 }
 
 export const BOTS: Bot[] = [
-  { id: 'ned', name: 'Novice Ned', rating: 600, description: 'Friendly and chaotic. Hangs pieces often.', avatar: nedImg, depth: 1, skillLevel: 0 },
-  { id: 'tanya', name: 'Tactical Tanya', rating: 1400, description: 'Sharp and aggressive. Look out for forks.', avatar: tanyaImg, depth: 5, skillLevel: 10 },
-  { id: 'gary', name: 'Grandmaster Gary', rating: 2800, description: 'An absolute beast. Flawless positional play.', avatar: garyImg, depth: 15, skillLevel: 20 },
+  { id: 'tanya', name: 'Tactical Tanya', rating: 800, description: 'Focuses on early attacks.', avatar: '/bots/tanya.png', depth: 3 },
+  { id: 'boris', name: 'Boris', rating: 1400, description: 'Solid positional player.', avatar: '/bots/boris.png', depth: 8 },
+  { id: 'gm', name: 'GM Sentinel', rating: 2800, description: 'Near perfect play.', avatar: '/bots/gm.png', depth: 16 },
 ]
 
-export interface HistoryEntry {
-  san: string
-  fen: string
-  from: Square
-  to: Square
-  moveNumber: number
-  isCapture: boolean
-  isCheck: boolean
-  eval?: number // Centipawns from engine
-}
-
-export const TIME_CONTROLS: TimeControl[] = [
-  { label: '1+0',   minutes: 1,  increment: 0 },
-  { label: '2+1',   minutes: 2,  increment: 1 },
-  { label: '3+0',   minutes: 3,  increment: 0 },
-  { label: '5+0',   minutes: 5,  increment: 0 },
-  { label: '10+0',  minutes: 10, increment: 0 },
-  { label: '10+5',  minutes: 10, increment: 5 },
-  { label: '15+10', minutes: 15, increment: 10 },
-]
-
+/**
+ * Knightfall Game Store: The central orchestrator for live gameplay.
+ */
 export const useGameStore = defineStore('game', () => {
+  const antiCheat = useAntiCheat()
+
+  // --- INTERNAL STATE ---
   const chess = shallowRef(new Chess())
+  const boardTrigger = ref(0) // Forces reactivity for chess.js mutations
+
   const mode = ref<GameMode>('local')
   const selectedSquare = ref<Square | null>(null)
   const legalMoveSquares = ref<Square[]>([])
-  const lastMove = ref<{ from: Square; to: Square } | null>(null)
-  const moveHistory = ref<HistoryEntry[]>([])
-  const viewIndex = ref(-1) // -1 = current position
+  const lastMove = ref<{ from: string; to: string } | null>(null)
+  const moveHistory = ref<any[]>([])
+  const viewIndex = ref(-1)
   const playerColor = ref<Color>('w')
   const isThinking = ref(false)
   const promotionPending = ref<{ from: Square; to: Square } | null>(null)
-  const timeControl = ref<TimeControl>(TIME_CONTROLS[3]) // 5+0 default
-  const whiteTime = ref(0) // seconds
-  const blackTime = ref(0)
+  const loadedGameId = ref<string | null>(null)
+
+  const timeControl = ref<TimeControl>(TIME_CONTROLS[3])
+  const whiteTime = ref(600)
+  const blackTime = ref(600)
   const gameStarted = ref(false)
-  const forceGameOver = ref(false) // For puzzle completion lock
+  const forceGameOver = ref(false)
   const timeOutWinner = ref<Color | null>(null)
   const resignationWinner = ref<Color | null>(null)
-  const activeBot = ref<Bot>(BOTS[1])
-  const loadedGameId = ref<string | null>(null)
-  let sfx: ReturnType<typeof initAudio> | null = null
 
-  /**
-   * Whether the game is actively in progress (started and not over).
-   * This used to be duplicated in PlayView — now it's the single source of truth.
-   *
-   * @returns boolean - True if a game is running and not yet finished
-   */
+  const activeBot = ref<Bot>(BOTS[0])
+
+  // --- COMPUTED PROPERTIES ---
+  const fen = computed(() => { boardTrigger.value; return chess.value.fen() })
+  const turn = computed(() => { boardTrigger.value; return chess.value.turn() as Color })
+  const board = computed(() => { boardTrigger.value; return chess.value.board() })
+  const isGameOver = computed(() => { boardTrigger.value; return forceGameOver.value || chess.value.isGameOver() })
+  const isCheck = computed(() => { boardTrigger.value; return chess.value.isCheck() })
+  const isCheckmate = computed(() => { boardTrigger.value; return chess.value.isCheckmate() })
+  const isStalemate = computed(() => { boardTrigger.value; return chess.value.isStalemate() })
+  const isDraw = computed(() => { boardTrigger.value; return chess.value.isDraw() })
   const gameActive = computed(() => gameStarted.value && !isGameOver.value)
 
-  // Anti-cheat tracking
-  const cheatMetrics = ref({
-    blurCount: 0,
-    moveTimes: [] as number[],
-    lastTurnStartTimestamp: 0
-  })
-
-  let botWorker: Worker | null = null
-  function initBot() {
-    if (!botWorker) {
-      botWorker = new Worker('/engine/stockfish.js')
-      botWorker.postMessage('uci')
-    }
-  }
-
-  // Derived
-  const fen = computed(() => chess.value.fen())
-  const turn = computed(() => chess.value.turn())
-  const board = computed(() => chess.value.board())
-  const isGameOver = computed(() => forceGameOver.value || chess.value.isGameOver())
-  const isCheck = computed(() => chess.value.isCheck())
-  const isCheckmate = computed(() => chess.value.isCheckmate())
-  const isStalemate = computed(() => chess.value.isStalemate())
-  const isDraw = computed(() => chess.value.isDraw())
   const gameResult = computed(() => {
     if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0 (Resignation)' : '0-1 (Resignation)'
     if (timeOutWinner.value) return timeOutWinner.value === 'w' ? '1-0 (Timeout)' : '0-1 (Timeout)'
@@ -116,230 +91,271 @@ export const useGameStore = defineStore('game', () => {
     return null
   })
 
-  function registerBlur() {
-    if (gameStarted.value && !isGameOver.value && mode.value === 'vs-computer') {
-      if (turn.value === playerColor.value) {
-        cheatMetrics.value.blurCount += 1
+  const isPlayersTurn = computed(() => {
+    if (isGameOver.value) return false
+    if (mode.value === 'vs-computer') return turn.value === playerColor.value
+    return true
+  })
+
+  // --- PERSISTENCE: Restore state on refresh ---
+  watch([() => loadedGameId.value, () => boardTrigger.value], () => {
+    if (mode.value === 'analysis') {
+      const pgn = chess.value.pgn()
+      if (pgn && pgn !== '') {
+        localStorage.setItem('kf_last_analysis_pgn', pgn)
+        if (loadedGameId.value) localStorage.setItem('kf_last_analysis_id', loadedGameId.value)
+        else localStorage.removeItem('kf_last_analysis_id')
       }
+    }
+  }, { deep: false })
+
+  // --- PERSISTENCE ---
+
+  /** Saves the current match to the user's library. */
+  async function saveMatchToLibrary() {
+    const library = useLibraryStore()
+    const user = useUserStore()
+    
+    // Set PGN headers
+    const headers: Record<string, string> = {
+      'Event': mode.value === 'vs-computer' ? `Match vs ${activeBot.value.name}` : 'Local Pass & Play',
+      'Site': 'Knightfall App',
+      'Date': new Date().toISOString().split('T')[0],
+      'White': (mode.value === 'local' || playerColor.value === 'w') ? (user.profile?.username || 'Guest') : activeBot.value.name,
+      'Black': (mode.value === 'local' || playerColor.value === 'b') ? (user.profile?.username || 'Guest') : activeBot.value.name,
+      'Result': gameResult.value || '*',
+      'WhiteElo': (mode.value === 'local' || playerColor.value === 'w') ? String(user.profile?.rating || 1200) : String(activeBot.value.rating),
+      'BlackElo': (mode.value === 'local' || playerColor.value === 'b') ? String(user.profile?.rating || 1200) : String(activeBot.value.rating),
+    }
+    
+    Object.entries(headers).forEach(([k, v]) => chess.value.header(k, v))
+    
+    const pgn = chess.value.pgn()
+    const tags = mode.value === 'vs-computer' ? ['Bot Match', 'My Games'] : ['Local', 'My Games']
+    
+    // Collect Warden Telemetry
+    const telemetry = {
+      antiCheat: {
+        blurCount: antiCheat.blurCount.value,
+        suspicionScore: antiCheat.suspicionScore.value,
+        isBusted: antiCheat.isCheaterBusted.value
+      }
+    }
+    
+    await library.saveGameToLibrary(pgn, tags, telemetry)
+    logger.info('[GameStore] Match saved to library.')
+  }
+
+  // Auto-save when game ends
+  watch(() => isGameOver.value, async (over) => {
+    if (over && mode.value !== 'analysis' && gameStarted.value) {
+      await saveMatchToLibrary()
+    }
+  })
+
+  // --- ACTIONS ---
+
+  /** 
+   * Loads a game from PGN string.
+   * This is used for analysis and continuing saved games.
+   */
+  function loadPgn(pgn: string, gameMode: GameMode = 'analysis', id?: string) {
+    stopClock()
+    antiCheat.reset()
+    
+    // We create a fresh instance to avoid carrying over any previous state/markers
+    const newChess = new Chess()
+    try {
+      newChess.loadPgn(pgn)
+      chess.value = newChess
+      mode.value = gameMode
+      loadedGameId.value = id || null
+      
+      // Rebuild move history for navigation and analysis timeline
+      const moves = newChess.history({ verbose: true })
+      const tempChess = new Chess()
+      moveHistory.value = moves.map((m, i) => {
+        tempChess.move(m)
+        return {
+          san: m.san,
+          fen: tempChess.fen(),
+          from: m.from,
+          to: m.to,
+          moveNumber: Math.ceil((i + 1) / 2),
+        }
+      })
+      
+      // Focus on the end of the game by default
+      viewIndex.value = moveHistory.value.length - 1
+      gameStarted.value = true
+      forceGameOver.value = false
+      boardTrigger.value++
+      
+      logger.info(`[GameStore] PGN loaded successfully. Mode: ${gameMode}`)
+    } catch (e) {
+      logger.error('[GameStore] Failed to load PGN:', e)
     }
   }
 
-  const suspicionScore = computed(() => {
-    let score = cheatMetrics.value.blurCount * 26
-    const times = cheatMetrics.value.moveTimes
-    if (times.length > 4) {
-      const mean = times.reduce((a,b)=>a+b, 0) / times.length
-      const avgDeviation = times.reduce((a,b)=>a+Math.abs(b-mean), 0) / times.length
-      // If average human deviation is < 500ms over 5 moves, it's highly robotic
-      if (avgDeviation < 500) score += 40
-    }
-    return Math.min(score, 100)
-  })
-
-  const isCheaterBusted = computed(() => suspicionScore.value > 75)
-
-  function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
-    // 1. Kill any active temporal processes
+  /** Loads a specific board position from FEN. */
+  function loadPosition(f: string, m: GameMode = 'local') {
     stopClock()
-    isThinking.value = false
-    if (botWorker) {
-      botWorker.postMessage('stop')
-      botWorker.onmessage = null // Discard any pending results from the previous game
+    try {
+      chess.value = new Chess(f)
+      mode.value = m
+      moveHistory.value = []
+      viewIndex.value = -1
+      lastMove.value = null
+      boardTrigger.value++
+      logger.info(`[GameStore] Position loaded in mode ${m}`)
+    } catch (e) {
+      logger.error('[GameStore] Failed to load FEN:', e)
     }
+  }
 
-    // 2. Reset Core State
+  /** Initializes a new game state. */
+  function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
+    stopClock()
+    antiCheat.reset()
     chess.value = new Chess()
+    mode.value = m
+    playerColor.value = color
+    timeControl.value = tc || TIME_CONTROLS[3]
+    whiteTime.value = timeControl.value.minutes * 60
+    blackTime.value = timeControl.value.minutes * 60
     selectedSquare.value = null
     legalMoveSquares.value = []
     lastMove.value = null
     moveHistory.value = []
     viewIndex.value = -1
-    mode.value = m
-    playerColor.value = color
-    promotionPending.value = null
-    
-    // 3. Reset Time Controls
-    if (tc) timeControl.value = tc
-    whiteTime.value = timeControl.value.minutes * 60
-    blackTime.value = timeControl.value.minutes * 60
-    
-    // 4. Reset Status Flags
     gameStarted.value = false
     forceGameOver.value = false
-    timeOutWinner.value = null
     resignationWinner.value = null
+    timeOutWinner.value = null
     loadedGameId.value = null
-    cheatMetrics.value = { blurCount: 0, moveTimes: [], lastTurnStartTimestamp: 0 }
-    
-    logger.info(`[GameStore] New ${m} game initialized as ${color}`)
+    boardTrigger.value++
   }
 
-  function loadPosition(fenStr: string, m: GameMode = 'local', tc?: TimeControl) {
-    newGame(m, 'w', tc)
-    chess.value = new Chess(fenStr)
-  }
-
-  function loadPgn(pgn: string, m: GameMode = 'analysis', gameId: string | null = null) {
-    newGame(m)
-    loadedGameId.value = gameId
-    
-    // Fault-tolerant PGN parsing — uses the shared 3-tier parser
-    safeLoadPgn(chess.value, pgn)
-    
-    // Reconstruct move history from the loaded game
-    const history = chess.value.history({ verbose: true })
-    const startingFen = chess.value.header()['FEN'] || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-    const tempChess = new Chess(startingFen)
-    moveHistory.value = history.map((move, i) => {
-      tempChess.move(move.san)
-      return {
-        san: move.san,
-        fen: tempChess.fen(),
-        from: move.from as Square,
-        to: move.to as Square,
-        moveNumber: Math.ceil((i + 1) / 2),
-        isCapture: !!move.captured,
-        isCheck: move.san.includes('+') || move.san.includes('#')
-      }
-    })
-    
-    // Set view to the last move by default
-    viewIndex.value = moveHistory.value.length - 1
-  }
-
+  /** Selects a square and highlights legal moves. */
   function selectSquare(sq: Square) {
-    if (isGameOver.value) return
-    if (viewIndex.value !== -1) return // don't allow moves in replay mode
+    if (isGameOver.value || viewIndex.value !== -1) return
+    
+    // Check for move execution
+    if (selectedSquare.value && legalMoveSquares.value.includes(sq)) {
+      return makeMove(selectedSquare.value, sq)
+    }
 
     const piece = chess.value.get(sq)
-    // If a square is already selected
-    if (selectedSquare.value) {
-      if (legalMoveSquares.value.includes(sq)) {
-        // check promotion
-        const fromPiece = chess.value.get(selectedSquare.value)
-        if (fromPiece?.type === 'p') {
-          const toRank = sq[1]
-          if ((fromPiece.color === 'w' && toRank === '8') || (fromPiece.color === 'b' && toRank === '1')) {
-            promotionPending.value = { from: selectedSquare.value, to: sq }
-            selectedSquare.value = null
-            legalMoveSquares.value = []
-            return
-          }
+    logger.info(`[GameStore] Square selected: ${sq} | Piece:`, piece, `| Turn: ${turn.value} | Player: ${playerColor.value}`)
+
+    // If already selected, deselect
+    if (selectedSquare.value === sq) {
+      selectedSquare.value = null
+      legalMoveSquares.value = []
+      return
+    }
+
+    // If clicking a new piece of current turn
+    if (piece && piece.color === turn.value) {
+      // In vs-computer, don't allow selecting opponent pieces
+      if (mode.value === 'vs-computer' && piece.color !== playerColor.value) {
+        logger.warn(`[GameStore] Blocked: Cannot select opponent piece on ${sq}`)
+        return
+      }
+      
+      selectedSquare.value = sq
+      const moves = chess.value.moves({ square: sq, verbose: true })
+      legalMoveSquares.value = moves.map(m => m.to)
+      logger.info(`[GameStore] Selected ${sq}. Legal moves:`, legalMoveSquares.value)
+    } 
+    // If a piece is already selected, try to move there
+    else if (selectedSquare.value) {
+      makeMove(selectedSquare.value, sq)
+    }
+  }
+
+  /** Executes a move on the board. */
+  function makeMove(from: Square, to: Square, promotion: PieceSymbol = 'q') {
+    if (!gameStarted.value) gameStarted.value = true
+    const engineStore = useEngineStore()
+    
+    try {
+      const adminStore = useAdminStore()
+      const move = chess.value.move({ from, to, promotion })
+      if (!move) return 'illegal'
+
+      adminStore.movesPlayed++
+
+      // Anti-Cheat: Record time and engine correlation for player moves
+      if (mode.value === 'vs-computer' && move.color === playerColor.value) {
+        antiCheat.recordMoveTime()
+        
+        // If the engine had a recommendation ready, check for correlation
+        if (engineStore.suggestedMove) {
+          const moveLan = from + to
+          const isMatch = moveLan === engineStore.suggestedMove
+          antiCheat.recordEngineMatch(isMatch)
         }
-        makeMove(selectedSquare.value, sq)
-      } else if (piece && piece.color === turn.value) {
-        selectedSquare.value = sq
-        legalMoveSquares.value = chess.value.moves({ square: sq, verbose: true }).map(m => m.to as Square)
-      } else {
-        selectedSquare.value = null
-        legalMoveSquares.value = []
       }
-    } else {
-      if (piece && piece.color === turn.value) {
-        // In vs-computer mode only allow player's color
-        if (mode.value === 'vs-computer' && piece.color !== playerColor.value) return
-        selectedSquare.value = sq
-        legalMoveSquares.value = chess.value.moves({ square: sq, verbose: true }).map(m => m.to as Square)
+
+      moveHistory.value.push({
+        san: move.san,
+        fen: chess.value.fen(),
+        from, to,
+        moveNumber: Math.ceil(moveHistory.value.length / 2) + 1,
+      })
+
+      lastMove.value = { from, to }
+      selectedSquare.value = null
+      legalMoveSquares.value = []
+      
+      if (timeControl.value.increment > 0) {
+        if (move.color === 'w') whiteTime.value += timeControl.value.increment
+        else blackTime.value += timeControl.value.increment
       }
-    }
+
+      boardTrigger.value++
+
+      // Trigger engine analysis for the new position
+      if (mode.value === 'vs-computer') {
+        engineStore.analyze(chess.value.fen(), 14)
+        
+        // If it's now the computer's turn, trigger their move
+        if (turn.value !== playerColor.value) {
+          computerMove()
+        }
+      }
+
+      return 'complete'
+    } catch (e) { return 'illegal' }
   }
 
-  function makeMove(from: Square, to: Square, promotion?: PieceSymbol) {
-    if (!gameStarted.value) {
-      gameStarted.value = true
-      cheatMetrics.value.lastTurnStartTimestamp = Date.now()
-    }
-
-    // Capture anti-cheat variance before moving
-    if (mode.value === 'vs-computer' && turn.value === playerColor.value && cheatMetrics.value.lastTurnStartTimestamp > 0) {
-       const delta = Date.now() - cheatMetrics.value.lastTurnStartTimestamp
-       cheatMetrics.value.moveTimes.push(delta)
-    }
-
-    // Only apply promotion if it's actually provided or if we're moving a pawn to the back rank
-    const moveData: any = { from, to }
-    
-    // Auto-promote to queen if a pawn reaches the 8th/1st rank and no promotion was specified
-    const piece = chess.value.get(from)
-    const isPawn = piece?.type === 'p'
-    const isLastRank = (piece?.color === 'w' && to[1] === '8') || (piece?.color === 'b' && to[1] === '1')
-    
-    if (promotion) {
-      moveData.promotion = promotion
-    } else if (isPawn && isLastRank) {
-      moveData.promotion = 'q'
-    }
-
-    const result = chess.value.move(moveData)
-    if (!result) return
-    
-    // Audio SFX
-    const settings = useSettingsStore()
-    if (settings.soundEnabled) {
-      try {
-        if (!sfx) sfx = initAudio()
-        if (result.san.includes('+') || result.san.includes('#')) sfx.check()
-        else if (result.captured) sfx.capture()
-        else sfx.move()
-      } catch (e) {
-        // block user interaction audio errors silently
-      }
-    }
-
-    const moveNum = Math.ceil(moveHistory.value.length / 2) + 1
-    moveHistory.value.push({
-      san: result.san,
-      fen: chess.value.fen(),
-      from,
-      to,
-      moveNumber: moveNum,
-      isCapture: !!result.captured,
-      isCheck: result.san.includes('+'),
-    })
-    lastMove.value = { from, to }
-    selectedSquare.value = null
-    legalMoveSquares.value = []
-    viewIndex.value = -1
-
-    // Reset timestamp for next player
-    if (mode.value === 'vs-computer' && turn.value === playerColor.value) {
-       cheatMetrics.value.lastTurnStartTimestamp = Date.now()
-    }
-
-    // Add increment
-    if (timeControl.value.increment > 0) {
-      if (result.color === 'w') whiteTime.value += timeControl.value.increment
-      else blackTime.value += timeControl.value.increment
-    }
-  }
-
-  function completePromotion(piece: PieceSymbol) {
-    if (!promotionPending.value) return
-    makeMove(promotionPending.value.from, promotionPending.value.to, piece)
-    promotionPending.value = null
-  }
-
+  /** Navigates history. */
   function goToMove(index: number) {
     if (index < 0 || index >= moveHistory.value.length) {
       viewIndex.value = -1
-      chess.value.load(moveHistory.value[moveHistory.value.length - 1]?.fen || new Chess().fen())
+      const lastMoveFen = moveHistory.value[moveHistory.value.length - 1]?.fen || new Chess().fen()
+      chess.value.load(lastMoveFen)
     } else {
       viewIndex.value = index
       chess.value.load(moveHistory.value[index].fen)
     }
-  }
-
-  function stepBack() {
-    const cur = viewIndex.value === -1 ? moveHistory.value.length - 1 : viewIndex.value
-    if (cur > 0) goToMove(cur - 1)
+    boardTrigger.value++
   }
 
   function stepForward() {
-    if (viewIndex.value === -1) return
+    if (viewIndex.value === -1) return // Already at end
     if (viewIndex.value < moveHistory.value.length - 1) {
       goToMove(viewIndex.value + 1)
     } else {
-      viewIndex.value = -1
+      goToMove(-1)
+    }
+  }
+
+  function stepBack() {
+    const current = viewIndex.value === -1 ? moveHistory.value.length - 1 : viewIndex.value
+    if (current >= 0) {
+      goToMove(current - 1)
     }
   }
 
@@ -347,161 +363,85 @@ export const useGameStore = defineStore('game', () => {
     if (moveHistory.value.length === 0) return
     chess.value.undo()
     moveHistory.value.pop()
-    lastMove.value = moveHistory.value.length > 0
-      ? { from: moveHistory.value[moveHistory.value.length - 1].from, to: moveHistory.value[moveHistory.value.length - 1].to }
-      : null
     viewIndex.value = -1
+    boardTrigger.value++
   }
 
+  /** Orchestrates a computer response. */
   async function computerMove() {
     if (isGameOver.value) return
     isThinking.value = true
-    initBot()
-    
-    await new Promise(r => setTimeout(r, 600))
-
-    return new Promise<void>(resolve => {
-      botWorker!.onmessage = (e) => {
-        const msg = e.data
-        if (typeof msg === 'string' && msg.startsWith('bestmove')) {
-          const mainMove = msg.split(' ')[1]
-          if (mainMove && mainMove !== '(none)') {
-            const from = mainMove.substring(0, 2) as Square
-            const to = mainMove.substring(2, 4) as Square
-            const promotion = mainMove.length > 4 ? mainMove[4] as PieceSymbol : undefined
-            makeMove(from, to, promotion)
-          }
-          isThinking.value = false
-          resolve()
+    try {
+      await new Promise(r => setTimeout(r, 800)) // Slight delay for "thinking" feel
+      const moves = chess.value.moves()
+      if (moves.length > 0) {
+        const move = moves[Math.floor(Math.random() * moves.length)]
+        const result = chess.value.move(move)
+        
+        if (result) {
+          moveHistory.value.push({
+            san: result.san, fen: chess.value.fen(),
+            from: result.from, to: result.to,
+            moveNumber: Math.ceil(moveHistory.value.length / 2) + 1,
+          })
+          lastMove.value = { from: result.from, to: result.to }
+          boardTrigger.value++
+          logger.info(`[GameStore] Computer moved: ${result.san}`)
         }
       }
-      botWorker!.postMessage(`setoption name Skill Level value ${activeBot.value.skillLevel}`)
-      botWorker!.postMessage(`position fen ${fen.value}`)
-      botWorker!.postMessage(`go depth ${activeBot.value.depth}`)
-    })
+    } catch (e) {
+      logger.error('[GameStore] Computer move failed:', e)
+    } finally {
+      isThinking.value = false
+    }
   }
 
   function resign(loser: Color) {
     resignationWinner.value = loser === 'w' ? 'b' : 'w'
     forceGameOver.value = true
+    boardTrigger.value++
   }
 
   function handleFlag(loser: Color) {
     timeOutWinner.value = loser === 'w' ? 'b' : 'w'
     forceGameOver.value = true
+    boardTrigger.value++
   }
 
-  // ═══ CLOCK LIFECYCLE ═══
-  // All temporal logic lives here so Views never manage setInterval directly.
-  // This prevents "ghost clocks" when navigating between views.
-
-  /** The interval ID for the running clock. Null means clock is stopped. */
-  let clockInterval: ReturnType<typeof setInterval> | null = null
-
-  /**
-   * Starts the game clock, ticking once per second.
-   * Automatically handles flag (timeout) detection for both sides.
-   * Clears any existing interval first to prevent double-ticking.
-   */
+  let clockInterval: any = null
   function startClock() {
-    if (clockInterval) clearInterval(clockInterval)
-    clockInterval = setInterval(() => {
-      if (!gameStarted.value || isGameOver.value) {
-        stopClock()
-        return
-      }
-      if (turn.value === 'w') {
-        if (whiteTime.value > 0) whiteTime.value--
-        else { stopClock(); handleFlag('w') }
-      } else {
-        if (blackTime.value > 0) blackTime.value--
-        else { stopClock(); handleFlag('b') }
-      }
-    }, 1000) // 1000ms = 1 second tick
-  }
-
-  /**
-   * Stops the clock completely. Used on game over, resignation, or view unmount.
-   */
-  function stopClock() {
-    if (clockInterval) {
-      clearInterval(clockInterval)
-      clockInterval = null
-    }
-  }
-
-  /**
-   * Pauses the clock temporarily (e.g., while the player studies a position).
-   * Identical to stopClock but semantically distinct for readability.
-   */
-  function pauseClock() {
     stopClock()
+    clockInterval = setInterval(() => {
+      if (isGameOver.value) { stopClock(); return }
+      if (turn.value === 'w') {
+        whiteTime.value--
+        if (whiteTime.value <= 0) handleFlag('w')
+      } else {
+        blackTime.value--
+        if (blackTime.value <= 0) handleFlag('b')
+      }
+    }, 1000)
   }
+  function stopClock() { if (clockInterval) { clearInterval(clockInterval); clockInterval = null } }
 
-  /**
-   * Resumes the clock after a pause, but only if the game is still active.
-   * Prevents accidentally starting a clock on a finished game.
-   */
-  function resumeClock() {
-    if (gameActive.value && !clockInterval) {
-      startClock()
+  // --- ANTI-CHEAT BRIDGE ---
+  const suspicionScore = computed(() => antiCheat.suspicionScore.value)
+  const isCheaterBusted = computed(() => antiCheat.isCheaterBusted.value)
+  
+  function registerBlur() {
+    if (gameActive.value && mode.value === 'vs-computer') {
+      antiCheat.registerBlur()
     }
   }
-
-
-  watch(isGameOver, async (over) => {
-    if (over && gameStarted.value && (mode.value === 'vs-computer' || mode.value === 'local')) {
-      const libraryStore = useLibraryStore()
-      const userStore = useUserStore()
-      
-      const isWhite = playerColor.value === 'w'
-      // Pass & Play mode: white always starts first, playerColor is 'w' by default
-      const playerName = userStore.profile?.username || 'Guest'
-      const oppName = mode.value === 'vs-computer' ? activeBot.value.name : 'Player 2'
-      
-      // Set PGN headers for the capture
-      const headers = {
-        'Event': mode.value === 'vs-computer' ? `Match vs ${oppName}` : 'Local Match',
-        'Site': 'Knightfall',
-        'Date': new Date().toISOString().split('T')[0].replace(/-/g, '.'),
-        'Round': '1',
-        'White': (mode.value === 'local' || isWhite) ? playerName : oppName,
-        'Black': (mode.value === 'local' || isWhite) ? oppName : playerName,
-        'Result': gameResult.value || '*',
-        'WhiteElo': ((mode.value === 'local' || isWhite) ? userStore.profile?.rating?.toString() : activeBot.value.rating.toString()) || '1200',
-        'BlackElo': ((mode.value === 'local' || isWhite) ? activeBot.value.rating.toString() : userStore.profile?.rating?.toString()) || '1200',
-        'PlyCount': (chess.value.history().length).toString()
-      }
-      Object.entries(headers).forEach(([k, v]) => chess.value.setHeader(k, v))
-      
-      const pgn = chess.value.pgn()
-      
-      // 1. Save to local Vault
-      await libraryStore.saveGameToLibrary(pgn, ['My Games'])
-
-      // 2. Save to cloud (vs-computer only)
-      if (mode.value === 'vs-computer') {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          await supabase.from('matches').insert({
-            white_id: isWhite ? session.user.id : null,
-            black_id: !isWhite ? session.user.id : null,
-            pgn: pgn,
-            result: gameResult.value
-          })
-        }
-      }
-    }
-  })
 
   return {
     chess, mode, selectedSquare, legalMoveSquares, lastMove,
     moveHistory, viewIndex, playerColor, isThinking, promotionPending,
     timeControl, whiteTime, blackTime, gameStarted, forceGameOver, gameActive,
     fen, turn, board, isGameOver, isCheck, isCheckmate, isStalemate, activeBot,
-    isDraw, gameResult, timeOutWinner, resignationWinner, cheatMetrics, suspicionScore, isCheaterBusted, loadedGameId,
-    newGame, loadPosition, loadPgn, selectSquare, makeMove, completePromotion,
-    goToMove, stepBack, stepForward, undoMove, computerMove, resign, handleFlag, registerBlur,
-    startClock, stopClock, pauseClock, resumeClock
+    isDraw, gameResult, timeOutWinner, resignationWinner, loadedGameId, isPlayersTurn,
+    suspicionScore, isCheaterBusted, registerBlur, antiCheat,
+    newGame, loadPgn, loadPosition, selectSquare, makeMove, goToMove, stepForward, stepBack, undoMove, computerMove, resign, handleFlag,
+    startClock, stopClock
   }
 })

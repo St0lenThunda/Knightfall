@@ -14,14 +14,15 @@ export interface CoachingRequest {
   bestMove?: string
   playerName?: string
   opponentName?: string
+  isUserMove?: boolean
 }
 
 function generateMockCoaching ( req: CoachingRequest ): string {
   const isGood = req.evalNumber > -0.5 && req.evalNumber < 0.5 || ( req.side === 'White' ? req.evalNumber > 0 : req.evalNumber < 0 )
 
   const intros = [
-    `${req.playerName}, analyzing ${req.moveSan}: `,
-    `Regarding ${req.playerName}'s choice of ${req.moveSan}, `,
+    `${req.playerName}, analyzing your choice of ${req.moveSan}: `,
+    `Regarding ${req.playerName}'s move ${req.moveSan}, `,
     `In this position, ${req.playerName} played ${req.moveSan}. `,
     `The move ${req.moveSan} was an interesting choice by ${req.playerName}. `,
   ]
@@ -82,7 +83,7 @@ export async function generateCoaching(req: CoachingRequest): Promise<string> {
   // 1. GENERATE HASH FOR CACHE CHECK
   const theme = req.theme || 'General Analysis'
   const severity = req.evalNumber > 2.0 ? 'blunder' : req.evalNumber > 0.8 ? 'mistake' : 'inaccuracy'
-  const hash = await TaggingService.generatePositionHash(req.fen, theme, severity)
+  const hash = await TaggingService.generatePositionHash(req.fen, theme, severity, req.playerName)
 
   // 2. CHECK SUPABASE CACHE
   try {
@@ -109,20 +110,23 @@ export async function generateCoaching(req: CoachingRequest): Promise<string> {
     return generateMockCoaching( req )
   }
 
-  const prompt = `You are a Grandmaster chess coach reviewing a SPECIFIC MOVE from a game between ${req.playerName} (Student) and ${req.opponentName}.
+  const prompt = `You are an elite Chess Coach and Narratorial Analyst. 
+Perspective: ${req.isUserMove 
+    ? 'This is a PRIVATE LESSON. Your student MADE this move. Speak directly to them in the second person ("You", "Your").' 
+    : `You are NARRATING an observed game for a student. The move was made by ${req.playerName}. Speak in the third person as an expert analyst ("Player 1's choice...", "${req.playerName} decided to...", etc.).`}
 
 Position (FEN) before the move: ${req.fen}
-The student (${req.playerName}) played: ${req.moveSan}
+Move played by ${req.playerName}: ${req.moveSan}
 The engine's best recommendation was: ${req.bestMove ?? 'unknown'}
 Engine's recommended line: ${req.pv.slice(0, 5).join(' ')}
 Evaluation shift: ${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed( 2 )}
 Context: This is a ${severity} categorized as ${theme}.
 
 In 2-3 high-impact, actionable sentences:
-1. Explictly state the difference between ${req.playerName}'s move (${req.moveSan}) and the best move (${req.bestMove}).
-2. Explain the "Why" — what does the engine's move achieve that the played move misses? Be specific about tactical threats, piece activity, or structural changes.
-3. Don't just say what is better; explain the relative cost of the chosen move.
-4. Keep the tone encouraging but scientifically precise.`
+1. If isUserMove is true: Address the student directly as if in a private lesson. Use "You" and their name (${req.playerName}).
+2. If isUserMove is false: Act as a narrator explaining the game to a student. Refer to ${req.playerName} and ${req.opponentName} by their names in the third person.
+3. Explain the "Why" — what does the engine's move (${req.bestMove}) achieve that ${req.playerName}'s choice misses?
+4. Mention ${req.opponentName}'s likely response to make it feel like a real game analysis.`
 
   try {
     logger.info( `LLM API Request: ${prompt}` )
@@ -142,8 +146,16 @@ In 2-3 high-impact, actionable sentences:
     })
 
     return responseText
-  } catch (err) {
+  } catch (err: any) {
     logger.error("LLM Generation failed:", err)
+    
+    // 503 Fallback: If Gemini is overloaded, use the deterministic mock engine
+    // to keep the UI alive with a high-quality "fallback" response.
+    if (err.message && err.message.includes('503')) {
+      logger.info("[LLM API] Gemini 503 detected. Falling back to deterministic mock.")
+      return generateMockCoaching(req)
+    }
+
     return "The AI coach is currently unavailable. Focus on developing your pieces toward active squares and keeping your king safe!"
   }
 }

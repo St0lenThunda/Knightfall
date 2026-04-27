@@ -221,13 +221,14 @@
   },
   {
     "id": "clearance1",
-    "title": "Clearance Sacrifice",
-    "rating": 1700,
+    "title": "Fischer's Clearance Bolt",
+    "rating": 1950,
     "themes": ["middlegame", "tactics", "clearance"],
-    "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
-    "lastMove": "e7e5",
-    "solution": ["f6e4"],
-    "category": "mixed"
+    "fen": "3r1rk1/pp3pbp/2p1p1p1/1q2P3/4N3/P3B3/1PQ2PPP/3R1RK1 w - - 0 1",
+    "lastMove": "b5b4",
+    "solution": ["f1f6", "g7f6", "e5e6"],
+    "category": "tactics",
+    "explanation": "Bobby Fischer played Rf6! not to win material immediately, but to block the f-pawn and clear the e5 square for a deadly advance."
   },
   {
     "id": "xray1",

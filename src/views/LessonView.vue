@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
@@ -9,6 +9,7 @@ import ChessBoard from '../components/ChessBoard.vue'
 import { fetchPuzzleBatch } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { logger } from '../utils/logger'
+import { Chess } from 'chess.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,7 +19,11 @@ const curriculum = useCurriculumStore()
 const uiStore = useUiStore()
 
 const nodeId = route.params.id as string
-const node = computed(() => curriculum.nodes.find(n => n.id === nodeId))
+const node = computed(() => {
+  const staticNode = curriculum.nodes.find(n => n.id === nodeId)
+  if (staticNode) return staticNode
+  return curriculum.personalLessons.find(l => l.id === nodeId)
+})
 
 const puzzles = ref<Puzzle[]>([])
 const currentPuzzleIndex = ref(0)
@@ -28,24 +33,39 @@ const puzzlesSolvedInLesson = ref(0)
 
 const progress = computed(() => {
   if (lessonComplete.value) return 100
-  return (puzzlesSolvedInLesson.value / 5) * 100
+  const total = puzzles.value.length || 5
+  return (puzzlesSolvedInLesson.value / total) * 100
 })
 
 onMounted(async () => {
   if (!node.value) {
-    router.push('/path')
-    return
+    // If not found, maybe we need to generate them first?
+    await curriculum.generatePersonalLessons()
+    if (!node.value) {
+      router.push('/path')
+      return
+    }
   }
 
   try {
-    // Fetch 5 puzzles matching the node's theme/category
-    const batch = await fetchPuzzleBatch(node.value.category.toLowerCase(), 5)
-    puzzles.value = batch
+    if (node.value.puzzles) {
+      // Personal lesson already has puzzles
+      puzzles.value = node.value.puzzles
+    } else {
+      // Fetch 5 puzzles matching the node's theme/category
+      const batch = await fetchPuzzleBatch(node.value.category.toLowerCase(), 5)
+      puzzles.value = batch
+    }
     loadCurrentStep()
   } catch (err) {
     logger.error('[Lesson] Failed to load:', err)
   }
 })
+
+// Moves are now validated directly by the gameStore via setDrill()
+
+// Drill progress is now tracked via store.drillIndex
+const playerColor = ref<'w' | 'b'>('w')
 
 function loadCurrentStep() {
   if (currentPuzzleIndex.value >= puzzles.value.length) {
@@ -54,39 +74,87 @@ function loadCurrentStep() {
   }
   
   const p = puzzles.value[currentPuzzleIndex.value]
-  store.loadPosition(p.fen)
-  isExplanationMode.value = true // Show intro for each puzzle or just the first one?
+  
+  // Determine which color the user is playing
+  // The Turn in p.fen is the side whose move is solution[0] (Opponent)
+  const tempChess = new Chess(p.fen)
+  const engineSide = tempChess.turn() // Color of the first move in solution
+  playerColor.value = engineSide === 'w' ? 'b' : 'w' // User plays the OTHER side
+  
+  store.loadPosition(p.fen, playerColor.value)
+  
+  if (typeof store.setDrill === 'function') {
+    store.setDrill(p.solution)
+  } else {
+    logger.error('[Lesson] store.setDrill is missing! Store keys:', Object.keys(store))
+  }
+  
+  isExplanationMode.value = true
+  
+  // Automatically play the FIRST move of the solution (The Opponent move)
+  setTimeout(() => {
+    // Note: makeMove will increment store.drillIndex to 1
+    const result = store.makeMove(
+      p.solution[0].slice(0, 2) as any,
+      p.solution[0].slice(2, 4) as any,
+      (p.solution[0][4] as any) || undefined
+    )
+    logger.info('[Lesson] Initial move result:', result)
+  }, 800)
 }
 
 function startDrill() {
   isExplanationMode.value = false
 }
 
-async function handleMove() {
+async function handleMoveResult(result: string) {
   if (isExplanationMode.value) return
   
   const p = puzzles.value[currentPuzzleIndex.value]
-  const lastM = store.moveHistory[store.moveHistory.length - 1]
-  const uci = lastM.from + lastM.to
-  
-  if (uci === p.solution[0].slice(0, 4)) {
-    uiStore.addToast('Correct!', 'success')
-    puzzlesSolvedInLesson.value++
+  if (!p) return
+
+  if (result === 'correct' || result === 'complete') {
+    // CurrentMoveIndex logic is now handled internally by gameStore (drillIndex)
     
-    setTimeout(() => {
-      currentPuzzleIndex.value++
-      loadCurrentStep()
-    }, 1500)
-  } else {
-    uiStore.addToast('Incorrect. Try again!', 'error')
-    userStore.deductHeart()
-    
-    if (userStore.hearts <= 0) {
-      router.push('/path') // Out of hearts
-    } else {
+    if (result === 'complete') {
+      uiStore.addToast('Correct!', 'success')
+      puzzlesSolvedInLesson.value++
       setTimeout(() => {
-        store.loadPosition(p.fen)
+        currentPuzzleIndex.value++
+        loadCurrentStep()
       }, 1000)
+      return
+    }
+
+    // Play opponent response automatically if we are on a user move completion
+    // The store.drillIndex is now even if it's the system's turn to respond
+    if (store.drillIndex % 2 === 0) {
+      setTimeout(() => {
+        const nextMove = p.solution[store.drillIndex]
+        const sysResult = store.makeMove(
+          nextMove.slice(0, 2) as any,
+          nextMove.slice(2, 4) as any,
+          (nextMove[4] as any) || undefined
+        )
+        
+        if (sysResult === 'complete') {
+          uiStore.addToast('Correct!', 'success')
+          puzzlesSolvedInLesson.value++
+          setTimeout(() => {
+            currentPuzzleIndex.value++
+            loadCurrentStep()
+          }, 1000)
+        }
+      }, 600)
+    }
+
+  } else if (result === 'incorrect') {
+    uiStore.addToast('Incorrect. Try again!', 'error')
+    const remainingHearts = await userStore.deductHeart()
+    
+    if (remainingHearts <= 0) {
+      logger.info('[Lesson] Out of hearts, redirecting to path.')
+      router.push('/path') 
     }
   }
 }
@@ -119,7 +187,11 @@ async function finishLesson() {
 
     <div v-if="!lessonComplete" class="lesson-layout">
       <div class="board-area">
-        <ChessBoard @move="handleMove" />
+        <ChessBoard 
+          :flipped="playerColor === 'b'" 
+          :interactive="!isExplanationMode && store.drillIndex % 2 !== 0" 
+          @move-result="handleMoveResult" 
+        />
       </div>
 
       <div class="content-area glass">

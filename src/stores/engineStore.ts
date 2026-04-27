@@ -16,6 +16,7 @@ export interface EngineInfo {
   evalMate?: number | null
   pv?: string[]
   multiPvs?: MultiPV[]
+  nps?: number
 }
 
 export const useEngineStore = defineStore('engine', () => {
@@ -177,8 +178,19 @@ export const useEngineStore = defineStore('engine', () => {
     return Object.keys(data).length > 0 ? data : null
   }
 
+  let analysisStartTime = 0
+
   function applyInfo(data: EngineInfo) {
+    const adminStore = useAdminStore()
+    
     if (data.depth !== undefined && data.depth > currentDepth.value) {
+      // First meaningful depth (e.g. depth 1) is a good TTFR proxy
+      if (currentDepth.value === 0 && data.depth >= 1 && analysisStartTime > 0) {
+        const ttfr = Date.now() - analysisStartTime
+        adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth, ttfr)
+      } else {
+        adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth)
+      }
       currentDepth.value = data.depth
     }
     if (data.evalScoreCp !== undefined) {
@@ -229,6 +241,7 @@ export const useEngineStore = defineStore('engine', () => {
     isAnalyzing.value = true
     currentDepth.value = 0
     bestMove.value = ''
+    analysisStartTime = Date.now()
     
     worker!.postMessage('isready') // Optional: wait for readyok before go
     worker!.postMessage(`position fen ${fen}`)

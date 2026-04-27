@@ -11,19 +11,8 @@ export function useLibraryStats(
   games: Ref<LibraryGame[]>,
   userStore: ReturnType<typeof useUserStore> // Access to profile and isMe helper
 ) {
-  // --- INTERNAL FILTERING ---
-  /** Games where the user is an active participant (Personal DNA). */
-  const personalGames = computed(() => {
-    return games.value.filter(g => {
-      // Identity Check: Must be one of the players to be 'My DNA'
-      const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
-      if (isMe) return true
-
-      // Fallback for native Knightfall games
-      const tags = (g.tags || []).map(t => t.toLowerCase())
-      return tags.includes('my games')
-    })
-  })
+  // We use the games provided by the store, which are already filtered to 'Personal DNA'
+  const personalGames = games
 
   /**
    * Generates the full rating progression history using the Elo formula.
@@ -172,13 +161,18 @@ export function useLibraryStats(
   const libraryWldStats = computed(() => {
     const stats = { win: 0, loss: 0, draw: 0, total: 0 }
     personalGames.value.forEach(g => {
-      const isMe = userStore.isMe(g.white)
+      const isWhite = userStore.isMe(g.white)
+      const isBlack = userStore.isMe(g.black)
+      
+      // If we can't definitively say which side the user is on, we skip to avoid dirtying stats
+      if (!isWhite && !isBlack) return
+
       if (g.result === '1-0') {
-        if (isMe) stats.win++
+        if (isWhite) stats.win++
         else stats.loss++
       } else if (g.result === '0-1') {
-        if (isMe) stats.loss++
-        else stats.win++
+        if (isBlack) stats.win++
+        else stats.loss++
       } else if (g.result === '1/2-1/2' || g.result.includes('1/2')) {
         stats.draw++
       }

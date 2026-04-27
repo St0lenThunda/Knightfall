@@ -34,8 +34,15 @@
     
     <!-- Floating Bottom Legend -->
     <div class="constellation-legend glass-sm">
-      <div class="legend-item"><span class="dot white"></span> White</div>
-      <div class="legend-item"><span class="dot black"></span> Black</div>
+      <div class="legend-title">Performance Heatmap</div>
+      <div class="legend-scale">
+        <div class="scale-item"><span class="swatch rose"></span> High Risk</div>
+        <div class="scale-item"><span class="swatch neutral"></span> Balanced</div>
+        <div class="scale-item"><span class="swatch emerald"></span> Stronghold</div>
+      </div>
+      <div class="legend-controls mt-2">
+         <button class="btn btn-ghost btn-xs" @click="resetView">🎯 Center View</button>
+      </div>
     </div>
 
     <div class="canvas-container" ref="containerEl" @mousedown="startDrag" @mousemove="onDrag" @mouseup="endDrag" @mouseleave="endDrag" @wheel="onWheel">
@@ -47,7 +54,7 @@
             :key="'edge-'+i" 
             :d="edge.d" 
             class="constellation-edge"
-            :style="{ opacity: 0.1 + (edge.weight / maxWeight) * 0.5 }"
+            :style="{ opacity: 0.05 + (edge.weight / maxWeight) * 0.4 }"
           />
 
           <!-- Nodes (Stars) -->
@@ -64,10 +71,10 @@
               :cy="node.y" 
               :r="4 + (node.weight / maxWeight) * 12" 
               class="star"
-              :class="node.isWhite ? 'star-white' : 'star-black'"
+              :style="{ fill: getNodeColor(node) }"
             />
             <text 
-              v-if="node.weight > maxWeight * 0.1 || viewBox.scale > 1.5"
+              v-if="node.weight > maxWeight * 0.05 || viewBox.scale > 1.2"
               :x="node.x" 
               :y="node.y + 18" 
               class="star-label"
@@ -82,16 +89,32 @@
               :cy="node.y" 
               :r="10 + (node.weight / maxWeight) * 15" 
               class="star-glow"
+              :style="{ fill: getNodeColor(node) }"
             />
           </g>
         </g>
       </svg>
 
-      <!-- Tooltip -->
-      <div v-if="hoverNode" class="node-tooltip glass-sm" :style="{ left: tooltipPos.x + 'px', top: tooltipPos.y + 'px' }">
-        <div class="tooltip-title">{{ hoverNode.san }}</div>
-        <div class="tooltip-stat">Games: {{ hoverNode.weight }}</div>
-        <div class="tooltip-hint">Click to filter Vault</div>
+      <!-- Advanced Tooltip -->
+      <div v-if="hoverNode" class="node-tooltip glass-lg" :style="{ left: tooltipPos.x + 'px', top: tooltipPos.y + 'px' }">
+        <div class="tooltip-header">
+          <div class="tooltip-title">{{ hoverNode.san }}</div>
+          <div class="win-rate" :style="{ color: getNodeColor(hoverNode) }">
+            {{ hoverNode.weight > 0 ? Math.round((hoverNode.wins / hoverNode.weight) * 100) : 0 }}% Win
+          </div>
+        </div>
+        
+        <div class="tooltip-stats mt-2">
+          <div class="stat-row"><span>Frequency:</span> <strong>{{ hoverNode.weight || 0 }} games</strong></div>
+          <div class="stat-row"><span>Performance:</span> <strong>{{ hoverNode.wins || 0 }}W / {{ hoverNode.draws || 0 }}D / {{ hoverNode.losses || 0 }}L</strong></div>
+        </div>
+
+        <div class="tooltip-actions mt-4">
+          <button class="btn btn-primary btn-sm w-full" @click="analyzePosition(hoverNode)">
+            🔬 Analyze in Lab
+          </button>
+          <div class="tooltip-hint mt-2">Click star to filter Vault to this line</div>
+        </div>
       </div>
 
         <!-- Loading / Empty / Stale Overlay -->
@@ -120,37 +143,44 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useLibraryStore, type OpeningNode } from '../../stores/libraryStore'
-import { logger } from '../../utils/logger'
-
-/**
- * Visual Graph Node representation.
- * Combines opening data with SVG-specific coordinates for rendering.
- */
-interface GraphNode extends OpeningNode {
-  id: string
-  x: number
-  y: number
-  isWhite: boolean
-}
+import { useRouter } from 'vue-router'
+import { useLibraryStore } from '../../stores/libraryStore'
+import { useUiStore } from '../../stores/uiStore'
 
 const libraryStore = useLibraryStore()
+const uiStore = useUiStore()
+const router = useRouter()
 
 const containerEl = ref<HTMLElement | null>(null)
 const width = ref(1000)
 const height = ref(800)
 const viewBox = ref({ x: 500, y: 700, scale: 1.0 })
-const hoverNode = ref<GraphNode | null>(null)
+const hoverNode = ref<any | null>(null)
 const tooltipPos = ref({ x: 0, y: 0 })
 
 // Dragging state
 const isDragging = ref(false)
 const lastMousePos = ref({ x: 0, y: 0 })
 
+function resetView() {
+    viewBox.value = { x: width.value / 2, y: height.value - 100, scale: 1.0 }
+}
+
+function getNodeColor(node: any) {
+  const weight = node.weight || 0
+  if (weight === 0) return 'var(--accent)'
+  const wins = node.wins || 0
+  const winRate = wins / weight
+  if (winRate > 0.6) return '#10b981' // emerald
+  if (winRate > 0.45) return 'var(--accent-bright)' // neutral/accent
+  return '#f43f5e' // rose
+}
+
 function startDrag(e: MouseEvent) {
     isDragging.value = true
     lastMousePos.value = { x: e.clientX, y: e.clientY }
 }
+
 function onDrag(e: MouseEvent) {
     if (!isDragging.value) {
         if (hoverNode.value) {
@@ -164,99 +194,41 @@ function onDrag(e: MouseEvent) {
     viewBox.value.y += dy
     lastMousePos.value = { x: e.clientX, y: e.clientY }
 }
+
 function endDrag() { isDragging.value = false }
+
 function onWheel(e: WheelEvent) {
     e.preventDefault()
     const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1
     viewBox.value.scale *= scaleFactor
 }
 
-// Graph Generation
-const maxWeight = computed(() => {
-    if (!libraryStore.openingTree) return 1
-    let max = 1
-    const findMax = (node: OpeningNode) => {
-        if (node.weight > max) max = node.weight
-        Object.values(node.children).forEach(findMax)
-    }
-    findMax(libraryStore.openingTree)
-    return max
-})
+// Graph Data (Consuming pre-calculated layout from store)
+const nodes = computed(() => libraryStore.constellationLayout.nodes)
+const edges = computed(() => libraryStore.constellationLayout.edges)
+const maxWeight = computed(() => libraryStore.constellationLayout.maxWeight)
 
-const graphData = computed(() => {
-    const nodes: GraphNode[] = []
-    const edges: any[] = []
-    
-    // Layout parameters
-    const verticalSpacing = 120
-    
-    function traverse(node: OpeningNode, depth: number, angleRange: [number, number], parentX: number, parentY: number, nodeId = 'root') {
-        const x = parentX
-        const y = parentY
-        
-        nodes.push({
-            ...node,
-            id: nodeId,
-            x, y,
-            isWhite: depth % 2 !== 0 // Depth 1 = Move 1 = White
-        })
+function selectNode(node: any) {
+    libraryStore.searchQuery = node.san
+    uiStore.addToast(`Filtering Vault for ${node.san} variations`, 'info')
+    // We could switch tab here if we wanted
+}
 
-        const children = Object.entries(node.children)
-        if (children.length === 0) return
-
-        const totalChildWeight = children.reduce((sum, [_, child]: [any, OpeningNode]) => sum + child.weight, 0)
-        if (totalChildWeight > 0) {
-            let currentAngle = angleRange[0]
-            const rangeWidth = angleRange[1] - angleRange[0]
-
-            children.forEach(([_, child]: [any, OpeningNode], i) => {
-                const childWeightPct = child.weight / totalChildWeight
-                const childAngleWidth = rangeWidth * childWeightPct
-                const childAngle = currentAngle + childAngleWidth / 2
-                
-                // Calculate child position based on angle
-                const childX = x + Math.cos(childAngle) * (verticalSpacing + (depth * 5))
-                const childY = y - Math.sin(childAngle) * (verticalSpacing + (depth * 5))
-                
-                edges.push({
-                    x1: x, y1: y,
-                    x2: childX, y2: childY,
-                    weight: child.weight,
-                    d: `M ${x} ${y} Q ${x} ${childY} ${childX} ${childY}`
-                })
-
-                traverse(child, depth + 1, [currentAngle, currentAngle + childAngleWidth], childX, childY, nodeId + '-' + i)
-                currentAngle += childAngleWidth
-            })
-        }
-    }
-
-    // Start traversal from Root
-    if (libraryStore.openingTree) {
-        traverse(libraryStore.openingTree, 0, [Math.PI * 0.2, Math.PI * 0.8], 0, 0)
-    }
-    
-    return { nodes, edges }
-})
-
-const nodes = computed(() => graphData.value.nodes)
-const edges = computed(() => graphData.value.edges)
-
-function selectNode(node: GraphNode) {
-    // Communication with Vault filtering would go here
-    logger.info('[Constellation] Selected line:', node.san)
+function analyzePosition(node: any) {
+    // Jump to analysis lab with this FEN
+    router.push({ path: '/analysis', query: { fen: node.fen }})
 }
 
 onMounted(() => {
    if (containerEl.value) {
        width.value = containerEl.value.clientWidth
        height.value = containerEl.value.clientHeight
+       resetView()
    }
 })
 </script>
 
 <style scoped>
-/* (Styles omitted for brevity, keeping original styles) */
 .constellation-panel {
   display: flex;
   flex-direction: column;
@@ -296,18 +268,22 @@ onMounted(() => {
 .constellation-legend {
   position: absolute;
   bottom: var(--space-4);
-  right: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  left: var(--space-4);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   z-index: 10;
   border-radius: var(--radius-md);
+  min-width: 180px;
 }
-.legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-.dot { width: 12px; height: 12px; border-radius: 50%; }
-.dot.white { background: var(--accent-bright); box-shadow: 0 0 12px var(--accent-bright); }
-.dot.black { background: #4a4a75; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
+.legend-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 800; margin-bottom: 4px; }
+.legend-scale { display: flex; flex-direction: column; gap: 6px; }
+.scale-item { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; font-weight: 600; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; }
+.swatch.rose { background: #f43f5e; box-shadow: 0 0 8px rgba(244,63,94,0.4); }
+.swatch.neutral { background: var(--accent-bright); box-shadow: 0 0 8px rgba(139,92,246,0.4); }
+.swatch.emerald { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.4); }
 
 .canvas-container {
   flex: 1;
@@ -329,11 +305,8 @@ onMounted(() => {
   transition: all 0.3s ease;
   filter: drop-shadow(0 0 4px rgba(0,0,0,0.5));
 }
-.star-white { fill: var(--accent-bright); filter: drop-shadow(0 0 12px var(--accent)); }
-.star-black { fill: #4a4a75; stroke: rgba(255,255,255,0.4); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,255,255,0.1)); }
 
 .star-glow {
-  fill: var(--accent);
   opacity: 0.3;
   animation: pulse 2s infinite;
 }
@@ -349,14 +322,18 @@ onMounted(() => {
 
 .node-tooltip {
   position: fixed;
-  padding: var(--space-3);
+  padding: var(--space-5);
   pointer-events: none;
   z-index: 100;
-  min-width: 150px;
+  min-width: 220px;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.4);
 }
-.tooltip-title { font-weight: 800; font-size: 1.1rem; color: var(--accent-bright); margin-bottom: 4px; }
-.tooltip-stat { font-size: 0.9rem; margin-bottom: 2px; }
-.tooltip-hint { font-size: 0.7rem; color: var(--text-muted); font-style: italic; }
+.tooltip-header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; margin-bottom: 8px; }
+.tooltip-title { font-weight: 900; font-size: 1.2rem; color: white; }
+.win-rate { font-weight: 800; font-size: 0.85rem; }
+.stat-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; }
+.stat-row span { opacity: 0.6; }
+.tooltip-hint { font-size: 0.65rem; color: var(--text-muted); font-style: italic; text-align: center; }
 
 @keyframes pulse {
   0% { transform: scale(1); opacity: 0.3; }

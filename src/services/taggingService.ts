@@ -114,10 +114,10 @@ export class TaggingService {
    * Generates a stable hash for a specific mistake to use as a cache key.
    * SHA-256(FEN + theme + severity)
    */
-  static async generatePositionHash(fen: string, theme: string, severity: string): Promise<string> {
+  static async generatePositionHash(fen: string, theme: string, severity: string, playerName: string = 'Guest'): Promise<string> {
     // Normalize FEN to ignore move counts/en passant for better cache hits
     const normalizedFen = fen.split(' ').slice(0, 4).join(' ')
-    const msg = `${normalizedFen}|${theme}|${severity}`
+    const msg = `${normalizedFen}|${theme}|${severity}|${playerName}`
     
     const encoder = new TextEncoder()
     const data = encoder.encode(msg)

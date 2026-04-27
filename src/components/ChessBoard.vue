@@ -1,483 +1,432 @@
 <template>
   <div class="board-wrapper">
-    <div class="board-inner">
-      <!-- Rank labels left -->
-      <div class="rank-labels">
-        <span v-for="r in displayRanks" :key="r">{{ r }}</span>
-      </div>
+    <div class="main-board-area">
+      <div class="board-row-wrap">
+        <div class="rank-labels">
+          <span v-for="r in displayRanks" :key="r">{{ r }}</span>
+        </div>
 
-      <div class="board-container">
-        <!-- Squares -->
-        <div class="chess-board">
-          <div
-            v-for="(row, rowIdx) in displayBoard"
-            :key="rowIdx"
-            class="board-row"
-          >
-            <div
-              v-for="(cell, colIdx) in row"
-              :key="colIdx"
-              class="board-square"
-              :class="squareClasses(rowIdx, colIdx)"
-              :data-square="squareId(rowIdx, colIdx)"
-              @click="handleSquareClick(rowIdx, colIdx)"
-              @dragover.prevent
-              @drop="handleDrop(rowIdx, colIdx)"
-            >
-              <!-- Last move / selected highlight -->
-              <div class="sq-highlight" v-if="isLastMove(rowIdx, colIdx)" style="background: var(--sq-last); opacity: 0.6;"></div>
-              <div class="sq-highlight" v-if="isSelected(rowIdx, colIdx)" style="background: rgba(103,232,249,0.3);"></div>
-              <div class="sq-check" v-if="isKingInCheck(rowIdx, colIdx)"></div>
-
-              <!-- Legal move dot -->
-              <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot" :class="{ 'legal-capture': !!cell }"></div>
-
-              <!-- Hint Highlights -->
-              <div class="sq-highlight" v-if="(highlights || []).includes(squareId(rowIdx, colIdx))" style="background: rgba(251,191,36,0.4); border: 2px solid var(--gold);"></div>
-
-              <!-- Piece: Image mode -->
+        <div class="board-container">
+          <div class="chess-board">
+            <!-- Grid Layer (Squares & Highlights) -->
+            <div v-for="(row, rowIdx) in displayBoard" :key="'row-'+rowIdx" class="board-row">
               <div
-                v-if="cell && useImages"
-                class="piece piece-img-wrap"
-                :class="{ 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }"
-                draggable="true"
-                @dragstart="handleDragStart(rowIdx, colIdx)"
-                @dragend="handleDragEnd"
+                v-for="(_cell, colIdx) in row"
+                :key="'sq-'+colIdx"
+                class="board-square"
+                :class="squareClasses(rowIdx, colIdx)"
+                :data-square="squareId(rowIdx, colIdx)"
+                @click="handleSquareClick(rowIdx, colIdx)"
+                @dragover.prevent
+                @drop="handleDrop(rowIdx, colIdx, $event)"
               >
-                <img :src="pieceImgSrc(cell)" class="piece-img" draggable="false" />
+                <div v-if="isSelected(rowIdx, colIdx)" class="sq-highlight sq-selected"></div>
+                <div v-if="isLastMove(rowIdx, colIdx)" class="sq-highlight sq-last"></div>
+                <div v-if="isKingInCheck(rowIdx, colIdx)" class="sq-highlight sq-check"></div>
+                <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot"></div>
+                
+                <!-- Move Quality Badge -->
+                <div v-if="getQualityBadge(rowIdx, colIdx)" 
+                     class="quality-badge animated-pop-in"
+                     :style="{ backgroundColor: getQualityBadge(rowIdx, colIdx)?.color }"
+                >
+                  {{ getQualityBadge(rowIdx, colIdx)?.icon }}
+                </div>
               </div>
+            </div>
 
-              <!-- Piece: Unicode mode (fast default) -->
-              <div
-                v-else-if="cell"
-                class="piece"
-                :class="['piece-' + cell.color, { 'piece-dragging': dragFrom === squareId(rowIdx, colIdx) }]"
-                draggable="true"
-                @dragstart="handleDragStart(rowIdx, colIdx)"
-                @dragend="handleDragEnd"
-              >
-                {{ pieceUnicode(cell) }}
-              </div>
+            <!-- Pieces Layer (Animated) -->
+            <div class="pieces-layer">
+              <TransitionGroup name="piece-move">
+                <div
+                  v-for="p in animatedPieces"
+                  :key="p.id"
+                  class="piece-wrapper"
+                  :style="{ 
+                    left: p.left + '%', 
+                    top: p.top + '%',
+                  }"
+                  :class="{ 'no-interact': !isInteractive || isThinking }"
+                  :draggable="isInteractive && !isThinking && p.color === turn"
+                  @dragstart="handleDragStartPiece(p.sq, $event)"
+                >
+                  <img :src="getPieceUrl(p)" :alt="p.type" class="piece-img" />
+                </div>
+              </TransitionGroup>
+            </div>
+
+            <!-- Overlays -->
+            <div class="thinking-overlay" v-if="isThinking">
+              <div class="thinking-text">Thinking...</div>
             </div>
           </div>
         </div>
-
-        <!-- Arrow Overlay -->
-        <svg v-if="arrows && arrows.length > 0" class="board-arrows" viewBox="0 0 80 80">
-          <defs>
-            <marker id="arrowhead-default" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
-              <polygon points="0 0, 4 2, 0 4" fill="rgba(251,191,36,0.8)" />
-            </marker>
-            <marker id="arrowhead-suggestion" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
-              <polygon points="0 0, 4 2, 0 4" fill="rgba(16, 185, 129, 0.8)" />
-            </marker>
-            <marker id="arrowhead-suggestion-alt" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
-              <polygon points="0 0, 4 2, 0 4" fill="rgba(16, 185, 129, 0.3)" />
-            </marker>
-            <marker id="arrowhead-threat" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto">
-              <polygon points="0 0, 4 2, 0 4" fill="rgba(244, 63, 94, 0.8)" />
-            </marker>
-          </defs>
-          <line v-for="(arr, i) in arrows" :key="i"
-                :x1="getCoords(arr.from).x" :y1="getCoords(arr.from).y"
-                :x2="getCoords(arr.to).x"   :y2="getCoords(arr.to).y"
-                :stroke="getArrowColor(arr.type)" stroke-width="1.5"
-                :marker-end="getArrowMarker(arr.type)" stroke-linecap="round" />
-        </svg>
-
-        <!-- Promotion dialog -->
-        <Transition name="fade-up">
-          <div class="promotion-overlay" v-if="store.promotionPending">
-            <div class="promotion-dialog glass">
-              <div class="label" style="margin-bottom: 8px;">Promote pawn</div>
-              <div class="promo-pieces">
-                <button
-                  v-for="p in promotionPieces"
-                  :key="p.symbol"
-                  class="promo-btn"
-                  @click="store.completePromotion(p.symbol)"
-                >
-                  <img v-if="useImages" :src="promoImgSrc(p.symbol)" class="piece-img" style="width: 40px; height: 40px;" />
-                  <span v-else>{{ p.unicode }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </Transition>
       </div>
-    </div>
-
-    <!-- File labels bottom -->
-    <div class="file-labels-row">
-      <span v-for="f in displayFiles" :key="f">{{ f }}</span>
+      
+      <div class="file-labels-row">
+        <span v-for="f in displayFiles" :key="f">{{ f }}</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, toRefs, ref, watch } from 'vue'
 import { useGameStore } from '../stores/gameStore'
-import { useSettingsStore } from '../stores/settingsStore'
-import type { PieceSymbol, Color } from 'chess.js'
+import { logger } from '../utils/logger'
 import type { Square } from 'chess.js'
+import type { MoveQuality } from '../utils/analysisUtils'
 
 const store = useGameStore()
-const settings = useSettingsStore()
-
-export interface ArrowDef {
-  from: string
-  to: string
-  type?: 'suggestion' | 'suggestion-alt' | 'threat' | 'default'
-}
-
-const props = defineProps<{
-  flipped?: boolean
-  arrows?: ArrowDef[]
-  highlights?: string[]
-}>()
-
-const dragFrom = ref<string | null>(null)
-
-// Use image-based pieces when theme is NOT 'classic' (unicode default)
-const useImages = computed(() => settings.pieceTheme !== 'classic')
-
-// Preload all 12 piece images for the active theme on mount
-const preloaded = ref(false)
-onMounted(() => {
-  if (useImages.value) {
-    const theme = settings.pieceTheme
-    const pieces = ['wp','wr','wn','wb','wq','wk','bp','br','bn','bb','bq','bk']
-    let loaded = 0
-    pieces.forEach(p => {
-      const img = new Image()
-      img.src = `/pieces/${theme}/${p}.png`
-      img.onload = () => { if (++loaded === pieces.length) preloaded.value = true }
-    })
-  }
+const { selectedSquare, legalMoveSquares, lastMove, isCheck, turn, isThinking } = toRefs(store)
+const props = withDefaults(defineProps<{
+  flipped?: boolean;
+  interactive?: boolean;
+  moveQuality?: MoveQuality | null;
+}>(), {
+  flipped: false,
+  interactive: true,
+  moveQuality: null
 })
 
-function getCoords(sq: string) {
-  const file = sq[0]; const rank = sq[1]
-  let col = file.charCodeAt(0) - 97
-  let row = 8 - parseInt(rank)
-  if (props.flipped) { col = 7 - col; row = 7 - row }
-  return { x: col * 10 + 5, y: row * 10 + 5 }
-}
+const isInteractive = computed(() => props.interactive)
 
-function getArrowColor(type?: string) {
-  if (type === 'suggestion') return 'rgba(16, 185, 129, 0.8)'
-  if (type === 'suggestion-alt') return 'rgba(16, 185, 129, 0.3)'
-  if (type === 'threat') return 'rgba(244, 63, 94, 0.8)'
-  return 'rgba(251, 191, 36, 0.8)'
+const PIECE_IMAGES: Record<string, string> = {
+  wP: '/pieces/classic/wp.png', wN: '/pieces/classic/wn.png', wB: '/pieces/classic/wb.png',
+  wR: '/pieces/classic/wr.png', wQ: '/pieces/classic/wq.png', wK: '/pieces/classic/wk.png',
+  bP: '/pieces/classic/bp.png', bN: '/pieces/classic/bn.png', bB: '/pieces/classic/bb.png',
+  bR: '/pieces/classic/br.png', bQ: '/pieces/classic/bq.png', bK: '/pieces/classic/bk.png',
 }
-
-function getArrowMarker(type?: string) {
-  if (type === 'suggestion') return 'url(#arrowhead-suggestion)'
-  if (type === 'suggestion-alt') return 'url(#arrowhead-suggestion-alt)'
-  if (type === 'threat') return 'url(#arrowhead-threat)'
-  return 'url(#arrowhead-default)'
-}
-
-const PIECE_UNICODE: Record<string, string> = {
-  wK: '♚', wQ: '♛', wR: '♜', wB: '♝', wN: '♞', wP: '♟',
-  bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
-}
-
 const files = ['a','b','c','d','e','f','g','h']
 const ranks = ['8','7','6','5','4','3','2','1']
 
 const displayRanks = computed(() => props.flipped ? [...ranks].reverse() : ranks)
 const displayFiles  = computed(() => props.flipped ? [...files].reverse()  : files)
-
 const displayBoard = computed(() => {
   const b = store.board
-  return props.flipped ? [...b].reverse().map(row => [...row].reverse()) : b
+  if (!props.flipped) return b
+  // Reverse rows (ranks) and reverse each row (files)
+  return [...b].reverse().map(row => [...row].reverse())
 })
+
+/**
+ * STATEFUL PIECE TRACKING
+ * 
+ * To ensure "natural" animations, we maintain a persistent list of pieces.
+ * When the FEN changes, we diff the board to identify which pieces moved,
+ * which were captured, and which were added (promotions).
+ */
+const internalPieces = ref<any[]>([])
+
+watch(() => [store.fen, props.flipped], () => {
+  const board = displayBoard.value
+  const currentIdx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+  const last = store.lastMove || (currentIdx >= 0 ? store.moveHistory[currentIdx] : null)
+  
+  // 1. Flatten the current board state
+  const targetPieces: any[] = []
+  board.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      if (cell) {
+        targetPieces.push({
+          type: cell.type,
+          color: cell.color,
+          sq: squareId(r, c),
+          r, c
+        })
+      }
+    })
+  })
+
+  const newList: any[] = []
+  const usedOldIds = new Set<string>()
+
+  // 2. Handle the Moving Piece (The most important for "natural" feel)
+  if (last) {
+    const movingPiece = internalPieces.value.find(p => p.sq === last.from)
+    const targetAtTo = targetPieces.find(p => p.sq === last.to)
+    
+    if (movingPiece && targetAtTo) {
+      newList.push({
+        ...targetAtTo,
+        id: movingPiece.id,
+        left: targetAtTo.c * 12.5,
+        top: targetAtTo.r * 12.5
+      })
+      usedOldIds.add(movingPiece.id)
+      // Remove from target list so we don't process it again
+      targetPieces.splice(targetPieces.indexOf(targetAtTo), 1)
+    }
+  }
+
+  // 3. Match remaining pieces by exact square (static pieces)
+  for (let i = targetPieces.length - 1; i >= 0; i--) {
+    const tp = targetPieces[i]
+    const existing = internalPieces.value.find(p => p.sq === tp.sq && p.type === tp.type && p.color === tp.color && !usedOldIds.has(p.id))
+    if (existing) {
+      newList.push({
+        ...tp,
+        id: existing.id,
+        left: tp.c * 12.5,
+        top: tp.r * 12.5
+      })
+      usedOldIds.add(existing.id)
+      targetPieces.splice(i, 1)
+    }
+  }
+
+  // 4. Handle remaining (new pieces, promotions, or lost track)
+  targetPieces.forEach(tp => {
+    newList.push({
+      ...tp,
+      id: `piece-${Math.random().toString(36).substr(2, 5)}`,
+      left: tp.c * 12.5,
+      top: tp.r * 12.5
+    })
+  })
+
+  internalPieces.value = newList
+}, { immediate: true })
+
+const animatedPieces = computed(() => internalPieces.value)
 
 function squareId(rowIdx: number, colIdx: number): Square {
   const f = displayFiles.value[colIdx]
   const r = displayRanks.value[rowIdx]
+  if (!f || !r) {
+    logger.warn(`[ChessBoard] Invalid squareId lookup: r=${rowIdx}, c=${colIdx}`)
+    return 'a1' as Square // Fallback
+  }
   return `${f}${r}` as Square
 }
 
-function pieceUnicode(cell: { type: PieceSymbol; color: Color } | null) {
-  if (!cell) return ''
-  return PIECE_UNICODE[`${cell.color}${cell.type.toUpperCase()}`] || ''
+function getPieceUrl(cell: { type: string; color: string }) {
+  const key = `${cell.color}${cell.type.toUpperCase()}`
+  return PIECE_IMAGES[key] || ''
 }
 
-function pieceImgSrc(cell: { type: string; color: string }) {
-  return `/pieces/${settings.pieceTheme}/${cell.color}${cell.type}.png`
+function handleDragStartPiece(sq: Square, event: DragEvent) {
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('sourceSquare', sq)
+    event.dataTransfer.effectAllowed = 'move'
+    store.selectSquare(sq)
+  }
 }
 
-function promoImgSrc(symbol: string) {
-  return `/pieces/${settings.pieceTheme}/${store.turn}${symbol}.png`
+
+function handleDrop(rowIdx: number, colIdx: number, event: DragEvent) {
+  const toSq = squareId(rowIdx, colIdx)
+  const fromSq = event.dataTransfer?.getData('sourceSquare') as Square
+  
+  if (fromSq && fromSq !== toSq) {
+    logger.info(`[ChessBoard] Drag-Drop: ${fromSq} -> ${toSq}`)
+    store.makeMove(fromSq, toSq)
+  }
 }
 
 function squareClasses(rowIdx: number, colIdx: number) {
-  const light = (rowIdx + colIdx) % 2 === 0
+  const sq = squareId(rowIdx, colIdx)
   return {
-    'sq-light': light,
-    'sq-dark': !light,
-    'sq-selected': isSelected(rowIdx, colIdx),
+    'sq-light': (rowIdx + colIdx) % 2 === 0,
+    'sq-dark': (rowIdx + colIdx) % 2 !== 0,
+    'sq-selected': selectedSquare.value === sq,
   }
 }
-
 function isSelected(rowIdx: number, colIdx: number) {
-  return store.selectedSquare === squareId(rowIdx, colIdx)
+  return selectedSquare.value === squareId(rowIdx, colIdx)
 }
-
 function isLegalMove(rowIdx: number, colIdx: number) {
-  return store.legalMoveSquares.includes(squareId(rowIdx, colIdx))
+  return legalMoveSquares.value.includes(squareId(rowIdx, colIdx))
 }
-
 function isLastMove(rowIdx: number, colIdx: number) {
-  if (!store.lastMove) return false
+  if (!lastMove.value) return false
   const sq = squareId(rowIdx, colIdx)
-  return sq === store.lastMove.from || sq === store.lastMove.to
+  return sq === lastMove.value.from || sq === lastMove.value.to
+}
+function isKingInCheck(rowIdx: number, colIdx: number) {
+  if (!isCheck.value) return false
+  const cell = displayBoard.value[rowIdx][colIdx]
+  return cell?.type === 'k' && cell?.color === turn.value
 }
 
-function isKingInCheck(rowIdx: number, colIdx: number) {
-  if (!store.isCheck) return false
-  const cell = displayBoard.value[rowIdx][colIdx]
-  if (!cell || cell.type !== 'k') return false
-  return cell.color === store.turn
+/**
+ * Returns the quality badge for a specific square if applicable.
+ */
+function getQualityBadge(rowIdx: number, colIdx: number) {
+  if (!props.moveQuality || props.moveQuality.id === 'good') return null
+  if (!lastMove.value) return null
+  
+  const sq = squareId(rowIdx, colIdx)
+  // Badge only appears on the 'to' square of the move just made
+  if (sq === lastMove.value.to) {
+    return props.moveQuality
+  }
+  return null
 }
 
 function handleSquareClick(rowIdx: number, colIdx: number) {
-  if (store.isThinking) return
-  store.selectSquare(squareId(rowIdx, colIdx))
-  if (store.mode === 'vs-computer' && store.turn !== store.playerColor && !store.isGameOver) {
-    store.computerMove()
-  }
-}
-
-function handleDragStart(rowIdx: number, colIdx: number) {
   const sq = squareId(rowIdx, colIdx)
-  const cell = displayBoard.value[rowIdx][colIdx]
-  if (!cell) return
-  dragFrom.value = sq
-  store.selectedSquare = sq
-  store.legalMoveSquares = store.chess.moves({ square: sq, verbose: true }).map(m => m.to as Square)
-}
-
-function handleDragEnd() {
-  dragFrom.value = null
-}
-
-function handleDrop(rowIdx: number, colIdx: number) {
-  if (!dragFrom.value) return
-  const to = squareId(rowIdx, colIdx)
-  store.selectSquare(to)
-  if (store.mode === 'vs-computer' && store.turn !== store.playerColor && !store.isGameOver) {
-    store.computerMove()
+  logger.info(`[ChessBoard] Clicked ${sq} | Interactive: ${isInteractive.value} | Thinking: ${isThinking.value}`)
+  
+  if (!isInteractive.value || isThinking.value) {
+    logger.warn(`[ChessBoard] Click on ${sq} ignored: Interactive=${isInteractive.value}, Thinking=${isThinking.value}`)
+    return
   }
-  dragFrom.value = null
+  store.selectSquare(sq)
 }
-
-const promotionPieces: { symbol: PieceSymbol; unicode: string }[] = [
-  { symbol: 'q', unicode: '♛' },
-  { symbol: 'r', unicode: '♜' },
-  { symbol: 'b', unicode: '♝' },
-  { symbol: 'n', unicode: '♞' },
-]
 </script>
 
 <style scoped>
-.board-wrapper {
+.board-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; user-select: none; }
+.board-inner { width: 100%; display: flex; align-items: flex-start; justify-content: center; gap: 12px; }
+
+.main-board-area {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
-  user-select: none;
-  padding: 10px;
+  max-width: min(800px, 85vh);
+  width: 100%;
 }
 
-.board-inner {
+.board-row-wrap {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
-}
-
-.rank-labels {
-  display: flex;
-  flex-direction: column;
-  height: min(480px, 90vw);
-  justify-content: space-around;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-.board-container {
-  position: relative;
-}
-
-.chess-board {
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 3px rgba(255,255,255,0.07);
-  width: min(480px, 90vw);
-  aspect-ratio: 1;
-}
-
-.board-row {
-  display: flex;
-  flex: 1;
-}
-
-.board-square {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: filter 0.1s ease;
-}
-.board-square:hover .piece { transform: scale(1.08); }
-
-.sq-light { background: var(--sq-light); }
-.sq-dark  { background: var(--sq-dark); }
-.sq-selected { filter: brightness(1.15); outline: 3px solid rgba(103,232,249,0.5); outline-offset: -3px; }
-
-.sq-highlight {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.sq-check {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(220,20,60,0.8) 0%, rgba(220,20,60,0) 70%);
-  pointer-events: none;
-}
-
-.legal-dot {
-  position: absolute;
-  width: 28%;
-  height: 28%;
-  background: rgba(0,0,0,0.25);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 2;
-}
-.legal-capture {
   width: 100%;
-  height: 100%;
-  background: transparent;
-  border-radius: 0;
-  border: 4px solid rgba(0,0,0,0.22);
-  border-radius: 50%;
 }
 
-.piece {
-  font-size: clamp(1.6rem, 5vw, 2.4rem);
-  line-height: 1;
-  z-index: 3;
-  position: relative;
-  cursor: grab;
-  transition: transform 0.1s ease, filter 0.1s ease;
+.rank-labels { 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-around; 
+  font-size: 0.9rem; 
+  font-weight: 800; 
+  color: var(--text-muted); 
+  font-family: var(--font-mono); 
+  opacity: 0.9;
+  width: 20px;
 }
-.piece-img-wrap {
-  width: 85%;
-  height: 85%;
-  font-size: unset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.piece-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-}
-.piece-w {
-  color: #fff;
-  text-shadow: 0 2px 5px rgba(0,0,0,0.6);
-}
-.piece-b {
-  color: #1e1e2e;
-  text-shadow: 0 1px 2px rgba(255,255,255,0.3);
-}
-.piece:active { cursor: grabbing; }
-.piece-dragging { opacity: 0.3; }
 
-.file-label {
-  position: absolute;
-  bottom: 2px;
-  right: 4px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(0,0,0,0.35);
-  pointer-events: none;
-}
-.sq-dark .file-label { color: rgba(255,255,255,0.25); }
+.board-container { flex: 1; position: relative; }
 
 .file-labels-row {
   display: flex;
-  font-size: 0.8rem;
-  font-weight: 700;
+  width: 100%;
+  padding-left: 32px; /* Offset for rank labels */
+  justify-content: space-around;
+  font-size: 0.9rem;
+  font-weight: 800;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  width: min(480px, 90vw);
-  justify-content: space-around;
-  padding-left: 36px;
 }
-
-.file-labels-row span {
-  flex: 1;
-  text-align: center;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.chess-board { 
+  display: flex; 
+  flex-direction: column; 
+  border-radius: var(--radius-md); 
+  overflow: hidden; 
+  box-shadow: 0 12px 48px rgba(0,0,0,0.7); 
+  width: 100%; 
+  min-width: 320px;
+  aspect-ratio: 1; 
+  margin: 0 auto;
 }
+.board-row { display: flex; flex: 1; }
+.board-square { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sq-light { background: var(--sq-light); }
+.sq-dark  { background: var(--sq-dark); }
+.sq-selected { outline: 3px solid var(--accent); outline-offset: -3px; }
+.sq-highlight { position: absolute; inset: 0; pointer-events: none; }
+.sq-check { position: absolute; inset: 0; background: radial-gradient(circle, rgba(220,20,60,0.8) 0%, rgba(220,20,60,0) 70%); pointer-events: none; }
+.legal-dot { position: absolute; width: 28%; height: 28%; background: rgba(0,0,0,0.25); border-radius: 50%; pointer-events: none; z-index: 2; }
+.legal-capture { width: 100%; height: 100%; border: 4px solid rgba(0,0,0,0.2); border-radius: 50%; background: transparent; }
+.piece { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 3; position: relative; }
+.piece-img { width: 90%; height: 90%; object-fit: contain; pointer-events: none; }
+.no-interact { opacity: 0.6; pointer-events: none; }
 
-/* Promotion modal */
-.promotion-overlay {
+/* Animated Pieces Layer */
+.pieces-layer {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.piece-wrapper {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
-  backdrop-filter: blur(4px);
-}
-.promotion-dialog {
-  padding: var(--space-6);
-  text-align: center;
+  pointer-events: auto;
+  cursor: grab;
+  transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.1s ease;
 }
 
-.board-arrows {
+/* Vue TransitionGroup Move Class */
+.piece-move-move {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Enter/Leave animations (Captures) */
+.piece-move-enter-active,
+.piece-move-leave-active {
+  transition: all 0.3s ease;
+}
+.piece-move-enter-from,
+.piece-move-leave-to {
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+.thinking-overlay {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  z-index: 10;
-}
-.promo-pieces {
+  inset: 0;
+  background: rgba(0,0,0,0.3);
   display: flex;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
 }
-.promo-btn {
-  font-size: 2.5rem;
-  background: var(--bg-elevated);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  color: var(--text-primary);
+.thinking-text {
+  background: var(--bg-card);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
-.promo-btn:hover { background: var(--accent-dim); border-color: var(--accent); transform: scale(1.1); }
 
-.fade-up-enter-active, .fade-up-leave-active { transition: all 0.2s ease; }
-.fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: scale(0.95); }
+/* Quality Badge Styles */
+.quality-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: white;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.animated-pop-in {
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 </style>

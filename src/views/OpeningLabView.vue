@@ -3,10 +3,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
+import { useRouter } from 'vue-router'
 
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 const coachStore = useCoachStore()
+const router = useRouter()
 
 const isLoading = ref(true)
 const selectedCategory = ref('repertoire')
@@ -65,8 +67,41 @@ onMounted(async () => {
   isLoading.value = false
 })
 
+/**
+ * Navigates to a specific lesson based on the opening ID.
+ * Maps human-readable opening IDs to the curriculum node system.
+ * 
+ * @param openingId - The slug of the opening (e.g., 'sicilian', 'italian')
+ */
 function startTraining(openingId: string) {
-  uiStore.addToast(`Starting specialized training for ${openingId}...`, 'info')
+  // Mapping table to connect visual opening cards to curriculum nodes
+  // Key: Input ID (slug or raw), Value: Curriculum Node ID
+  const trainingMap: Record<string, string> = {
+    'italian': 'ruy-lopez',
+    'italian-game': 'ruy-lopez',
+    'sicilian': 'sicilian-defense',
+    'sicilian-defense': 'sicilian-defense',
+    'queens-gambit': 'd4-opening',
+    'caro-kann': 'caro-kann',
+    'caro-kann-defense': 'caro-kann',
+    'french': 'french-defense',
+    'french-defense': 'french-defense',
+    'ruy-lopez': 'ruy-lopez',
+    'kings-pawn': 'e4-opening',
+    'queens-pawn': 'd4-opening',
+    'london-system': 'd4-opening', // Closest match
+  }
+
+  // Normalize the ID: lowercase and remove spaces/extra hyphens for lookup
+  const normalizedId = openingId.toLowerCase().trim()
+  const lessonId = trainingMap[normalizedId] || trainingMap[normalizedId.replace(/-defense$/, '')]
+  
+  if (lessonId) {
+    router.push(`/lesson/${lessonId}`)
+  } else {
+    // Fallback if no specific lesson exists yet
+    uiStore.addToast(`Advanced training for ${openingId} is coming soon!`, 'info')
+  }
 }
 </script>
 
@@ -254,21 +289,30 @@ function startTraining(openingId: string) {
 .empty-state .icon { font-size: 4rem; margin-bottom: var(--space-4); }
 
 /* Coach's Notes Prescriptions */
-.rx-section { margin-bottom: var(--space-8); }
+.rx-section { 
+  margin-bottom: var(--space-12); 
+  background: rgba(255,255,255,0.02); 
+  padding: var(--space-6); 
+  border-radius: var(--radius-xl);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+  backdrop-filter: blur(8px);
+}
 .rx-strip { display: flex; gap: var(--space-4); flex-wrap: wrap; }
 .rx-card {
-  flex: 1; min-width: 240px; padding: var(--space-4);
+  flex: 1; min-width: 280px; padding: var(--space-4);
   display: flex; gap: var(--space-3); align-items: flex-start;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.05);
 }
-.rx-card:hover { transform: translateY(-2px); }
-.rx-card.rx-critical { border-left: 3px solid var(--rose); }
-.rx-card.rx-warning  { border-left: 3px solid var(--gold); }
-.rx-card.rx-good     { border-left: 3px solid var(--green); }
-.rx-card.rx-info     { border-left: 3px solid var(--accent); }
-.rx-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
-.rx-body h5 { font-weight: 700; font-size: 0.85rem; margin-bottom: 2px; }
-.rx-body p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+.rx-card:hover { transform: translateY(-4px); background: rgba(0,0,0,0.3); border-color: rgba(139,92,246,0.3); }
+.rx-card.rx-critical { border-left: 4px solid var(--rose); }
+.rx-card.rx-warning  { border-left: 4px solid var(--gold); }
+.rx-card.rx-good     { border-left: 4px solid var(--green); }
+.rx-card.rx-info     { border-left: 4px solid var(--accent); }
+.rx-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 2px; }
+.rx-body h5 { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; color: white; }
+.rx-body p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
 
 /* Loading State Enhancements */
 .loading-state {

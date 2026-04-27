@@ -23,6 +23,29 @@ export const useAdminStore = defineStore('admin', () => {
   // --- API METRICS ---
   const lastApiLatency = ref(0) // ms
   const totalTokensUsed = ref(Number(localStorage.getItem('admin_total_tokens') || 0))
+  const ttfr = ref(0) // Time to First Recommendation (ms)
+  const avgDepth = ref(0)
+  const depthStability = ref(100) // % consistency
+  
+  // --- LLM QUALITY METRICS ---
+  const totalResponses = ref(Number(localStorage.getItem('admin_total_responses') || 0))
+  const avgResponseLength = ref(Number(localStorage.getItem('admin_avg_len') || 0))
+  
+  // --- BEHAVIORAL & WARDEN ---
+  const suspicionPeak = ref(0)
+  const suspicionVelocity = ref(0) // points per move
+  const engineCorrelation = ref(100) // %
+  const blurEvents = ref(0)
+  
+  // --- INFRASTRUCTURE ---
+  const vaultSizeBytes = ref(0)
+  const coldBootLatency = ref(0)
+  const syncQueueSize = ref(0)
+  
+  // --- SESSION DYNAMICS ---
+  const sessionStartTime = ref(Date.now())
+  const movesPlayed = ref(0)
+  const movesAnalyzed = ref(0)
   
   // --- STATUS ---
   const isFetching = ref(false)
@@ -39,6 +62,28 @@ export const useAdminStore = defineStore('admin', () => {
     // Rough estimate for Gemini 1.5 Flash ($0.1 / 1M tokens)
     return (totalTokensUsed.value / 1000000) * 0.1
   })
+
+  const cacheSavings = computed(() => {
+    // Estimate $0.0001 per coaching response if it were an LLM call
+    return cacheHits.value * 0.0001
+  })
+
+  const costPerCall = computed(() => {
+    const totalCalls = cacheHits.value + cacheMisses.value
+    if (totalCalls === 0) return 0
+    return estimatedCost.value / totalCalls
+  })
+
+  const sessionDuration = computed(() => {
+    return Math.floor((Date.now() - sessionStartTime.value) / 1000)
+  })
+
+  const analysisToPlayRatio = computed(() => {
+    if (movesPlayed.value === 0) return movesAnalyzed.value
+    return (movesAnalyzed.value / movesPlayed.value).toFixed(2)
+  })
+
+  const vaultSizeMb = computed(() => (vaultSizeBytes.value / (1024 * 1024)).toFixed(2))
 
   // --- ACTIONS ---
 
@@ -62,6 +107,7 @@ export const useAdminStore = defineStore('admin', () => {
 
   function recordCacheHit() {
     cacheHits.value++
+    movesAnalyzed.value++
     localStorage.setItem('admin_cache_hits', cacheHits.value.toString())
   }
 
@@ -69,13 +115,45 @@ export const useAdminStore = defineStore('admin', () => {
     cacheMisses.value++
     totalTokensUsed.value += tokens
     lastApiLatency.value = latency
+    totalResponses.value++
+    movesAnalyzed.value++
+    
+    // Update Avg Length
+    const currentTotal = avgResponseLength.value * (totalResponses.value - 1)
+    avgResponseLength.value = Math.round((currentTotal + tokens) / totalResponses.value)
+    
     localStorage.setItem('admin_cache_misses', cacheMisses.value.toString())
     localStorage.setItem('admin_total_tokens', totalTokensUsed.value.toString())
+    localStorage.setItem('admin_total_responses', totalResponses.value.toString())
+    localStorage.setItem('admin_avg_len', avgResponseLength.value.toString())
   }
 
-  function updateEngineMetrics(nps: number, memory = 0) {
+  function updateEngineMetrics(nps: number, memory = 0, depth = 0, ttfrMs = 0) {
     engineNps.value = nps
     engineMemory.value = memory
+    
+    if (depth > 0) {
+      // Depth Stability: how much the new depth deviates from the average
+      if (avgDepth.value > 0) {
+        const jitter = Math.abs(depth - avgDepth.value) / avgDepth.value
+        const currentStability = Math.max(0, 100 - (jitter * 100))
+        depthStability.value = Math.round((depthStability.value + currentStability) / 2)
+      }
+      avgDepth.value = Math.round((avgDepth.value + depth) / 2)
+    }
+    
+    if (ttfrMs > 0) ttfr.value = ttfrMs
+  }
+
+  function recordSuspicion(score: number, isBlur = false) {
+    const prevScore = suspicionPeak.value
+    if (score > suspicionPeak.value) suspicionPeak.value = score
+    
+    // Velocity: Average growth per interaction
+    const delta = Math.max(0, score - prevScore)
+    suspicionVelocity.value = Number(((suspicionVelocity.value + delta) / 2).toFixed(2))
+    
+    if (isBlur) blurEvents.value++
   }
 
   return {
@@ -89,11 +167,32 @@ export const useAdminStore = defineStore('admin', () => {
     lastApiLatency,
     totalTokensUsed,
     estimatedCost,
+    cacheSavings,
+    costPerCall,
     isFetching,
     lastUpdated,
     fetchCacheCount,
     recordCacheHit,
     recordCacheMiss,
-    updateEngineMetrics
+    updateEngineMetrics,
+    recordSuspicion,
+    ttfr,
+    avgDepth,
+    depthStability,
+    totalResponses,
+    avgResponseLength,
+    suspicionPeak,
+    suspicionVelocity,
+    engineCorrelation,
+    blurEvents,
+    vaultSizeBytes,
+    vaultSizeMb,
+    coldBootLatency,
+    syncQueueSize,
+    sessionStartTime,
+    sessionDuration,
+    movesPlayed,
+    movesAnalyzed,
+    analysisToPlayRatio
   }
 })

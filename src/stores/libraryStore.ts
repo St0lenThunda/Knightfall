@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Chess } from 'chess.js'
 import { logger } from '../utils/logger'
 import { useUserStore } from './userStore'
+import { useUiStore } from './uiStore'
 
 // Import Sub-Composables
 import { useLibraryIdb } from './library/useLibraryIdb'
@@ -35,13 +36,58 @@ export interface LibraryGame {
   missedWins?: number
   theoreticalAccuracy?: number
   cloudId?: string // Native Supabase UUID for cloud push
+  telemetry?: {
+    blurCount: number
+    suspicionScore: number
+    isBusted: boolean
+  }
 }
 
 export interface OpeningNode {
   san: string
   fen: string
   weight: number
+  wins: number
+  losses: number
+  draws: number
   children: Record<string, OpeningNode>
+}
+
+/**
+ * Represents a node in the flattened visual graph.
+ * Pre-calculated with spatial coordinates (x, y) to avoid blocking the UI thread.
+ */
+export interface GraphNode extends OpeningNode {
+  id: string
+  x: number
+  y: number
+  isWhite: boolean
+  depth: number
+  wins: number
+  losses: number
+  draws: number
+}
+
+/**
+ * Represents a connection between two nodes in the visual graph.
+ */
+export interface GraphEdge {
+  id: string
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  weight: number
+  d: string // SVG Path data
+}
+
+/**
+ * The complete pre-calculated layout for the Constellation map.
+ */
+export interface ConstellationLayout {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  maxWeight: number
 }
 
 /**
@@ -75,13 +121,24 @@ export const useLibraryStore = defineStore('library', () => {
    */
   const personalGames = computed(() => {
     return games.value.filter(g => {
-      // Identity Check: Must be one of the players to be 'My DNA'
-      const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
-      if (isMe) return true
+      // 1. Curated collections should NEVER be in 'My DNA' stats
+      if (g.isCurated) return false
 
-      // Fallback for native Knightfall games that might have 'Anonymous' or different headers
-      const tags = (g.tags || []).map(t => t.toLowerCase())
-      return tags.includes('my games')
+      // 2. Identity Check: Must be one of the players to be 'My DNA'
+      // This is the most reliable check as it uses current authenticated handles
+      const isMeWhite = userStore.isMe(g.white)
+      const isMeBlack = userStore.isMe(g.black)
+      if (isMeWhite || isMeBlack) return true
+
+      // 3. Native Fallback: If it's a native Knightfall game, we trust the 'My Games' tag
+      // to preserve local/guest history from before the user logged in.
+      const isNative = g.event === 'Knightfall Match' || (g.tags || []).includes('Knightfall')
+      if (isNative) {
+        const tags = (g.tags || []).map(t => t.toLowerCase())
+        return tags.includes('my games')
+      }
+
+      return false
     })
   })
 
@@ -162,7 +219,56 @@ export const useLibraryStore = defineStore('library', () => {
     const chess = new Chess()
     const updatedGames: LibraryGame[] = []
     
+    logger.info('[Library] Starting vault metadata repair and tag sanitation...')
+
     for (const g of games.value) {
+      let changed = false
+      
+      // 1. Tag Sanitation: Curated games should NEVER have 'My Games' tag
+      if (g.isCurated) {
+        const originalTags = g.tags || []
+        const cleanTags = originalTags.filter(t => t.toLowerCase() !== 'my games')
+        if (cleanTags.length !== originalTags.length) {
+          g.tags = cleanTags
+          changed = true
+        }
+        
+        // Ensure it has a source tag if curated
+        if (g.event && !g.tags?.includes(g.event)) {
+          g.tags = [...(g.tags || []), g.event]
+          changed = true
+        }
+      }
+
+      // 2. Identity Re-validation: If it's not curated, check if it should have 'My Games'
+      if (!g.isCurated) {
+        const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
+        let currentTags = [...(g.tags || [])]
+        const lowerTags = currentTags.map(t => t.toLowerCase())
+        const hasMyGames = lowerTags.includes('my games')
+        
+        if (isMe && !hasMyGames) {
+          currentTags.push('My Games')
+          changed = true
+        } else if (!isMe && hasMyGames) {
+          // If it's not me, and it has the tag, but it's NOT a native Knightfall guest game, strip it
+          const isNative = g.event === 'Knightfall Match' || lowerTags.includes('knightfall')
+          if (!isNative) {
+            currentTags = currentTags.filter(t => t.toLowerCase() !== 'my games')
+            changed = true
+          }
+        }
+
+        // 3. Source Tagging: Ensure imported games have their source tag
+        if (g.event && !lowerTags.includes(g.event.toLowerCase())) {
+          currentTags.push(g.event)
+          changed = true
+        }
+
+        if (changed) g.tags = currentTags
+      }
+
+      // 3. Header Repair (Legacy logic)
       const isMissingElo = !g.whiteElo || !g.blackElo
       const isMissingInfo = g.white === 'Unknown' || g.date === '?'
       
@@ -170,33 +276,62 @@ export const useLibraryStore = defineStore('library', () => {
         try {
           chess.loadPgn(g.pgn)
           const headers = chess.header()
-          let changed = false
           
           if (headers['White'] && g.white === 'Unknown') { g.white = headers['White']!; changed = true }
           if (headers['Black'] && g.black === 'Unknown') { g.black = headers['Black']!; changed = true }
           if (headers['WhiteElo'] && !g.whiteElo) { g.whiteElo = headers['WhiteElo']!; changed = true }
           if (headers['BlackElo'] && !g.blackElo) { g.blackElo = headers['BlackElo']!; changed = true }
-          
-          if (changed) updatedGames.push(g)
-        } catch (e) {
-          logger.warn('[Library] Repair failed for game', g.id, e)
-        }
+        } catch (e) {}
       }
+
+      if (changed) updatedGames.push(g)
     }
 
     if (updatedGames.length > 0) {
+      const db = await idb.initDb()
+      const tx = db.transaction(['games'], 'readwrite')
+      const store = tx.objectStore('games')
+      
       for (const g of updatedGames) {
-        await idb.persistGameUpdate(g)
+        store.put(JSON.parse(JSON.stringify(g)))
       }
-      logger.info(`[Library] Repaired ${updatedGames.length} games.`)
-      constellation.generateOpeningTree()
+      
+      tx.oncomplete = () => {
+        logger.info(`[Library] Repaired ${updatedGames.length} games.`)
+        const ui = useUiStore()
+        ui.addToast(`Vault sanitized: ${updatedGames.length} metadata fixes applied.`, 'success')
+      }
     }
   }
 
   /**
-   * Deduplication engine: Purges games with identical move sequences.
-   * Now triggers the deep IDB upgrade to the new fingerprinting standard.
+   * Unified deletion: removes from memory, IDB, and Cloud.
    */
+  async function deleteGame(id: string) {
+    const game = games.value.find(g => g.id === id)
+    if (!game) return
+
+    // 1. Cloud Deletion (if applicable)
+    if (game.cloudId) {
+      try {
+        await cloud.deleteCloudGame(game.cloudId)
+        logger.info('[Library] Cloud game deleted:', game.cloudId)
+      } catch (e) {
+        logger.error('[Library] Cloud deletion failed, proceeding with local only', e)
+      }
+    }
+
+    // 2. IDB & Memory Deletion
+    await idb.deleteGame(id)
+    
+    // 3. UI Update (Trigger filter to refresh view)
+    filter.triggerFilter()
+    
+    // 4. Feedback
+    const ui = useUiStore()
+    ui.addToast('Game permanently deleted.', 'success')
+  }
+
   async function purgeDuplicates() {
     const beforeCount = games.value.length
     await idb.purgeDuplicates()
@@ -237,7 +372,7 @@ export const useLibraryStore = defineStore('library', () => {
     // Actions
     loadGames: idb.loadGames,
     resetLibrary: idb.resetLibrary,
-    deleteGame: idb.deleteGame,
+    deleteGame,
     
     importPgn: importer.importPgn,
     importPgnZip: importer.importPgnZip,

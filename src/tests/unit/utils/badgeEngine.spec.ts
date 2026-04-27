@@ -24,7 +24,8 @@ describe('BadgeEngine (Milestones & Achievements)', () => {
       const input = {
         ...baseInput,
         pastGames: new Array(10).fill({ result: 'win' }),
-        profile: { rating: 1200, puzzle_rating: 1250 }
+        profile: { rating: 1200, puzzle_rating: 1250 },
+        level: 5 // Meets level >= 2 requirement
       }
       const result = evaluateBadges(input)
       expect(result.title.label).toBe('Knight')
@@ -34,7 +35,8 @@ describe('BadgeEngine (Milestones & Achievements)', () => {
       const input = {
         ...baseInput,
         pastGames: new Array(500).fill({ result: 'win' }),
-        profile: { rating: 2000, puzzle_rating: 1850 }
+        profile: { rating: 2000, puzzle_rating: 1850 },
+        level: 60 // Meets level >= 50 requirement
       }
       const result = evaluateBadges(input)
       expect(result.title.label).toBe('Grandmaster')

@@ -17,18 +17,6 @@ export function useLibrarySync(
   initDb: () => Promise<IDBDatabase>
 ) {
 
-  /**
-   * Normalizes a PGN to its core move sequence for reliable matching.
-   */
-  function normalizePgnForMatching(pgn: string): string {
-    // Remove headers, comments, and whitespace
-    return pgn
-      .replace(/\[.*?\]/g, '') // Remove [Tags]
-      .replace(/\{.*?\}/g, '') // Remove {Comments}
-      .replace(/\d+\.+\s*/g, '') // Remove move numbers (1. e4 -> e4)
-      .replace(/\s+/g, '') // Remove all whitespace
-      .trim()
-  }
 
   async function syncCloudGames() {
     const uiStore = useUiStore()
@@ -44,17 +32,13 @@ export function useLibrarySync(
     
     if (error || !matches) {
       logger.error('[Sync] Failed to fetch cloud matches', error)
-      uiStore.addToast('Cloud sync failed. Check connection.', 'error')
+      uiStore.addToast('Cloud sync failed.', 'error')
       return
     }
 
-    logger.info(`[Sync] Cloud Probe: Found ${matches.length} matches in Supabase.`)
-    if (matches.length > 0) {
-      const sample = matches[0]
-      const w = sample.white || sample.metadata?.white || 'Unknown'
-      const b = sample.black || sample.metadata?.black || 'Unknown'
-      logger.info(`[Sync] Cloud Sample: "${w} vs ${b}"`)
-    }
+    // --- OPTIMIZATION: Use Map for O(1) lookup ---
+    const localMap = new Map<string, LibraryGame>()
+    games.value.forEach(g => localMap.set(g.id, g))
 
     const chess = new Chess()
     const syncedGames: LibraryGame[] = []
@@ -69,38 +53,8 @@ export function useLibrarySync(
         const black = (headers['Black'] || 'Unknown').trim()
         const stableId = generateGameFingerprint(white, black, m.pgn)
 
-        // --- SMART MATCHING (Hardened) ---
-        // 1. Strict Fingerprint Match
-        let existing = games.value.find(g => g.id === stableId)
+        let existing = localMap.get(stableId)
         
-        // 2. Molecular Match (Move Sequence Comparison)
-        if (!existing) {
-          const cloudMoves = normalizePgnForMatching(m.pgn)
-
-          existing = games.value.find(g => {
-            if (g.cloudId) return false
-            return normalizePgnForMatching(g.pgn) === cloudMoves
-          })
-        }
-
-        // 3. Metadata Fallback (Case-Insensitive)
-        if (!existing) {
-          const moveCount = chess.history().length
-          existing = games.value.find(g => {
-            if (g.cloudId) return false
-            
-            const nameMatch = (
-              g.white.toLowerCase() === white.toLowerCase() && 
-              g.black.toLowerCase() === black.toLowerCase()
-            ) || (
-              g.white.toLowerCase() === black.toLowerCase() && 
-              g.black.toLowerCase() === white.toLowerCase()
-            )
-            
-            return nameMatch && g.movesCount === moveCount
-          })
-        }
-
         if (existing) {
           if (!existing.cloudId) {
             existing.cloudId = m.id
@@ -108,7 +62,6 @@ export function useLibrarySync(
             const tx = db.transaction(['games'], 'readwrite')
             tx.objectStore('games').put(JSON.parse(JSON.stringify(existing)))
             backfillCount++
-            logger.info(`[Sync] Re-linked local game "${white} vs ${black}" to cloud ID: ${m.id}`)
           }
           continue
         }
@@ -150,9 +103,9 @@ export function useLibrarySync(
         backfillCount > 0 ? `Re-linked ${backfillCount} existing games.` : ''
       ].filter(Boolean).join(' ')
       
-      uiStore.addToast(msg || 'Vault is already up to date.', 'success')
+      uiStore.addToast(msg || 'Vault is up to date.', 'success')
     } else {
-      uiStore.addToast('Vault is already up to date.', 'info')
+      uiStore.addToast('Vault is up to date.', 'info')
     }
   }
 
@@ -292,9 +245,25 @@ export function useLibrarySync(
     }
   }
 
+  /**
+   * Deletes a single game from the cloud.
+   */
+  async function deleteCloudGame(cloudId: string) {
+    const { error } = await supabase
+      .from('matches')
+      .delete()
+      .eq('id', cloudId)
+    
+    if (error) {
+      logger.error('[Sync] Failed to delete cloud game:', cloudId, error)
+      throw error
+    }
+  }
+
   return {
     syncCloudGames,
     purgeCloudLibrary,
+    deleteCloudGame,
     pushGameAnalysis,
     pushLocalGamesToCloud
   }

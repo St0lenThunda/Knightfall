@@ -12,7 +12,7 @@
           <header class="console-header">
             <div class="header-left">
               <span class="title">GHOSTLY TERMINAL</span>
-              <span class="version">v0.13.0.STABLE</span>
+              <span class="version">v{{ version }}.STABLE</span>
             </div>
             <div class="header-right">
               <span class="uptime">UPTIME: {{ uptime }}</span>
@@ -137,6 +137,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 
 const userStore = useUserStore()
 const adminStore = useAdminStore()
+const version = __APP_VERSION__
 const engineStore = useEngineStore()
 const libraryStore = useLibraryStore()
 

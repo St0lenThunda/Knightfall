@@ -19,7 +19,7 @@
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
         <div class="user-rating" style="display: flex; gap: 6px; margin-top: 2px;">
           <span class="badge badge-gold" title="Performance Rating">♔ {{ libraryStore.performanceRating }}</span>
-          <span class="badge badge-accent" title="Analyzed Personal Games">🧬 {{ libraryStore.personalGames.length }}</span>
+          <span class="badge badge-primary" title="Experience Points">✨ {{ userStore.xp }} XP</span>
         </div>
       </div>
     </div>
@@ -85,10 +85,23 @@
     <!-- Bottom actions -->
     <div class="sidenav-bottom" v-show="!collapsed">
       <div class="sidenav-footer">
-        <span class="muted" style="font-size: 0.75rem;">v0.1.0 prototype</span>
+        <span 
+          class="muted" 
+          style="font-size: 0.75rem; cursor: pointer;" 
+          @click="(userStore.isAdmin || isDev) ? showTelemetryModal = true : null"
+          :title="(userStore.isAdmin || isDev) ? 'Open Telemetry' : ''"
+        >
+          v{{ version }} prototype
+        </span>
       </div>
     </div>
+
     <Teleport to="body">
+      <TelemetryModal
+        v-if="showTelemetryModal"
+        :show="showTelemetryModal"
+        @close="showTelemetryModal = false"
+      />
       <AuthModal 
         v-if="showAuthModal" 
         :initialMode="authMode" 
@@ -98,6 +111,16 @@
         v-if="showLogoutModal"
         @close="showLogoutModal = false"
       />
+      <!-- Admin/Dev Heart Refill -->
+      <div v-if="userStore.isAdmin" style="position: fixed; bottom: 20px; left: 240px; z-index: 999; pointer-events: auto;">
+        <button 
+          class="btn btn-xs btn-primary" 
+          @click="userStore.addXP(0); userStore.profile!.hearts = 5"
+          style="opacity: 0.5; font-size: 10px;"
+        >
+          ❤️ REFILL
+        </button>
+      </div>
     </Teleport>
   </nav>
 </template>
@@ -110,6 +133,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 import { useCoachStore } from '../stores/coachStore'
 import AuthModal from './AuthModal.vue'
 import LogoutModal from './LogoutModal.vue'
+import TelemetryModal from './TelemetryModal.vue'
 
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
@@ -117,6 +141,7 @@ const coachStore = useCoachStore()
 
 const showAuthModal = ref(false)
 const showLogoutModal = ref(false)
+const showTelemetryModal = ref(false)
 const authMode = ref<'login' | 'signup'>('login')
 
 function handleLogin() {
@@ -147,6 +172,9 @@ onUnmounted(() => {
 })
 
 const route = useRoute()
+const version = __APP_VERSION__
+const isDev = import.meta.env.DEV
+const emit = defineEmits(['toggle'])
 const collapsed = ref(false)
 
 // Accordion State

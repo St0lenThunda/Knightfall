@@ -79,7 +79,8 @@
       </div>
       
       <div class="vault-meta">
-        <span class="muted">{{ libraryStore.filteredGames.length }} games found</span>
+        <span class="badge" v-if="libraryStore.games.length === 0" style="background: var(--rose-dim);">RAW VAULT EMPTY</span>
+        <span class="muted">{{ libraryStore.filteredGames.length }} games found ({{ libraryStore.games.length }} total)</span>
       </div>
     </div>
 
@@ -160,8 +161,21 @@
           :game="selectedGame" 
           @close="selectedGame = null"
           @analyze="handleAnalyze(selectedGame)"
+          @delete="handleDelete(selectedGame)"
         />
       </Transition>
+
+      <!-- Deletion Confirmation -->
+      <ConfirmModal
+        v-if="gameToDelete"
+        title="Delete Game?"
+        message="This will permanently remove the match from your Vault and Cloud. This action cannot be undone."
+        icon="🗑️"
+        variant="danger"
+        confirmLabel="Yes, Delete"
+        @confirm="confirmDelete"
+        @cancel="gameToDelete = null"
+      />
     </Teleport>
   </div>
 </template>
@@ -173,6 +187,7 @@ import { useLibraryStore, type LibraryGame } from '../../stores/libraryStore'
 import GameCard from './GameCard.vue'
 import GameRow from './GameRow.vue'
 import GameDetailsModal from './GameDetailsModal.vue'
+import ConfirmModal from '../ConfirmModal.vue'
 
 const router = useRouter()
 const libraryStore = useLibraryStore()
@@ -185,6 +200,20 @@ watch(viewMode, (mode) => {
 
 function handleAnalyze(game: LibraryGame) {
   router.push(`/analysis?id=${game.id}`)
+}
+
+const gameToDelete = ref<LibraryGame | null>(null)
+
+async function handleDelete(game: LibraryGame) {
+  gameToDelete.value = game
+}
+
+async function confirmDelete() {
+  if (gameToDelete.value) {
+    await libraryStore.deleteGame(gameToDelete.value.id)
+    selectedGame.value = null
+    gameToDelete.value = null
+  }
 }
 
 function toggleSortOrder() {

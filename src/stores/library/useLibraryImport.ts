@@ -133,7 +133,15 @@ export function useLibraryImport(
    * Saves a single game (e.g., from a live session) to the library.
    * Handles deduplication via fingerprinting.
    */
-  async function saveGameToLibrary(pgn: string, tags: string[] = [], telemetry?: { clocks?: number[], evals?: any[] }) {
+  async function saveGameToLibrary(pgn: string, tags: string[] = [], telemetry?: { 
+    clocks?: number[], 
+    evals?: any[],
+    antiCheat?: {
+      blurCount: number
+      suspicionScore: number
+      isBusted: boolean
+    }
+  }) {
     const chess = new Chess()
     try {
       safeLoadPgn(chess, pgn)
@@ -165,10 +173,11 @@ export function useLibraryImport(
         blackElo: headers['BlackElo'] ?? undefined,
         tags: [...new Set(['My Games', ...tags])],
         clocks: telemetry?.clocks,
-        evals: telemetry?.evals
+        evals: telemetry?.evals,
+        telemetry: telemetry?.antiCheat
       }
 
-      games.value.push(JSON.parse(JSON.stringify(game)))
+      games.value = [...games.value, JSON.parse(JSON.stringify(game))]
       
       const db = await initDb()
       const transaction = db.transaction(['games'], 'readwrite')
@@ -223,7 +232,7 @@ export function useLibraryImport(
           transaction.objectStore('games').put(JSON.parse(JSON.stringify(game)))
           
           if (!games.value.some(g => g.id === game.id)) {
-            games.value.push(game)
+            games.value = [...games.value, game]
           }
 
           importProgress.value = Math.round(((i + 1) / total) * 100)

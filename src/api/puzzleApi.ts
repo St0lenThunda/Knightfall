@@ -10,6 +10,7 @@ export interface Puzzle {
   lastMove: string
   solution: string[]
   category: string
+  explanation?: string // Optional coaching insight for personal puzzles
 }
 
 const puzzles = puzzlesData as Puzzle[]

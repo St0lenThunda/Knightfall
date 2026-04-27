@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
+import { Chess } from 'chess.js'
+import { useLibraryStore } from './libraryStore'
+import { logger } from '../utils/logger'
 
 export interface SkillNode {
   id: string
@@ -48,6 +51,14 @@ export const useCurriculumStore = defineStore('curriculum', () => {
       description: 'The royal docks where every journey begins.',
       x: 100, y: 450,
       categories: ['Opening']
+    },
+    {
+      id: 'personal-realm',
+      name: 'The Shadow Realm',
+      icon: '👤',
+      description: 'The echoes of your own past — conquer your ghosts.',
+      x: 350, y: 350,
+      categories: ['Personal Mistake']
     }
   ])
 
@@ -90,6 +101,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     if (!error && data) {
       completedNodeIds.value = data.map(d => d.node_id)
       updateNodeStatuses()
+      generatePersonalLessons() // Refresh personalized content
     }
   }
 
@@ -116,6 +128,98 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     }
   }
 
+  const personalPuzzles = ref<any[]>([])
+  const isGenerating = ref(false)
+
+  /**
+   * THE INTELLIGENCE ENGINE (Dynamic Puzzle Generation)
+   * Scans the user's analyzed games for significant mistakes and transforms
+   * them into personalized puzzles using the coaching_cache.
+   */
+  async function generatePersonalPuzzles() {
+    const library = useLibraryStore()
+    if (library.games.length === 0) return
+
+    isGenerating.value = true
+    const newPuzzles: any[] = []
+
+    try {
+      for (const game of library.games) {
+        if (!game.evals || game.evals.length === 0) continue
+
+        // We use chess.js to parse the PGN and get the exact moves for comparison
+        const chess = new Chess()
+        chess.loadPgn(game.pgn)
+        const moves = chess.history({ verbose: true })
+        
+        // Iterate through evals and find significant mistakes
+        game.evals.forEach((ev, i) => {
+          if (!ev || !ev.bestMove || i >= moves.length) return
+
+          const playedMove = moves[i].lan // Long Algebraic Notation (e.g. e2e4)
+          const bestMove = ev.bestMove
+          
+          // If the engine's best move is different and we have an explanation cached
+          if (playedMove !== bestMove && game.analysisCache?.[moves[i].before]) {
+            newPuzzles.push({
+              id: `personal-${game.id}-${i}`,
+              title: `Mistake in ${game.event || 'Recent Game'}`,
+              rating: Math.round(Number(game.whiteElo || 1200)),
+              themes: ['Mistake Recovery', moves[i].piece],
+              fen: moves[i].before,
+              lastMove: i > 0 ? moves[i-1].lan : '',
+              solution: [bestMove],
+              category: 'Personal Mistake',
+              explanation: game.analysisCache[moves[i].before]
+            })
+          }
+        })
+      }
+
+      personalPuzzles.value = newPuzzles.sort(() => Math.random() - 0.5).slice(0, 10)
+      logger.info(`[Curriculum] Generated ${personalPuzzles.value.length} personalized puzzles from vault.`)
+    } catch (err) {
+      logger.error('[Curriculum] Failed to generate personal puzzles:', err)
+    } finally {
+      isGenerating.value = false
+    }
+  }
+
+  const personalLessons = ref<any[]>([])
+
+  /**
+   * Generates thematic lessons by grouping personal puzzles by theme.
+   */
+  async function generatePersonalLessons() {
+    if (personalPuzzles.value.length === 0) {
+      await generatePersonalPuzzles()
+    }
+
+    const themeGroups: Record<string, any[]> = {}
+    personalPuzzles.value.forEach(p => {
+      const mainTheme = p.themes[0] || 'General Improvement'
+      if (!themeGroups[mainTheme]) themeGroups[mainTheme] = []
+      themeGroups[mainTheme].push(p)
+    })
+
+    const newLessons: any[] = []
+    Object.entries(themeGroups).forEach(([theme, puzzles]) => {
+      if (puzzles.length >= 2) {
+        newLessons.push({
+          id: `lesson-${theme.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Focus: ${theme}`,
+          category: puzzles[0].category,
+          icon: '🎓',
+          puzzles: puzzles.slice(0, 5),
+          xp_reward: puzzles.length * 20
+        })
+      }
+    })
+
+    personalLessons.value = newLessons
+    logger.info(`[Curriculum] Generated ${personalLessons.value.length} thematic lessons.`)
+  }
+
   const nextNodes = computed(() => nodes.value.filter(n => n.status === 'unlocked'))
 
   return {
@@ -126,6 +230,11 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     nextNodes,
     viewMode,
     selectedIslandId,
-    realms
+    realms,
+    personalPuzzles,
+    personalLessons,
+    isGenerating,
+    generatePersonalPuzzles,
+    generatePersonalLessons
   }
 })

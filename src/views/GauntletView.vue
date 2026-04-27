@@ -62,7 +62,7 @@ function loadPuzzle(index: number) {
 
 watch(() => store.moveHistory.length, (newLen, oldLen) => {
   // Only process if the history grew, we have a puzzle, and we aren't already solved or processing
-  if (newLen > oldLen && currentPuzzle.value && !puzzleSolved.value && !isFinished.value && !processingMove.value) {
+  if (newLen > oldLen && currentPuzzle.value && !puzzleSolved.value && !isFinished.value) {
     const lastM = store.moveHistory[newLen - 1]
     const uci = lastM.from + lastM.to + (lastM.san.includes('=') ? 'q' : '') 
     const expected = currentPuzzle.value.solution[puzzleStep.value]
@@ -77,10 +77,8 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
         // Opponent's turn to respond
         if (puzzleStep.value % 2 !== 0) {
           const oppMove = currentPuzzle.value.solution[puzzleStep.value]
-          processingMove.value = true
           setTimeout(() => {
             store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
-            processingMove.value = false
           }, 400)
         }
       }

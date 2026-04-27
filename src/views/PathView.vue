@@ -36,7 +36,13 @@ function getNodeClass(node: SkillNode) {
     
     <header class="path-header">
       <div class="header-glass">
-        <h1 class="title-lg text-gold">Knight's Path</h1>
+        <div class="header-top-row">
+          <h1 class="title-lg text-gold">Knight's Path</h1>
+          <div class="header-stats-mini">
+            <span class="badge badge-primary">✨ {{ userStore.xp }} XP</span>
+            <span class="badge badge-gold">🔥 {{ userStore.streak }}d</span>
+          </div>
+        </div>
         <p class="text-white opacity-80">Master your craft in the echoes of the grand game.</p>
       </div>
     </header>
@@ -70,6 +76,32 @@ function getNodeClass(node: SkillNode) {
           <!-- Bouncing Gold Knight -->
           <div v-if="node.status === 'unlocked' && !curriculum.completedNodeIds.includes(node.id)" class="active-indicator">
             ♘
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- THE SHADOW ECHOES (Personalized Challenges) -->
+    <div v-if="curriculum.personalLessons.length > 0" class="shadow-realm-section animated-fade-in">
+      <div class="shadow-header">
+        <h2 class="text-gold">Shadow Echoes</h2>
+        <p class="muted">Master the mistakes of your past self.</p>
+      </div>
+      
+      <div class="shadow-lessons-grid">
+        <div 
+          v-for="lesson in curriculum.personalLessons" 
+          :key="lesson.id" 
+          class="shadow-card glass"
+          @click="router.push(`/lesson/${lesson.id}`)"
+        >
+          <div class="shadow-card-icon">{{ lesson.icon }}</div>
+          <div class="shadow-card-info">
+            <div class="shadow-title">{{ lesson.title }}</div>
+            <div class="shadow-meta">
+              <span class="badge badge-rose">{{ lesson.puzzles.length }} Ghost{{ lesson.puzzles.length > 1 ? 's' : '' }}</span>
+              <span class="badge badge-gold">+{{ lesson.xp_reward }} XP</span>
+            </div>
           </div>
         </div>
       </div>
@@ -137,12 +169,26 @@ function getNodeClass(node: SkillNode) {
 }
 
 .header-glass {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
-  padding: 30px 60px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(12px);
+  padding: var(--space-6) var(--space-10);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.header-stats-mini {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
 }
 
 .text-gold {
@@ -295,5 +341,63 @@ function getNodeClass(node: SkillNode) {
 @keyframes bounceGhost {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-20px) scale(1.1); }
+}
+
+/* SHADOW REALM SECTION */
+.shadow-realm-section {
+  width: 100%;
+  max-width: 800px;
+  margin-top: 100px;
+  position: relative;
+  z-index: 10;
+  text-align: center;
+}
+
+.shadow-header { margin-bottom: var(--space-8); }
+.shadow-header h2 { font-size: 2.5rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.shadow-lessons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+.shadow-card {
+  padding: var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.shadow-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.15);
+}
+
+.shadow-card-icon {
+  font-size: 2rem;
+  background: rgba(255,255,255,0.05);
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+}
+
+.shadow-title { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
+.shadow-meta { display: flex; gap: var(--space-2); }
+
+.animated-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

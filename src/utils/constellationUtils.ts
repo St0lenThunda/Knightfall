@@ -11,12 +11,14 @@ import type { LibraryGame, OpeningNode } from '../stores/libraryStore'
  */
 export async function buildOpeningTree(
     games: LibraryGame[], 
+    isMe: (name: string) => boolean,
     onProgress?: (progress: number) => void
 ): Promise<OpeningNode> {
     const root: OpeningNode = { 
         san: 'Root', 
         fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 
-        weight: games.length, 
+        weight: games.length,
+        wins: 0, losses: 0, draws: 0,
         children: {} 
     }
     
@@ -30,12 +32,19 @@ export async function buildOpeningTree(
     for (let i = 0; i < total; i++) {
         const game = games[i]
         try {
-            // We use a temporary chess instance to extract history
+            // Determine result from user's perspective
+            const meWhite = isMe(game.white)
+            const meBlack = isMe(game.black)
+            let perspectiveResult: 'win' | 'loss' | 'draw' = 'draw'
+
+            if (game.result === '1-0') perspectiveResult = meWhite ? 'win' : 'loss'
+            else if (game.result === '0-1') perspectiveResult = meBlack ? 'win' : 'loss'
+            else perspectiveResult = 'draw'
+
             chess.loadPgn(game.pgn)
             const history = chess.history({ verbose: true })
             
             let currentNode = root
-            // Limit depth to 10 moves to keep the visualization manageable and save memory
             const depth = Math.min(history.length, 10)
             
             for (let j = 0; j < depth; j++) {
@@ -48,15 +57,27 @@ export async function buildOpeningTree(
                         san, 
                         fen, 
                         weight: 0, 
+                        wins: 0, losses: 0, draws: 0,
                         children: {} 
                     }
                 }
                 
                 currentNode.children[san].weight++
+                if (perspectiveResult === 'win') currentNode.children[san].wins++
+                else if (perspectiveResult === 'loss') currentNode.children[san].losses++
+                else currentNode.children[san].draws++
+
+                // Also update root/parent nodes if desired (optional for visual stars)
+                if (j === 0) {
+                    if (perspectiveResult === 'win') root.wins++
+                    else if (perspectiveResult === 'loss') root.losses++
+                    else root.draws++
+                }
+
                 currentNode = currentNode.children[san]
             }
         } catch (e) {
-            // Skip invalid PGNs without crashing the entire mapping process
+            // Skip invalid PGNs
         }
 
         // Yield control back to the browser every CHUNK_SIZE games

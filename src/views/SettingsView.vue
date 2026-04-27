@@ -241,7 +241,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { supabase } from '../api/supabaseClient'
-import { fetchRecentChessComGames } from '../api/chessComApi'
+import { fetchRecentChesscomGames } from '../api/chesscomApi'
 
 const settings = useSettingsStore()
 const userStore = useUserStore()
@@ -296,7 +296,7 @@ const tabs = [
     try {
       // Logic for syncing from Chess.com/Lichess (imported from previous ProfileView logic)
       if (editChessComUser.value.trim()) {
-        const games = await fetchRecentChessComGames(editChessComUser.value.trim(), 12)
+        const games = await fetchRecentChesscomGames(editChessComUser.value.trim(), 12)
         for (const game of games) {
           await libraryStore.saveGameToLibrary(game.pgn, ['Chess.com'])
         }

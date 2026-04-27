@@ -1,6 +1,9 @@
 import { ref, computed, watch, type Ref } from 'vue'
 import type { LibraryGame, OpeningNode } from '../libraryStore'
 import { buildOpeningTree } from '../../utils/constellationUtils'
+import { calculateConstellationLayout } from '../../utils/constellationLayout'
+import { useUserStore } from '../userStore'
+import type { ConstellationLayout } from '../libraryStore'
 import { logger } from '../../utils/logger'
 
 /**
@@ -18,6 +21,7 @@ export function useLibraryConstellation(
 ) {
   const isGeneratingTree = ref(false)
   const openingTree = ref<OpeningNode | null>(null)
+  const constellationLayout = ref<ConstellationLayout>({ nodes: [], edges: [], maxWeight: 1 })
   const isConstellationActive = ref(false)
   const constellationFingerprint = ref('')
 
@@ -38,15 +42,20 @@ export function useLibraryConstellation(
     
     const currentGames = filteredGames.value
     const fingerprint = `${currentGames.length}-${searchQuery.value}-${filterResult.value}-${selectedTag.value}-${filterPerspective.value}`
+    const { isMe } = useUserStore()
     
     if (isGeneratingTree.value) return 
     
     isGeneratingTree.value = true
     try {
-      const tree = await buildOpeningTree(currentGames, (p) => {
+      const tree = await buildOpeningTree(currentGames, isMe, (p) => {
         importProgress.value = Math.round(p * 100)
       })
       openingTree.value = tree
+      
+      // Perform recursive flattening and layout calculation
+      constellationLayout.value = calculateConstellationLayout(tree)
+      
       constellationFingerprint.value = fingerprint
     } finally {
       isGeneratingTree.value = false
@@ -70,6 +79,7 @@ export function useLibraryConstellation(
   return {
     isGeneratingTree,
     openingTree,
+    constellationLayout,
     isConstellationActive,
     isConstellationStale,
     generateOpeningTree,

@@ -51,11 +51,40 @@
              <span v-for="tag in game.tags" :key="tag" class="tag">{{ tag }}</span>
           </div>
 
+          <!-- Warden Ghost Telemetry -->
+          <div v-if="game.telemetry" class="telemetry-section glass-xs">
+            <header class="tel-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="icon">🛰️</span>
+                <span class="title">Warden Ghost Telemetry</span>
+              </div>
+              <span v-if="game.telemetry.isBusted" class="badge badge-rose pulse">VIOLATION DETECTED</span>
+            </header>
+            <div class="tel-grid">
+              <div class="tel-item">
+                <span class="label">Visibility Blurs</span>
+                <span class="val" :class="{ 'text-rose': game.telemetry.blurCount > 0 }">{{ game.telemetry.blurCount }}</span>
+              </div>
+              <div class="tel-item">
+                <span class="label">Suspicion Score</span>
+                <span class="val" :class="getSuspicionClass(game.telemetry.suspicionScore)">{{ game.telemetry.suspicionScore }}%</span>
+              </div>
+            </div>
+            <div class="tel-footer muted">
+              Metadata captured by Knightfall behavioral engine.
+            </div>
+          </div>
+
           <footer class="modal-actions">
             <button class="btn btn-primary btn-lg launch-btn" @click="$emit('analyze')">
               🔬 Launch Analysis
             </button>
-            <button class="btn btn-ghost" @click="$emit('close')">Cancel</button>
+            <div class="secondary-actions">
+               <button class="btn btn-ghost" @click="$emit('close')">Cancel</button>
+               <button class="btn btn-ghost text-danger" @click="$emit('delete')" title="Remove from Vault & Cloud">
+                 🗑️ Delete
+               </button>
+            </div>
           </footer>
         </div>
       </div>
@@ -72,7 +101,7 @@ const props = defineProps<{
   game: any
 }>()
 
-defineEmits(['close', 'analyze'])
+defineEmits(['close', 'analyze', 'delete'])
 
 const resultClass = computed(() => {
     if (props.game.result === '1-0') return 'win-w'
@@ -93,6 +122,12 @@ const finalFen = computed(() => {
         return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     }
 })
+
+function getSuspicionClass(score: number) {
+    if (score > 80) return 'text-rose'
+    if (score > 40) return 'text-gold'
+    return 'text-green'
+}
 </script>
 
 <style scoped>
@@ -236,9 +271,79 @@ const finalFen = computed(() => {
 
 .modal-actions {
   display: flex;
-  gap: var(--space-4);
-  margin-top: auto;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
   padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.secondary-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1;
+  justify-content: flex-end;
+}
+
+@media (max-width: 500px) {
+  .modal-actions { flex-direction: column; }
+  .secondary-actions { justify-content: stretch; }
+  .secondary-actions button { flex: 1; }
+}
+
+.telemetry-section {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.tel-header .title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.tel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.tel-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tel-item .label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.tel-item .val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+.tel-footer {
+  margin-top: var(--space-3);
+  font-size: 0.65rem;
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.pulse {
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
 }
 
 .launch-btn {
