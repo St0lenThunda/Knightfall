@@ -50,7 +50,10 @@
               <span title="Middlegame">M: {{ accuracies.white.middle }}%</span>
               <span title="Endgame">E: {{ accuracies.white.endgame }}%</span>
             </div>
-            <div class="elo">Played like: {{ accuracies.white.perfRating }}</div>
+            <div class="elo">
+              <span class="perf">Perf: {{ accuracies.white.perfRating }}</span>
+              <span class="actual">Rating: {{ whitePlayer.rating }}</span>
+            </div>
           </td>
           <td class="quality-icon">SUMMARY</td>
           <td class="summary black">
@@ -60,7 +63,10 @@
               <span title="Middlegame">M: {{ accuracies.black.middle }}%</span>
               <span title="Endgame">E: {{ accuracies.black.endgame }}%</span>
             </div>
-            <div class="elo">Played like: {{ accuracies.black.perfRating }}</div>
+            <div class="elo">
+              <span class="perf">Perf: {{ accuracies.black.perfRating }}</span>
+              <span class="actual">Rating: {{ blackPlayer.rating }}</span>
+            </div>
           </td>
         </tr>
       </tfoot>
@@ -293,11 +299,23 @@ function accuracyToRating(acc: number): number {
 }
 
 .elo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+.elo .perf {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--accent-bright);
+  text-shadow: 0 0 10px rgba(139,92,246,0.3);
+}
+.elo .actual {
   font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
+  font-weight: 700;
   letter-spacing: 0.05em;
-  margin-top: 4px;
 }
 
 .quality-icon {

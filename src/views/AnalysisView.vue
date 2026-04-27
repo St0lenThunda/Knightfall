@@ -1,27 +1,28 @@
 <template>
   <div class="page analysis-page">
-    <div class="analysis-header">
-      <div>
-        <h2>🔬 Oracle's Review</h2>
-        <p class="muted" style="font-size: 0.9rem;">AI-powered coaching, not just engine numbers</p>
-      </div>
-      <div style="display:flex; gap: var(--space-2); align-items: center;">
-        <!-- Guest-only onboarding -->
-        <button v-if="!userStore.isAuthenticated" class="btn btn-primary btn-sm" @click="loadDemo">
-          🚀 Load Demo
-        </button>
-        
-        <!-- Authenticated: Go to Library -->
-        <router-link v-else to="/profile?tab=vault" class="btn btn-primary btn-sm">
-          🏛 Go to Vault
-        </router-link>
+      <div class="analysis-compact-header">
+        <div>
+          <h2 class="title-sm">🔬 Oracle's Review</h2>
+          <p class="muted" style="font-size: 0.75rem;">AI-powered coaching, not just engine numbers</p>
+        </div>
 
-        <!-- Always available: External Import -->
-        <button class="btn btn-ghost btn-sm" @click="importPgn" title="Analyze an external PGN string">
-          📂 Import PGN
-        </button>
+        <div style="display:flex; gap: var(--space-2); align-items: center;">
+          <!-- Guest-only onboarding -->
+          <button v-if="!userStore.isAuthenticated" class="btn btn-primary btn-sm" @click="loadDemo">
+            🚀 Load Demo
+          </button>
+          
+          <!-- Authenticated: Go to Library -->
+          <router-link v-else to="/profile?tab=vault" class="btn btn-primary btn-sm">
+            🏛 Go to Vault
+          </router-link>
+
+          <!-- Always available: External Import -->
+          <button class="btn btn-ghost btn-sm" @click="importPgn" title="Analyze an external PGN string">
+            📂 Import PGN
+          </button>
+        </div>
       </div>
-    </div>
 
     <!-- Loading overlay -->
     <Transition name="fade-out">
@@ -36,52 +37,45 @@
 
     <div class="analysis-layout" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
       <!-- Board column -->
-      <div class="analysis-board-col">
-        <div v-if="hasGame" class="game-matchup-header glass-sm">
-           <span class="player-pill white">{{ playerNames.white }} <span class="elo">{{ playerNames.whiteElo }}</span></span>
-           <span class="vs">vs</span>
-           <span class="player-pill black">{{ playerNames.black }} <span class="elo">{{ playerNames.blackElo }}</span></span>
-        </div>
+      <div class="board-container">
+        <EvaluationHeader 
+          :playerNames="playerNames"
+          :evalNum="evalNum"
+          :evalPercent="evalPercent"
+          :hasGame="hasGame"
+          :moveQuality="currentMoveQuality"
+        />
 
-        <div class="eval-bar-horizontal glass-sm">
-          <div class="eval-label">♔</div>
-          <div class="eval-track">
-            <div class="eval-fill" :style="{ width: evalPercent + '%' }"></div>
-          </div>
-          <div class="eval-label">♚</div>
-          <div class="eval-num" :class="evalNum > 0 ? 'positive' : 'negative'">
-            {{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(1) }}
-          </div>
-        </div>
-
-        <ChessBoard :flipped="false" :arrows="engineArrows" :moveQuality="currentMoveQuality" />
+        <ChessBoard 
+          :flipped="false" 
+          :arrows="engineArrows" 
+          :moveQuality="currentMoveQuality"
+          :lastMove="currentViewedMove" 
+        />
       </div>
 
       <!-- Panel -->
       <!-- Main Analysis Sidebar -->
-      <div class="analysis-sidebar glass" :class="{ 'collapsed': isSidebarCollapsed }">
-        <button class="btn-sidebar-toggle" @click="isSidebarCollapsed = !isSidebarCollapsed">
-          {{ isSidebarCollapsed ? '»' : '«' }}
-        </button>
-        
-        <div class="sidebar-inner-wrap" v-if="!isSidebarCollapsed">
-          <!-- TAB SWITCHER -->
-          <div class="analysis-tabs">
-            <button class="analysis-tab-btn" :class="{ active: activeSidebarTab === 'insights' }" @click="activeSidebarTab = 'insights'">
-              <span class="icon">🔮</span> Insights
-            </button>
-            <button class="analysis-tab-btn" :class="{ active: activeSidebarTab === 'review' }" @click="activeSidebarTab = 'review'">
-              <span class="icon">📊</span> Review
-            </button>
-          </div>
-
+      <!-- Modular Sidebar -->
+      <AnalysisSidebar 
+        v-model:isCollapsed="isSidebarCollapsed"
+        :metrics="metrics"
+        :diagnosis="diagnosis"
+        @showLegend="showHealthLegend = true"
+      >
+        <template #default="{ activeTab }">
           <Transition name="fade-slide" mode="out-in">
-            <!-- TAB 1: INSIGHTS (The current sidebar as-is) -->
-            <div v-if="activeSidebarTab === 'insights'" class="tab-pane-content">
-              <!-- Fixed Header -->
+            <!-- TAB 1: INSIGHTS -->
+            <div v-if="activeTab === 'insights'" class="tab-pane-content">
               <div class="panel-header">
-               <div class="engine-info">
+                <div class="engine-info">
                   <span class="badge badge-accent">STOCKFISH 16.1</span>
+                  
+                  <div v-if="currentMoveQuality" class="quality-badge-mini animated-pop-in" :style="{ '--q-color': currentMoveQuality.color }">
+                    <span class="q-icon">{{ currentMoveQuality.icon }}</span>
+                    <span class="q-label">{{ currentMoveQuality.label }}</span>
+                  </div>
+
                   <span class="depth">Depth {{ engineStore.currentDepth }}</span>
                </div>
 
@@ -105,25 +99,25 @@
                  <button class="nav-btn-sm" @click="goToEnd()" title="Last Move">»</button>
                </div>
 
-              <div class="sticky-analysis-metrics mt-4">
-                <div v-if="engineStore.suggestedMove" class="suggestion-card-compact glass-xs">
-                  <div class="label">BEST</div>
-                  <div class="val">{{ engineStore.suggestedMove }}</div>
-                  <div class="eval" :class="evalNum > 0 ? 'pos' : 'neg'">
-                    {{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(2) }}
-                  </div>
-                </div>
+               <div class="sticky-analysis-metrics mt-4">
+                 <div v-if="engineStore.suggestedMove" class="suggestion-card-compact glass-xs">
+                   <div class="label">BEST</div>
+                   <div class="val">{{ engineStore.suggestedMove }}</div>
+                   <div class="eval" :class="evalNum > 0 ? 'pos' : 'neg'">
+                     {{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(2) }}
+                   </div>
+                 </div>
 
-                <div v-if="engineStore.multiPvs.length > 1" class="alt-lines-compact glass-xs">
-                  <div class="label">CRITICAL LINES</div>
-                  <div class="lines">
-                    <div v-for="alt in engineStore.multiPvs.slice(1, 3)" :key="alt.id" class="mini-line">
-                      <span class="score">{{ alt.score }}</span>
-                      <span class="moves">{{ alt.moves.slice(0, 3).join(' ') }}...</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                 <div v-if="engineStore.multiPvs.length > 1" class="alt-lines-compact glass-xs">
+                   <div class="label">CRITICAL LINES</div>
+                   <div class="lines">
+                     <div v-for="alt in engineStore.multiPvs.slice(1, 3)" :key="alt.id" class="mini-line">
+                       <span class="score">{{ alt.score }}</span>
+                       <span class="moves">{{ alt.moves.slice(0, 3).join(' ') }}...</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
               </div>
 
               <!-- Scrollable Body -->
@@ -133,35 +127,6 @@
                   <div class="label px-4 mb-2">GAME HISTORY</div>
                   <MoveHistory hideHeader />
                 </div>
-              </div>
-
-              <!-- Fixed Footer -->
-              <div class="sidebar-footer glass-sm">
-                 <div class="footer-title">
-                   <span>POSITIONAL HEALTH</span>
-                   <button class="btn-help-circle" @click="showHealthLegend = true" title="What are these?">ⓘ</button>
-                 </div>
-                 <div class="metric-mini" title="Material Balance">
-                    <span>MAT</span> 
-                    <div class="bar">
-                      <div class="fill" :style="{ width: positionalHealth.material + '%', background: 'var(--accent)' }"></div>
-                    </div>
-                    <span class="val">{{ Math.round(positionalHealth.material) }}%</span>
-                 </div>
-                 <div class="metric-mini" title="Piece Activity">
-                    <span>ACT</span> 
-                    <div class="bar">
-                      <div class="fill" :style="{ width: positionalHealth.activity + '%', background: 'var(--teal)' }"></div>
-                    </div>
-                    <span class="val">{{ Math.round(positionalHealth.activity) }}%</span>
-                 </div>
-                 <div class="metric-mini" title="King Safety">
-                    <span>KGS</span> 
-                    <div class="bar">
-                      <div class="fill" :style="{ width: positionalHealth.safety + '%', background: 'var(--rose)' }"></div>
-                    </div>
-                    <span class="val">{{ Math.round(positionalHealth.safety) }}%</span>
-                 </div>
               </div>
             </div>
 
@@ -186,8 +151,8 @@
               </div>
             </div>
           </Transition>
-        </div>
-      </div>
+        </template>
+      </AnalysisSidebar>
     </div>
 
         <!-- Health Legend Modal -->
@@ -213,15 +178,15 @@
                       <div class="diagnosis-grid">
                         <div class="diag-cell">
                           <label>MAT</label>
-                          <p>{{ healthDiagnosis.matDesc }}</p>
+                          <p>{{ diagnosis.material }}</p>
                         </div>
                         <div class="diag-cell">
                           <label>ACT</label>
-                          <p>{{ healthDiagnosis.actDesc }}</p>
+                          <p>{{ diagnosis.activity }}</p>
                         </div>
                         <div class="diag-cell">
                           <label>KGS</label>
-                          <p>{{ healthDiagnosis.kgsDesc }}</p>
+                          <p>{{ diagnosis.safety }}</p>
                         </div>
                       </div>
                    </div>
@@ -268,20 +233,20 @@ import { useEngineStore } from '../stores/engineStore'
 import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
-import { Chess } from 'chess.js'
+import { getMoveQuality } from '../utils/analysisUtils'
+import { logger } from '../utils/logger'
+import { usePositionalHealth } from '../composables/usePositionalHealth'
+
+// Sub-components
 import ChessBoard from '../components/ChessBoard.vue'
 import CoachPanel from '../components/CoachPanel.vue'
 import MoveHistory from '../components/MoveHistory.vue'
 import GameAnalysisTable from '../components/GameAnalysisTable.vue'
-import { getMoveQuality } from '../utils/analysisUtils'
-import { logger } from '../utils/logger'
+import EvaluationHeader from '../components/EvaluationHeader.vue'
+import AnalysisSidebar from '../components/AnalysisSidebar.vue'
 
 // Board Arrow Definition
-export interface ArrowDef {
-  from: string
-  to: string
-  type?: 'suggestion' | 'suggestion-alt' | 'threat'
-}
+import { type ArrowDef } from '../components/board/ArrowLayer.vue'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
@@ -292,69 +257,12 @@ const settings = useSettingsStore()
 const isLoading = ref(true)
 const showHealthLegend = ref(false)
 const isSidebarCollapsed = ref(false)
-const activeSidebarTab = ref('insights')
 
-/**
- * POSITIONAL HEALTH HEURISTICS
- * 
- * Calculates real-time metrics for the "Health Bars" in the sidebar footer.
- * - Material: Balance of piece values (P=1, N/B=3, R=5, Q=9)
- * - Activity: Mobility based on legal moves and engine pressure
- * - King Safety: Proximity of threats and pawn shelter
- */
-const positionalHealth = computed(() => {
-  try {
-    // Fallback to start FEN if store.fen is invalid
-    const chess = new Chess(store.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
-    const board = chess.board()
-    
-    // 1. MATERIAL BALANCE
-    let wMat = 0, bMat = 0
-    const vals: Record<string, number> = { p: 1, n: 3, b: 3.25, r: 5, q: 9, k: 0 }
-    board.flat().forEach(c => {
-      if (!c) return
-      if (c.color === 'w') wMat += vals[c.type]
-      else bMat += vals[c.type]
-    })
-    
-    // Normalize around 50%. A +3 advantage is roughly +15% shift.
-    const matPct = 50 + (wMat - bMat) * 5
-
-    // 2. ACTIVITY (Mobility & Space)
-    const mobility = chess.moves().length || 20 // Default to 20 moves worth of activity
-    const actPct = Math.min(95, Math.max(5, (mobility / 40) * 100))
-
-    // 3. KING SAFETY (Based on Engine Eval & Structure)
-    const evalAbs = Math.abs(engineStore.evalNumber || 0)
-    let kgsPct = 90 - (evalAbs * 8) // Slightly more lenient drop
-    if (chess.isCheck()) kgsPct -= 20
-    
-    return {
-      material: Math.min(100, Math.max(0, matPct || 50)),
-      activity: Math.min(100, Math.max(0, actPct || 50)),
-      safety: Math.min(100, Math.max(0, kgsPct || 90))
-    }
-  } catch (e) {
-    logger.warn('[AnalysisView] Error calculating positional health', e)
-    return { material: 50, activity: 50, safety: 90 }
-  }
-})
-
-const healthDiagnosis = computed(() => {
-  const h = positionalHealth.value
-  let matDesc = "Material is balanced."
-  if (h.material > 60) matDesc = "You have a significant material advantage."
-  else if (h.material < 40) matDesc = "You are down material. Look for counterplay."
-  
-  let actDesc = "Pieces are normally active."
-  if (h.activity > 70) actDesc = "Your pieces dominate the board. Press the attack!"
-  else if (h.activity < 30) actDesc = "Your pieces are cramped. Try to simplify or break open the center."
-  
-  let kgsDesc = "Kings are relatively safe."
-  if (h.safety < 50) kgsDesc = "King safety is critical! Secure your perimeter immediately."
-  
-  return { matDesc, actDesc, kgsDesc }
-})
+// Extract Positional Health Heuristics to Composable
+const { metrics, diagnosis } = usePositionalHealth(
+  () => store.fen,
+  () => engineStore.evalNumber
+)
 
 
 const gameSeed = computed(() => {
@@ -364,24 +272,38 @@ const gameSeed = computed(() => {
 
 const engineArrows = computed<ArrowDef[]>(() => {
   const arrows: ArrowDef[] = []
-  if (!engineStore.pv || engineStore.pv.length === 0) return arrows
   
-  if (settings.showBestMoveArrow && engineStore.multiPvs) {
-    engineStore.multiPvs.forEach((alt, idx) => {
+  // 1. Suggested Best Move (Green) - Handles both live PV and final bestmove
+  if (settings.showBestMoveArrow && engineStore.suggestedMove) {
+    const sm = engineStore.suggestedMove
+    if (sm && sm.length >= 4) {
+      arrows.push({
+        from: sm.slice(0, 2),
+        to: sm.slice(2, 4),
+        type: 'suggestion'
+      })
+    }
+  }
+
+  // 2. Alternative Lines (Faded Green)
+  if (settings.showBestMoveArrow && engineStore.multiPvs.length > 1) {
+    engineStore.multiPvs.slice(1, 3).forEach(alt => {
       if (alt && alt.moves && alt.moves.length > 0) {
         const uci = alt.moves[0]
         if (uci && uci.length >= 4) {
           arrows.push({
             from: uci.slice(0, 2),
             to: uci.slice(2, 4),
-            type: idx === 0 ? 'suggestion' : 'suggestion-alt'
+            type: 'suggestion-alt'
           })
         }
       }
     })
   }
 
+  // 3. Threat Arrows (Red)
   if (settings.showThreatArrow && engineStore.pv.length > 1) {
+    // In some cases, Stockfish PV shows the opponent's best response
     const threatUci = engineStore.pv[1]
     if (threatUci && threatUci.length >= 4) {
       arrows.push({
@@ -393,6 +315,15 @@ const engineArrows = computed<ArrowDef[]>(() => {
   }
 
   return arrows
+})
+
+/**
+ * Resolved Move Context for ChessBoard.
+ * We pass the viewed move as the 'lastMove' to the board so indicators match the history position.
+ */
+const currentViewedMove = computed(() => {
+  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+  return store.moveHistory[idx] || null
 })
 
 const resolvedPlayers = computed(() => {
@@ -421,21 +352,22 @@ const resolvedPlayers = computed(() => {
     const whiteBot = findBot(w)
     const blackBot = findBot(b)
 
-    const getPlayerRating = (header: any, bot: any, isUser: boolean) => {
+    const getPlayerRating = (header: any, bot: any, isUser: boolean, libraryElo?: string) => {
       if (isUser && userStore.profile?.rating) return userStore.profile.rating
       if (header && header !== '?' && header !== '0') return header
+      if (libraryElo && libraryElo !== '?' && libraryElo !== '0') return libraryElo
       return bot?.rating || '1200'
     }
 
     return {
       white: {
         name: w,
-        rating: getPlayerRating(headers.WhiteElo, whiteBot, w === userStore.profile?.username),
+        rating: getPlayerRating(headers.WhiteElo, whiteBot, w === userStore.profile?.username, libraryGame?.whiteElo),
         avatar: whiteBot?.avatar || (w === userStore.profile?.username ? userStore.profile?.avatar_url : '/avatars/default.png')
       },
       black: {
         name: b,
-        rating: getPlayerRating(headers.BlackElo, blackBot, b === userStore.profile?.username),
+        rating: getPlayerRating(headers.BlackElo, blackBot, b === userStore.profile?.username, libraryGame?.blackElo),
         avatar: blackBot?.avatar || (b === userStore.profile?.username ? userStore.profile?.avatar_url : '/avatars/default.png')
       }
     }
@@ -459,15 +391,6 @@ const playerNames = computed(() => {
 })
 
 
-const comparisonData = computed(() => {
-  if (store.moveHistory.length === 0) return null
-  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
-  
-  const playedMove = store.moveHistory[idx]
-  const beforeFen = idx > 0 ? store.moveHistory[idx - 1].fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-  
-  return { playedMove, beforeFen, moveNumber: idx + 1 }
-})
 
 const selectedMove = computed(() => {
   if (!hasGame.value) return null
@@ -486,19 +409,15 @@ const hasGame = computed(() => store.moveHistory.length > 0)
 const evalNum = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
-// Restart engine analysis whenever the selected move changes
+// Restart engine analysis whenever the position changes
 let analysisDebounce: any = null
-watch(() => [store.viewIndex, store.loadedGameId], () => {
+watch(() => store.fen, (newFen) => {
   if (analysisDebounce) clearTimeout(analysisDebounce)
   
   analysisDebounce = setTimeout(() => {
-    if (comparisonData.value) {
-      engineStore.analyze(comparisonData.value.beforeFen, settings.analysisDepth)
-    } else {
-      engineStore.analyze(store.fen, settings.analysisDepth)
-    }
+    engineStore.analyze(newFen, settings.analysisDepth)
   }, 100)
-}, { deep: false })
+}, { immediate: true })
 
 watch(() => store.loadedGameId, (newId) => {
   if (newId) {
@@ -646,12 +565,34 @@ function runHighlightPace() {
 
 <style scoped>
 
-.analysis-page {
-  max-width: 1600px;
-  padding-left: var(--space-6);
-  padding-right: var(--space-6);
-  position: relative;
+.analysis-compact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-6);
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border);
 }
+
+.title-sm {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* Sidebar Quality Mini Badge */
+.quality-badge-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.3);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--q-color);
+}
+.quality-badge-mini .q-icon { font-size: 0.7rem; font-weight: 900; color: var(--q-color); }
+.quality-badge-mini .q-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: white; }
 
 /* Loading overlay */
 .analysis-loading-overlay {
@@ -688,93 +629,41 @@ function runHighlightPace() {
 .fade-out-leave-active { transition: opacity 0.4s ease; }
 .fade-out-leave-to { opacity: 0; }
 
-.game-matchup-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-6);
-  width: 100%;
-  max-width: 600px;
-  background: rgba(255,255,255,0.02);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-2);
-}
-
-.player-pill {
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-}
-
-.player-pill.white { background: #fff; color: #000; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
-.player-pill.black { background: var(--bg-surface); color: #fff; border: 1px solid var(--border); }
-
-.vs { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 900; }
 
 /* ─── ANALYSIS LAB LAYOUT (AD-MIRROR) ─── */
 .analysis-layout {
   display: flex;
   justify-content: center;
   gap: var(--space-8);
-  align-items: flex-start;
+  align-items: center; /* Center vertically for better balance */
   padding: var(--space-4);
-  max-width: 1600px;
+  max-width: 100%;
   margin: 0 auto;
+  height: calc(100vh - 100px); /* Fixed height to prevent page scrolling */
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 .analysis-layout.sidebar-collapsed {
   gap: 0;
-  max-width: 100%;
+  padding: var(--space-2);
 }
 
-.analysis-board-col {
+.board-container {
   flex: 1;
   width: 100%;
+  max-width: 75vh; /* Limit size based on viewport height to prevent scrolling */
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 0; /* Allow shrinking */
+  justify-content: center;
+  min-width: 0;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.analysis-sidebar {
-  width: 420px;
-  height: calc(100vh - 160px);
-  max-height: 900px;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-  backdrop-filter: blur(10px);
-  position: sticky;
-  top: 100px; /* Offset for global header */
-  flex-shrink: 0;
+.sidebar-collapsed .board-container {
+  max-width: 90vh; /* Allow larger board when sidebar is gone */
 }
 
-.panel-header {
-  padding: var(--space-4);
-  background: linear-gradient(to bottom, rgba(139,92,246,0.1), transparent);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.engine-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
-.engine-info .depth { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
-
-.sidebar-scrollable-content {
-  flex: 1;
-  min-height: 0; /* Fix for flexbox scrolling clipping */
-  overflow-y: auto;
-  padding: var(--space-4);
-  padding-bottom: var(--space-8); /* Buffer for last item */
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
 
 .nav-controls-minimal {
   display: flex;
@@ -975,92 +864,6 @@ function runHighlightPace() {
   color: var(--text-muted);
 }
 
-.sidebar-footer {
-  padding: var(--space-4);
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  background: rgba(10, 10, 12, 0.4);
-  flex-shrink: 0;
-  backdrop-filter: blur(10px);
-}
-
-.live-insights-summary {
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-}
-.live-insights-summary .label { 
-  font-size: 0.65rem; 
-  font-weight: 800; 
-  color: var(--text-muted); 
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-3);
-}
-.insight-row {
-  display: flex;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-.insight-row .icon { opacity: 0.7; }
-.insight-row p { margin: 0; color: var(--text-secondary); }
-
-.metric-mini .val {
-  font-size: 0.7rem;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  width: 35px;
-  text-align: right;
-}
-
-.footer-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.footer-title span {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-}
-.btn-help-circle {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.9rem;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-.btn-help-circle:hover { opacity: 1; }
-
-.metric-mini {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: 0.7rem;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-}
-.metric-mini span { width: 32px; }
-.metric-mini .bar {
-  flex: 1;
-  height: 4px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.metric-mini .fill {
-  height: 100%;
-  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 /* Legend Modal Styles */
 .modal-overlay {
@@ -1221,50 +1024,6 @@ function runHighlightPace() {
 .eval-chip.pos { background: rgba(16,185,129,0.15); color: #10b981; }
 .eval-chip.neg { background: rgba(244,63,94,0.15); color: #f43f5e; }
 
-/* ─── HORIZONTAL EVAL BAR ─── */
-.eval-bar-horizontal {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-5);
-  width: 100%;
-  max-width: 600px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-2);
-}
-
-.eval-label {
-  font-size: 1.2rem;
-  opacity: 0.8;
-}
-
-.eval-track {
-  flex: 1;
-  height: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.eval-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #fff, #ddd);
-  border-radius: var(--radius-full);
-  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-}
-
-.eval-num {
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 800;
-  min-width: 50px;
-  text-align: right;
-}
-.eval-num.positive { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-.eval-num.negative { color: var(--text-muted); }
 
 /* Summary Tab Styles */
 .summary-content {

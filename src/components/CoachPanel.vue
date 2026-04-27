@@ -20,10 +20,6 @@
     <div v-else-if="coachResponse" class="coach-prose-wrap animated-fade-in">
       <div class="prose-header">
         <span>COACH'S TAKE</span>
-        <div v-if="currentMoveQuality" class="quality-badge-wrap" :class="currentMoveQuality.label">
-          <span class="label-text">{{ currentMoveQuality.label.toUpperCase() }}</span>
-          <span class="icon-pill">{{ currentMoveQuality.icon }}</span>
-        </div>
       </div>
       <div class="coach-markdown" v-html="renderedCoach"></div>
     </div>
@@ -41,7 +37,6 @@ import { logger } from '../utils/logger'
 import { TaggingService, type TaggedMistake } from '../services/taggingService'
 import { useAdminStore } from '../stores/adminStore'
 import { useUserStore } from '../stores/userStore'
-import { getMoveQuality } from '../utils/analysisUtils'
 
 const store = useGameStore()
 const libraryStore = useLibraryStore()
@@ -86,17 +81,8 @@ const userSide = computed(() => {
   return 'White' // Default fallback
 })
 
-const gameSeed = computed(() => {
-  if (!store.loadedGameId) return 0
-  return store.loadedGameId.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
-})
 
-const currentMoveQuality = computed(() => {
-  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
-  const move = store.moveHistory[idx]
-  if (!move) return null
-  return getMoveQuality(move, idx, gameSeed.value)
-})
+
 
 const comparisonData = computed(() => {
   if (store.moveHistory.length === 0) return null

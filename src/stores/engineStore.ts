@@ -37,6 +37,7 @@ export const useEngineStore = defineStore('engine', () => {
   let infoThrottleTimeout: ReturnType<typeof setTimeout> | null = null
   let rebootCount = 0
   let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
+  let activeTurn: 'w' | 'b' = 'w'
 
   function init() {
     if (worker) return
@@ -59,7 +60,7 @@ export const useEngineStore = defineStore('engine', () => {
         worker?.postMessage(`setoption name MultiPV value ${settings.engineMultiPv}`)
       } else if (msg === 'readyok') {
         // Ready to receive position/go
-      } else if (msg.startsWith('info depth')) {
+      } else if (msg.startsWith('info ')) {
         throttledParseInfo(msg)
       } else if (msg.startsWith('bestmove')) {
         const parts = msg.split(' ')
@@ -183,22 +184,28 @@ export const useEngineStore = defineStore('engine', () => {
   function applyInfo(data: EngineInfo) {
     const adminStore = useAdminStore()
     
-    if (data.depth !== undefined && data.depth > currentDepth.value) {
-      // First meaningful depth (e.g. depth 1) is a good TTFR proxy
-      if (currentDepth.value === 0 && data.depth >= 1 && analysisStartTime > 0) {
-        const ttfr = Date.now() - analysisStartTime
-        adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth, ttfr)
-      } else {
-        adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth)
+    if (data.depth !== undefined) {
+      if (data.depth > currentDepth.value) {
+        // First meaningful depth (e.g. depth 1) is a good TTFR proxy
+        if (currentDepth.value === 0 && data.depth >= 1 && analysisStartTime > 0) {
+          const ttfr = Date.now() - analysisStartTime
+          adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth, ttfr)
+        } else {
+          adminStore.updateEngineMetrics(data.nps || 0, 0, data.depth)
+        }
+        currentDepth.value = data.depth
       }
-      currentDepth.value = data.depth
     }
     if (data.evalScoreCp !== undefined) {
-      evalScoreCp.value = data.evalScoreCp
+      // Normalize to White's perspective: If it's Black's turn, negate the score
+      evalScoreCp.value = activeTurn === 'b' ? -data.evalScoreCp : data.evalScoreCp
       evalMate.value = null
     }
-    if (data.evalMate !== undefined) {
-      evalMate.value = data.evalMate
+    if (data.evalMate !== undefined && data.evalMate !== null) {
+      // Normalize to White's perspective: If it's Black's turn, negate the mate
+      evalMate.value = activeTurn === 'b' ? -data.evalMate : data.evalMate
+    } else if (data.evalMate === null) {
+      evalMate.value = null
     }
     if (data.pv !== undefined) {
       pv.value = data.pv
@@ -230,16 +237,23 @@ export const useEngineStore = defineStore('engine', () => {
     
     logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     
-    // Basic FEN validation: check for 6 fields and move turn
+    // Parse turn from FEN to normalize evaluation later
     const parts = fen.split(' ')
+    
+    // Basic FEN validation: check for 6 fields and move turn
     if (parts.length < 4) {
         logger.warn('[Engine] Invalid FEN passed to analyze:', fen)
         return
     }
 
     stop() // Stop any ongoing analysis
+    
+    activeTurn = (parts[1] === 'b') ? 'b' : 'w'
+    
     isAnalyzing.value = true
     currentDepth.value = 0
+    evalScoreCp.value = 0
+    evalMate.value = null
     bestMove.value = ''
     analysisStartTime = Date.now()
     
