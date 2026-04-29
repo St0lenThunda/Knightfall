@@ -116,7 +116,8 @@
         </section>
 
         <!-- The Sandbox: Interactive Components -->
-        <section class="sandbox-grid">
+        <section class="sandbox-grid" aria-labelledby="sandbox-title">
+          <h2 id="sandbox-title" class="sr-only">Interactive Intelligence Previews</h2>
           
           <!-- Sandbox 1: The Oracle Preview -->
           <div class="sandbox-item glass oracle-preview">
