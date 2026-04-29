@@ -14,7 +14,10 @@ import { useUiStore } from '../uiStore'
  */
 export function useLibrarySync(
   games: Ref<LibraryGame[]>,
-  initDb: () => Promise<IDBDatabase>
+  initDb: () => Promise<IDBDatabase>,
+  isProcessingIntegrity: Ref<boolean>,
+  integrityProgress: Ref<number>,
+  integrityMessage: Ref<string>
 ) {
 
 
@@ -24,6 +27,10 @@ export function useLibrarySync(
     if (!session) return
 
     logger.info('[Sync] Starting cloud synchronization...')
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = 'Connecting to cloud vault...'
+    
     const { data: matches, error } = await supabase
       .from('matches')
       .select('*')
@@ -33,8 +40,11 @@ export function useLibrarySync(
     if (error || !matches) {
       logger.error('[Sync] Failed to fetch cloud matches', error)
       uiStore.addToast('Cloud sync failed.', 'error')
+      isProcessingIntegrity.value = false
       return
     }
+
+    integrityMessage.value = `Downloading ${matches.length} matches...`
 
     // --- OPTIMIZATION: Use Map for O(1) lookup ---
     const localMap = new Map<string, LibraryGame>()
@@ -86,6 +96,13 @@ export function useLibrarySync(
       } catch (e) {
         logger.error('[Sync] Failed to parse game during sync', m.id, e)
       }
+      
+      // Update Progress
+      const idx = matches.indexOf(m)
+      if (idx % 20 === 0) {
+        integrityProgress.value = Math.round((idx / matches.length) * 100)
+        await new Promise(r => setTimeout(r, 0))
+      }
     }
 
     if (syncedGames.length > 0 || backfillCount > 0) {
@@ -107,6 +124,9 @@ export function useLibrarySync(
     } else {
       uiStore.addToast('Vault is up to date.', 'info')
     }
+
+    isProcessingIntegrity.value = false
+    integrityProgress.value = 100
   }
 
   /**
@@ -129,7 +149,9 @@ export function useLibrarySync(
     }
 
     logger.info(`[Sync] Migrating ${unlinkedGames.length} games to Supabase...`)
-    uiStore.addToast(`Migrating ${unlinkedGames.length} games to cloud...`, 'info')
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = `Migrating ${unlinkedGames.length} games to cloud...`
 
     let successCount = 0
     const db = await initDb()
@@ -190,6 +212,9 @@ export function useLibrarySync(
       uiStore.addToast(`Successfully migrated ${successCount} games to cloud.`, 'success')
       games.value = [...games.value] // Trigger reactivity
     }
+    
+    isProcessingIntegrity.value = false
+    integrityProgress.value = 100
   }
 
   /**

@@ -1,86 +1,87 @@
 <template>
   <div class="vault-panel animated-fade-in">
-    <div class="vault-filters glass-sm">
-      <div class="search-box glass-xs">
-        <span class="search-icon">🔍</span>
-        <input 
-          type="text" 
-          v-model="libraryStore.searchQuery" 
-          placeholder="Search by player, opening, or event..."
-        />
-      </div>
-
-      <div class="filter-group">
-        <div class="filter-item">
-          <label>Result</label>
-          <select v-model="libraryStore.filterResult" class="filter-select glass-xs">
-            <option value="all">All Results</option>
-            <option value="1-0">Wins (1-0)</option>
-            <option value="0-1">Losses (0-1)</option>
-            <option value="1/2-1/2">Draws (½-½)</option>
-          </select>
+    <div class="vault-sticky-controls">
+      <div class="vault-filters glass-sm">
+        <div class="search-box glass-xs">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            v-model="libraryStore.searchQuery" 
+            placeholder="Search by player, opening, or event..."
+          />
         </div>
 
-        <div class="filter-item">
-          <label>Perspective</label>
-          <select v-model="libraryStore.filterPerspective" class="filter-select glass-xs">
-            <option value="all">Any Color</option>
-            <option value="white">As White</option>
-            <option value="black">As Black</option>
-          </select>
-        </div>
+        <div class="filter-group">
+          <div class="filter-item">
+            <label>Result</label>
+            <select v-model="libraryStore.filterResult" class="filter-select glass-xs">
+              <option value="all">All Results</option>
+              <option value="1-0">Wins (1-0)</option>
+              <option value="0-1">Losses (0-1)</option>
+              <option value="1/2-1/2">Draws (½-½)</option>
+            </select>
+          </div>
 
-        <div class="filter-item">
-          <label>Tag</label>
-          <select v-model="libraryStore.selectedTag" class="filter-select glass-xs">
-            <option value="all">All Sources</option>
-            <option v-for="tag in libraryStore.allTags" :key="tag" :value="tag">
-              {{ tag }}
-            </option>
-          </select>
-        </div>
-      </div>
-    </div>
+          <div class="filter-item">
+            <label>Perspective</label>
+            <select v-model="libraryStore.filterPerspective" class="filter-select glass-xs">
+              <option value="all">Any Color</option>
+              <option value="white">As White</option>
+              <option value="black">As Black</option>
+            </select>
+          </div>
 
-
-    <div class="vault-controls glass-sm">
-      <div class="control-group">
-        <div class="view-toggle">
-          <button class="toggle-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid View">
-            🔲 Grid
-          </button>
-          <button class="toggle-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Database View">
-            📂 Database
-          </button>
-        </div>
-
-        <div class="sort-controls">
-          <span class="label muted">Sort:</span>
-          <select v-model="libraryStore.sortBy" class="sort-select glass-xs">
-            <option value="addedAt">Recently Added</option>
-            <option value="date">Game Date</option>
-            <option value="movesCount">Move Count</option>
-            <option value="player">Player Name</option>
-            <option value="opening">Opening (ECO)</option>
-          </select>
-          <button class="dir-btn glass-xs" @click="toggleSortOrder" :title="libraryStore.sortOrder === 'asc' ? 'Ascending' : 'Descending'">
-            {{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}
-          </button>
-        </div>
-        <div class="limit-controls">
-          <span class="label muted">Limit:</span>
-          <select v-model="limit" class="sort-select glass-xs">
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-            <option :value="500">500</option>
-          </select>
+          <div class="filter-item">
+            <label>Tag</label>
+            <select v-model="libraryStore.selectedTag" class="filter-select glass-xs">
+              <option value="all">All Sources</option>
+              <option v-for="tag in libraryStore.allTags" :key="tag" :value="tag">
+                {{ tag }}
+              </option>
+            </select>
+          </div>
         </div>
       </div>
-      
-      <div class="vault-meta">
-        <span class="badge" v-if="libraryStore.games.length === 0" style="background: var(--rose-dim);">RAW VAULT EMPTY</span>
-        <span class="muted">{{ libraryStore.filteredGames.length }} games found ({{ libraryStore.games.length }} total)</span>
+
+      <div class="vault-controls glass-sm">
+        <div class="control-group">
+          <div class="view-toggle">
+            <button class="toggle-btn" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'" title="Grid View">
+              🔲 Grid
+            </button>
+            <button class="toggle-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'" title="Database View">
+              📂 Database
+            </button>
+          </div>
+
+          <div class="sort-controls">
+            <span class="label muted">Sort:</span>
+            <select v-model="libraryStore.sortBy" class="sort-select glass-xs">
+              <option value="addedAt">Recently Added</option>
+              <option value="date">Game Date</option>
+              <option value="movesCount">Move Count</option>
+              <option value="player">Player Name</option>
+              <option value="opening">Opening (ECO)</option>
+            </select>
+            <button class="dir-btn glass-xs" @click="toggleSortOrder" :title="libraryStore.sortOrder === 'asc' ? 'Ascending' : 'Descending'">
+              {{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}
+            </button>
+          </div>
+          <div class="limit-controls">
+            <span class="label muted">Limit:</span>
+            <select v-model="limit" class="sort-select glass-xs">
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+              <option :value="500">500</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="vault-meta">
+          <span class="badge" v-if="libraryStore.games.length === 0" style="background: var(--rose-dim);">RAW VAULT EMPTY</span>
+          <span class="muted">{{ libraryStore.filteredGames.length }} games found ({{ libraryStore.games.length }} total)</span>
+        </div>
       </div>
     </div>
 
@@ -97,8 +98,9 @@
 
     <div v-if="viewMode === 'grid'" class="vault-grid">
       <GameCard 
-        v-for="(game, index) in displayedGames" 
-        :key="game.id + index" 
+        v-for="game in displayedGames" 
+        :key="game.id" 
+        v-memo="[game.id, game.tags?.length]"
         :game="game" 
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"
@@ -116,8 +118,9 @@
         <div class="col-actions"></div>
       </div>
       <GameRow
-        v-for="(game, index) in displayedGames"
-        :key="game.id + index"
+        v-for="game in displayedGames"
+        :key="game.id"
+        v-memo="[game.id, game.tags?.length]"
         :game="game"
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"
@@ -274,6 +277,16 @@ function prevPage() {
   padding: var(--space-5);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.02);
+  margin-bottom: var(--space-2);
+}
+
+.vault-sticky-controls {
+  position: sticky;
+  top: -1px; /* Slight offset to prevent gaps */
+  z-index: 100;
+  background: var(--bg); /* Match app background to hide items scrolling under */
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .search-box {

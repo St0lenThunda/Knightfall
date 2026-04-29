@@ -191,7 +191,7 @@ const personalStats = computed(() => [
           <div v-for="p in phaseVulnerability" :key="p.label" class="phase-item">
             <div class="phase-meta">
               <span class="phase-name">{{ p.label }}</span>
-              <span class="phase-pct">{{ p.pct }}% Error</span>
+              <span class="phase-pct">{{ p.pct }}%</span>
             </div>
             <div class="phase-bar-bg">
               <div class="phase-bar-fill" :style="{ width: p.pct + '%', background: p.color }"></div>

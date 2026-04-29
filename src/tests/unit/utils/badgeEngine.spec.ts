@@ -90,7 +90,7 @@ describe('BadgeEngine (Milestones & Achievements)', () => {
     it('awards "Pure Genius" for flawless solves', () => {
       const input = {
         ...baseInput,
-        puzzleAttempts: new Array(25).fill({ solved: true, hints_used: 0, attempts: 1, themes: [], created_at: '2024-01-01T12:00:00Z' }) as any
+        puzzleAttempts: new Array(25).fill({ solved: true, hint_level: 0, attempts: 1, themes: [], created_at: '2024-01-01T12:00:00Z' }) as any
       }
       const result = evaluateBadges(input)
       const badge = result.badges.find(b => b.id === 'pure_genius')

@@ -1,3 +1,4 @@
+import { type Ref, computed } from 'vue'
 /**
  * Elo Rating System Implementation
  * 
@@ -74,13 +75,105 @@ export function getRatingDelta(
 }
 
 /**
- * Composable wrapper for Vue components.
- * Allows components to reactive-ly access rating utilities.
+ * Normalizes varied PGN date formats into ISO strings.
  */
-export function useRatingSystem() {
+function normalizeDate(d: string): string {
+    if (!d || d.includes('?')) return new Date().toISOString();
+    const clean = d.replace(/\./g, '-');
+    const p = new Date(clean);
+    return isNaN(p.getTime()) ? new Date().toISOString() : p.toISOString();
+}
+
+/**
+ * Processes a collection of games into a chronological rating history.
+ * 
+ * @param games - Array of game records (PastGame or LibraryGame)
+ * @param isMe - Optional function to determine if a username is the player
+ * @returns Array of { date, rating } snapshots
+ */
+export function calculateRatingHistory(
+    games: any[], 
+    isMe?: (username: string) => boolean
+): { date: string, rating: number }[] {
+    let current = BASE_RATING;
+    const history: { date: string, rating: number }[] = [];
+    
+    // 1. Deduplicate and Sort Chronologically
+    const uniqueIds = new Set<string>();
+    const sorted = [...games]
+        .filter(g => {
+            if (!g.id || uniqueIds.has(g.id)) return false;
+            uniqueIds.add(g.id);
+            return true;
+        })
+        .sort((a, b) => new Date(normalizeDate(a.date)).getTime() - new Date(normalizeDate(b.date)).getTime());
+    
+    // 2. Inject Starting Point
+    if (sorted.length > 0) {
+        const firstDate = new Date(normalizeDate(sorted[0].date));
+        firstDate.setDate(firstDate.getDate() - 1);
+        history.push({ date: firstDate.toISOString(), rating: BASE_RATING });
+    } else {
+        history.push({ date: new Date().toISOString(), rating: BASE_RATING });
+    }
+
+    // 3. Sequential Calculation
+    sorted.forEach(g => {
+        // Resolve result value
+        let resultValue = 0.5;
+        
+        // Priority 1: Use persisted userSide if available
+        // Priority 2: Use provided isMe predicate
+        // Priority 3: Default to white
+        const isWhite = g.userSide === 'white' || (g.userSide === undefined && isMe && isMe(g.white)) || (g.userSide === undefined && !isMe);
+
+        if (g.result === 'win' || g.result === '1-0') {
+            resultValue = isWhite ? 1.0 : 0.0;
+        } else if (g.result === 'loss' || g.result === '0-1') {
+            resultValue = isWhite ? 0.0 : 1.0;
+        } else if (g.result.includes('1/2')) {
+            resultValue = 0.5;
+        }
+
+        // Resolve opponent rating (handles both UserStore and LibraryStore formats)
+        let oppRating = g.opponentRating;
+        if (oppRating === undefined) {
+            const oppRatingStr = isWhite ? g.blackElo : g.whiteElo;
+            oppRating = oppRatingStr ? parseInt(oppRatingStr) : null;
+        }
+        
+        // If we still don't have an opponent rating, we can't accurately calculate Elo change
+        // but for the sake of progression we assume a balanced match or skip.
+        if (oppRating === null || isNaN(oppRating)) {
+            oppRating = current; 
+        }
+
+        current = calculateNewRating(current, oppRating, resultValue);
+        history.push({ date: normalizeDate(g.date), rating: current });
+    });
+
+    return history;
+}
+
+/**
+ * Composable wrapper for Vue components.
+ * Allows components to reactive-ly access rating utilities and history.
+ */
+export function useRatingSystem(pastGames?: Ref<any[]>, isMe?: (username: string) => boolean) {
+    const history = computed(() => {
+        if (!pastGames || !pastGames.value) return [{ date: new Date().toISOString(), rating: BASE_RATING }];
+        return calculateRatingHistory(pastGames.value, isMe);
+    });
+
+    const currentRating = computed(() => {
+        return history.value.length > 0 ? history.value[history.value.length - 1].rating : BASE_RATING;
+    });
+
     return {
         BASE_RATING,
         DEFAULT_K_FACTOR,
+        history,
+        currentRating,
         getExpectedScore,
         calculateNewRating,
         getRatingDelta

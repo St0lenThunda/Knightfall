@@ -274,7 +274,7 @@ const hintArrows = computed(() => {
   if (hintLevel.value < 2 || !currentPuzzle.value) return []
   const expected = currentPuzzle.value.solution[puzzleStep.value]
   if (!expected) return []
-  return [{ from: expected.slice(0, 2), to: expected.slice(2, 4) }]
+  return [{ from: expected.slice(0, 2), to: expected.slice(2, 4), type: 'suggestion' as const }]
 })
 
 watch(() => store.moveHistory.length, (newLen, oldLen) => {

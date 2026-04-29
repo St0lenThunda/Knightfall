@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import type { LibraryGame } from '../../libraryStore'
-import { useUserStore } from '../../userStore'
+// User store removed
 import { logger } from '../../../utils/logger'
 
 // Import Sub-Modules
@@ -9,7 +9,7 @@ import { useAnalysisTelemetry } from './telemetry'
 import { useAnalysisInsights } from './insights'
 import { useAnalysisWorker } from './worker'
 import { LichessCurator } from '../../../services/curatorService'
-import { fetchCloudEval } from '../../../api/lichessApi'
+// Cloud Eval removed to prevent 429 Rate Limits
 
 export interface Evaluation {
   score: number
@@ -161,12 +161,6 @@ export function useLibraryAnalysis(
     const cpl = Math.max(0, -swing) 
     inst.currentTotalCpl += cpl
     
-    const game = queue[inst.currentIndex]
-    const tags = (game?.tags || []).map(t => t.toLowerCase())
-    const userStore = useUserStore()
-    const isPersonal = tags.includes('my games') || 
-                       (game && (userStore.isMe(game.white) || userStore.isMe(game.black)))
-
     const playedMove = inst.currentMoves[inst.currentMoveIndex] || 'N/A'
 
     // --- THEORY ALIGNMENT (First 12 moves) ---
@@ -178,57 +172,47 @@ export function useLibraryAnalysis(
     }
 
     if (swing > 200) {
-      if (isPersonal) {
-        telemetry.brilliantMovesFound.value++
-        insights.queueInsight({
-          fen: inst.currentPositions[inst.currentMoveIndex],
-          theme: 'Brilliant Discovery',
-          severity: 'brilliant',
-          gameId: inst.gameId,
-          bestMove,
-          playedMove
-        })
-      }
+      telemetry.brilliantMovesFound.value++
+      insights.queueInsight({
+        fen: inst.currentPositions[inst.currentMoveIndex],
+        theme: 'Brilliant Discovery',
+        severity: 'brilliant',
+        gameId: inst.gameId,
+        bestMove,
+        playedMove
+      })
     } else if (swing < -150 && prevEval > 200) {
-       if (isPersonal) {
-         inst.currentMissedWins++
-         insights.queueInsight({
-           fen: inst.currentPositions[inst.currentMoveIndex],
-           theme: 'Missed Opportunity',
-           severity: 'missed-win',
-           gameId: inst.gameId,
-           bestMove,
-           playedMove
-         })
-       }
+      inst.currentMissedWins++
+      insights.queueInsight({
+        fen: inst.currentPositions[inst.currentMoveIndex],
+        theme: 'Missed Opportunity',
+        severity: 'missed-win',
+        gameId: inst.gameId,
+        bestMove,
+        playedMove
+      })
     } else if (swing < -200) {
-      if (isPersonal) {
-        telemetry.blundersFound.value++
-        insights.queueInsight({
-          fen: inst.currentPositions[inst.currentMoveIndex],
-          theme: 'Critical Blunder',
-          severity: 'blunder',
-          gameId: inst.gameId,
-          bestMove,
-          playedMove
-        })
-      }
+      telemetry.blundersFound.value++
+      insights.queueInsight({
+        fen: inst.currentPositions[inst.currentMoveIndex],
+        theme: 'Critical Blunder',
+        severity: 'blunder',
+        gameId: inst.gameId,
+        bestMove,
+        playedMove
+      })
     } else if (swing < -100) {
-      if (isPersonal) {
-        telemetry.mistakesFound.value++
-        insights.queueInsight({
-          fen: inst.currentPositions[inst.currentMoveIndex],
-          theme: 'Strategic Mistake',
-          severity: 'mistake',
-          gameId: inst.gameId,
-          bestMove,
-          playedMove
-        })
-      }
+      telemetry.mistakesFound.value++
+      insights.queueInsight({
+        fen: inst.currentPositions[inst.currentMoveIndex],
+        theme: 'Strategic Mistake',
+        severity: 'mistake',
+        gameId: inst.gameId,
+        bestMove,
+        playedMove
+      })
     } else if (swing < -50) {
-      if (isPersonal) {
-        telemetry.inaccuraciesFound.value++
-      }
+      telemetry.inaccuraciesFound.value++
     }
   }
 
@@ -317,6 +301,7 @@ export function useLibraryAnalysis(
     const totalCount = games.value.length
     if (totalCount > 0) {
       const preAnalyzedCount = totalCount - queue.length
+      telemetry.liveAnalyzedCount.value = preAnalyzedCount + nextQueueIndex
       telemetry.analysisProgress.value = Math.round(((preAnalyzedCount + nextQueueIndex) / totalCount) * 100)
     }
 
@@ -374,25 +359,8 @@ export function useLibraryAnalysis(
       return
     }
 
-    // --- CLOUD-FIRST STRATEGY ---
-    // We check the Lichess Cloud Eval database first.
-    // This allows instant high-depth analysis for common/theoretical positions.
-    try {
-      const cloudData = await fetchCloudEval(fen)
-      if (cloudData && cloudData.pvs && cloudData.pvs.length > 0) {
-        const topPv = cloudData.pvs[0]
-        const score = topPv.cp ?? (topPv.mate ? topPv.mate * 10000 : 0)
-        const isMate = !!topPv.mate
-        const bestMove = topPv.moves?.split(' ')[0] || 'N/A'
-        
-        logger.info(`[Intel] Cloud Eval Hijack for move ${inst.currentMoveIndex} (Depth ${cloudData.depth})`)
-        await applyEvaluationDNA(inst, score, isMate, bestMove)
-        advancePly(inst)
-        return
-      }
-    } catch (e) {
-      // If cloud fetch fails (offline or rate limit), we silently fall back to local Stockfish
-    }
+    // We are no longer using the Cloud-First Strategy due to Lichess API 429 Rate Limits.
+    // The local Stockfish worker will evaluate 100% of the positions.
 
     inst.engine.sendToWorker(`position fen ${fen}`)
     inst.engine.isWaitingForBestMove.value = true

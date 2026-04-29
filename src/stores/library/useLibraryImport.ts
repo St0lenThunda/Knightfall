@@ -47,18 +47,35 @@ export function useLibraryImport(
         // Generate a stable ID based on game content to prevent duplicates
         const id = generateGameFingerprint(white, black, raw)
         
-        const site = (headers['Site'] || headers['Source'] || '').toLowerCase()
-        const event = (headers['Event'] || '').toLowerCase()
+        const site = (headers['Site'] || headers['Source'] || '')
+        const event = (headers['Event'] || '')
         const autoTags: string[] = []
         
         // Platform Detection
-        if (site.includes('chess.com') || event.includes('chess.com')) autoTags.push('Chess.com')
-        if (site.includes('lichess.org') || event.includes('lichess.org') || site.includes('lichess')) autoTags.push('Lichess')
+        const lowerEvent = event.toLowerCase()
+        const lowerSite = site.toLowerCase()
+        const isChessCom = lowerSite.includes('chess.com') || lowerEvent.includes('chess.com')
+        const isLiveChess = lowerEvent === 'live chess'
         
-        // Identity Detection: If it's the user's game, tag it as personal DNA
+        if (isChessCom || isLiveChess) {
+          if (isChessCom) autoTags.push('Chess.com')
+          if (isLiveChess) autoTags.push('Live Chess')
+        }
+        
+        if (lowerSite.includes('lichess.org') || lowerEvent.includes('lichess.org') || lowerSite.includes('lichess')) {
+          autoTags.push('Lichess')
+        }
+        
+        // Identity & Native Detection
         const userStore = useUserStore()
-        if (userStore.isMe(white) || userStore.isMe(black)) {
+        const isMe = userStore.isMe(white) || userStore.isMe(black)
+        const isNative = lowerEvent === 'play vs coach' || lowerEvent === 'knightfall match'
+        
+        // Force "My Games" ONLY if BOTH platform and live-chess markers are present,
+        // or if it's an explicit identity/native match.
+        if (!isCurated && (isMe || isNative || (isChessCom && isLiveChess))) {
           autoTags.push('My Games')
+          if (userStore.displayName) autoTags.push(userStore.displayName)
         }
         
         const game: LibraryGame = {
@@ -157,7 +174,8 @@ export function useLibraryImport(
       const stableId = generateGameFingerprint(white, black, pgn)
 
       if (games.value.some(g => g.id === stableId)) return
-
+      
+      const userStore = useUserStore()
       const game: LibraryGame = {
         id: stableId,
         pgn: pgn,
@@ -171,10 +189,12 @@ export function useLibraryImport(
         addedAt: Date.now(),
         whiteElo: headers['WhiteElo'] ?? undefined,
         blackElo: headers['BlackElo'] ?? undefined,
-        tags: [...new Set(['My Games', ...tags])],
+        tags: [...new Set(['My Games', userStore.displayName, ...tags])],
         clocks: telemetry?.clocks,
         evals: telemetry?.evals,
-        telemetry: telemetry?.antiCheat
+        telemetry: telemetry?.antiCheat,
+        userSide: userStore.isMe(white) || (userStore.displayName && white.toLowerCase() === userStore.displayName.toLowerCase()) ? 'white' 
+               : (userStore.isMe(black) || (userStore.displayName && black.toLowerCase() === userStore.displayName.toLowerCase()) ? 'black' : 'none')
       }
 
       games.value = [...games.value, JSON.parse(JSON.stringify(game))]
@@ -204,6 +224,7 @@ export function useLibraryImport(
         const lichessGames = await fetchRecentLichessGames(username, limit)
         const total = lichessGames.length
         
+        const userStore = useUserStore()
         for (let i = 0; i < total; i++) {
           const lg = lichessGames[i]
           const pgn = lg.pgn || ''
@@ -221,7 +242,7 @@ export function useLibraryImport(
             addedAt: Date.now(),
             whiteElo: lg.players.white.rating.toString(),
             blackElo: lg.players.black.rating.toString(),
-            tags: ['Lichess', lg.speed, lg.perf],
+            tags: ['My Games', userStore.displayName, 'Lichess', lg.speed, lg.perf],
             clocks: lg.clocks,
             evals: lg.evals
           }

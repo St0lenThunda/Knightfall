@@ -203,7 +203,7 @@ function masteryBadges(input: EvalInput): Badge[] {
   const tacticsRate = solveRateForTheme(puzzleAttempts, 'tactics')
   const openingRate = solveRateForTheme(puzzleAttempts, 'opening')
   const avgTime = avgSolveTime(puzzleAttempts)
-  const hintless = puzzleAttempts.filter(a => a.solved && a.hints_used === 0 && a.attempts === 1).length
+  const hintless = puzzleAttempts.filter(a => a.solved && a.hint_level === 0 && a.attempts === 1).length
 
   return [
     {
@@ -384,7 +384,7 @@ function archetypeBadges(input: EvalInput): Badge[] {
 // ─── Pillar 4: Tiered Title ────────────────────────────────────────────────────
 
 export function computeTitle(input: EvalInput, masteryCount: number): ChessTitle {
-  const { profile, pastGames, xp = 0, level = 1 } = input
+  const { profile, pastGames, level = 1 } = input
   const games = pastGames.length
   const rating = profile?.rating ?? 0
   const puzzleRating = profile?.puzzle_rating ?? 0

@@ -107,13 +107,12 @@ const tabs = [
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(20px);
-  box-shadow: -10px 0 30px rgba(0,0,0,0.3);
+  box-shadow: -15px 0 40px rgba(var(--accent-rgb), 0.1), -10px 0 30px rgba(0,0,0,0.3);
 }
 
 .analysis-sidebar.collapsed {
   width: 0;
   border-left: none;
-  box-shadow: none;
 }
 
 .sidebar-inner {
@@ -147,6 +146,15 @@ const tabs = [
 .collapse-btn:hover {
   color: var(--accent-bright);
   background: var(--bg-card);
+}
+
+/* Highlighted state when closed */
+.analysis-sidebar.collapsed .collapse-btn {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent-bright);
+  box-shadow: -5px 0 20px rgba(var(--accent-rgb), 0.6);
+  border-right: 1px solid var(--accent-bright); /* Close the visual gap */
 }
 
 .sidebar-tabs {

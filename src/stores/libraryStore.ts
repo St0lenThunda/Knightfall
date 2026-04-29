@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { Chess } from 'chess.js'
 import { logger } from '../utils/logger'
 import { useUserStore } from './userStore'
@@ -41,6 +41,7 @@ export interface LibraryGame {
     suspicionScore: number
     isBusted: boolean
   }
+  userSide?: 'white' | 'black' | 'none'
 }
 
 export interface OpeningNode {
@@ -99,9 +100,15 @@ export interface ConstellationLayout {
  */
 export const useLibraryStore = defineStore('library', () => {
   // --- CORE STATE ---
-  const games = ref<LibraryGame[]>([])
+  // We use shallowRef for the game lists to prevent Vue from deeply tracking 
+  // every property of 100k+ games, which would cause significant lag.
+  const games = shallowRef<LibraryGame[]>([])
   const isImporting = ref(false)
   const importProgress = ref(0)
+  
+  const isProcessingIntegrity = ref(false)
+  const integrityProgress = ref(0)
+  const integrityMessage = ref('')
   
   // Pinia Store Hoisting
   const userStore = useUserStore()
@@ -121,22 +128,20 @@ export const useLibraryStore = defineStore('library', () => {
    */
   const personalGames = computed(() => {
     return games.value.filter(g => {
-      // 1. Curated collections should NEVER be in 'My DNA' stats
-      if (g.isCurated) return false
-
-      // 2. Identity Check: Must be one of the players to be 'My DNA'
-      // This is the most reliable check as it uses current authenticated handles
+      // 1. Identity Check (PRIMARY): If the user is a participant, it's 'My DNA'
+      // even if it's part of a curated collection.
       const isMeWhite = userStore.isMe(g.white)
       const isMeBlack = userStore.isMe(g.black)
       if (isMeWhite || isMeBlack) return true
 
-      // 3. Native Fallback: If it's a native Knightfall game, we trust the 'My Games' tag
-      // to preserve local/guest history from before the user logged in.
-      const isNative = g.event === 'Knightfall Match' || (g.tags || []).includes('Knightfall')
-      if (isNative) {
-        const tags = (g.tags || []).map(t => t.toLowerCase())
-        return tags.includes('my games')
-      }
+      // 2. Verified Personal DNA (Tag-based)
+      // If it's tagged 'My Games', we trust it's a personal game.
+      const lowerTags = (g.tags || []).map(t => t.toLowerCase())
+      if (lowerTags.includes('my games')) return true
+
+      // 3. Native Fallback
+      const isNative = g.event === 'Knightfall Match' || lowerTags.includes('knightfall')
+      if (isNative) return true
 
       return false
     })
@@ -165,7 +170,13 @@ export const useLibraryStore = defineStore('library', () => {
     sortOrder
   )
   
-  const cloud = useLibrarySync(games, idb.initDb)
+  const cloud = useLibrarySync(
+    games, 
+    idb.initDb,
+    isProcessingIntegrity,
+    integrityProgress,
+    integrityMessage
+  )
   
   const constellation = useLibraryConstellation(
     computed(() => {
@@ -219,10 +230,30 @@ export const useLibraryStore = defineStore('library', () => {
     const chess = new Chess()
     const updatedGames: LibraryGame[] = []
     
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = 'Sanitizing metadata...'
+    
     logger.info('[Library] Starting vault metadata repair and tag sanitation...')
 
-    for (const g of games.value) {
+    const total = games.value.length
+    for (let i = 0; i < total; i++) {
+      const g = games.value[i]
       let changed = false
+      
+      if (i % 50 === 0) {
+        integrityProgress.value = Math.round((i / total) * 100)
+        await new Promise(r => setTimeout(r, 0))
+      }
+
+      // 0. Resolve User Side (Persist Identity)
+      if (!g.userSide || g.userSide === 'none') {
+        const isWhite = userStore.isMe(g.white) || (userStore.displayName && g.white.toLowerCase() === userStore.displayName.toLowerCase())
+        const isBlack = userStore.isMe(g.black) || (userStore.displayName && g.black.toLowerCase() === userStore.displayName.toLowerCase())
+        
+        if (isWhite) { g.userSide = 'white'; changed = true }
+        else if (isBlack) { g.userSide = 'black'; changed = true }
+      }
       
       // 1. Tag Sanitation: Curated games should NEVER have 'My Games' tag
       if (g.isCurated) {
@@ -240,33 +271,70 @@ export const useLibraryStore = defineStore('library', () => {
         }
       }
 
-      // 2. Identity Re-validation: If it's not curated, check if it should have 'My Games'
-      if (!g.isCurated) {
-        const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
-        let currentTags = [...(g.tags || [])]
-        const lowerTags = currentTags.map(t => t.toLowerCase())
-        const hasMyGames = lowerTags.includes('my games')
-        
-        if (isMe && !hasMyGames) {
+      // 2. Comprehensive Identity & Platform Re-validation
+      const isMe = userStore.isMe(g.white) || userStore.isMe(g.black)
+      const lowerEvent = (g.event || '').toLowerCase()
+      const isNative = lowerEvent === 'play vs coach' || lowerEvent === 'knightfall match'
+      const isMyGame = isMe || isNative
+      
+      let currentTags = [...(g.tags || [])]
+      let lowerTags = currentTags.map(t => t.toLowerCase())
+      const hasMyGames = lowerTags.includes('my games')
+
+      // A. "My Games" and Username strict enforcement
+      const myUsername = userStore.displayName ? userStore.displayName.toLowerCase() : null
+
+      if (isMyGame) {
+        if (!hasMyGames) {
           currentTags.push('My Games')
           changed = true
-        } else if (!isMe && hasMyGames) {
-          // If it's not me, and it has the tag, but it's NOT a native Knightfall guest game, strip it
-          const isNative = g.event === 'Knightfall Match' || lowerTags.includes('knightfall')
-          if (!isNative) {
-            currentTags = currentTags.filter(t => t.toLowerCase() !== 'my games')
-            changed = true
-          }
         }
-
-        // 3. Source Tagging: Ensure imported games have their source tag
-        if (g.event && !lowerTags.includes(g.event.toLowerCase())) {
-          currentTags.push(g.event)
+        if (userStore.displayName && !lowerTags.includes(myUsername!)) {
+          currentTags.push(userStore.displayName)
           changed = true
         }
-
-        if (changed) g.tags = currentTags
+      } else {
+        // Aggressively strip "My Games" and native username if it's NOT their game
+        const originalLen = currentTags.length
+        currentTags = currentTags.filter(t => {
+          const lt = t.toLowerCase()
+          if (lt === 'my games') return false
+          if (myUsername && lt === myUsername) return false
+          return true
+        })
+        if (currentTags.length !== originalLen) changed = true
       }
+
+      // B. Platform Mapping Logic
+      lowerTags = currentTags.map(t => t.toLowerCase())
+      const isChessPlatform = lowerTags.includes('chess.com') || lowerEvent.includes('chess.com')
+      const isLiveChess = lowerEvent === 'live chess' || lowerTags.includes('live chess')
+      
+      if (isChessPlatform && isLiveChess) {
+        if (!lowerTags.includes('chess.com')) {
+          currentTags.push('Chess.com')
+          changed = true
+        }
+      }
+      
+      // C. Source Tagging
+      if (g.event && !lowerTags.includes(g.event.toLowerCase())) {
+        currentTags.push(g.event)
+        changed = true
+      }
+
+      // D. Final UserSide Fallback
+      if ((!g.userSide || g.userSide === 'none') && currentTags.some(t => t.toLowerCase() === 'my games')) {
+        const w = g.white.toLowerCase()
+        const b = g.black.toLowerCase()
+        const tags = currentTags.map(t => t.toLowerCase())
+        if (tags.includes(w)) { g.userSide = 'white' }
+        else if (tags.includes(b)) { g.userSide = 'black' }
+        else { g.userSide = 'white' } // Default so it is not lost from stats
+        changed = true
+      }
+
+      if (changed) g.tags = [...new Set(currentTags)]
 
       // 3. Header Repair (Legacy logic)
       const isMissingElo = !g.whiteElo || !g.blackElo
@@ -298,10 +366,19 @@ export const useLibraryStore = defineStore('library', () => {
       
       tx.oncomplete = () => {
         logger.info(`[Library] Repaired ${updatedGames.length} games.`)
+        // Trigger shallowRef reactivity
+        games.value = [...games.value]
+        
         const ui = useUiStore()
         ui.addToast(`Vault sanitized: ${updatedGames.length} metadata fixes applied.`, 'success')
       }
+    } else {
+      const ui = useUiStore()
+      ui.addToast(`Vault is already clean. No metadata corrections needed.`, 'info')
     }
+
+    isProcessingIntegrity.value = false
+    integrityProgress.value = 100
   }
 
   /**
@@ -333,9 +410,20 @@ export const useLibraryStore = defineStore('library', () => {
   }
 
   async function purgeDuplicates() {
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = 'Cleaning duplicate entries...'
+    
     const beforeCount = games.value.length
     await idb.purgeDuplicates()
+    
+    // Trigger shallowRef reactivity
+    games.value = [...games.value]
+    
     const afterCount = games.value.length
+    
+    isProcessingIntegrity.value = false
+    integrityProgress.value = 100
     return beforeCount - afterCount
   }
 
@@ -352,6 +440,10 @@ export const useLibraryStore = defineStore('library', () => {
     gamesMap,
     isImporting,
     importProgress,
+    
+    isProcessingIntegrity,
+    integrityProgress,
+    integrityMessage,
     
     // Sub-module exposures (Stats)
     ...stats,
@@ -371,6 +463,7 @@ export const useLibraryStore = defineStore('library', () => {
     
     // Actions
     loadGames: idb.loadGames,
+    persistGameUpdate: idb.persistGameUpdate,
     resetLibrary: idb.resetLibrary,
     deleteGame,
     

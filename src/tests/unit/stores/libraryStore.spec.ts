@@ -14,6 +14,14 @@ global.Worker = class {
 vi.mock('../../../stores/library/useLibraryIdb', () => ({
   useLibraryIdb: vi.fn((games) => ({
     loadGames: vi.fn(),
+    initDb: vi.fn(async () => ({
+      transaction: vi.fn(() => ({
+        objectStore: vi.fn(() => ({
+          put: vi.fn()
+        })),
+        oncomplete: null
+      }))
+    })),
     resetLibrary: vi.fn(),
     deleteGame: vi.fn(),
     persistGameUpdate: vi.fn(),
@@ -78,7 +86,7 @@ describe('LibraryStore (Orchestrator)', () => {
 
   it('filters "Personal DNA" games correctly based on user identity', () => {
     const userStore = useUserStore()
-    userStore.isMe = vi.fn((name: string) => name === 'Thunda')
+    userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Thunda')
 
     const libraryStore = useLibraryStore()
     libraryStore.games = [

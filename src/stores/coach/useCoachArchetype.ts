@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { LibraryGame } from '../libraryStore'
-import type { PastGame, PuzzleAttempt } from '../userStore'
+import type { PuzzleAttempt } from '../userStore'
 
 /**
  * Coach Archetype Composable (The Brain)

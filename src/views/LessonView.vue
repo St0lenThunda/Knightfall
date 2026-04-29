@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
@@ -81,7 +81,7 @@ function loadCurrentStep() {
   const engineSide = tempChess.turn() // Color of the first move in solution
   playerColor.value = engineSide === 'w' ? 'b' : 'w' // User plays the OTHER side
   
-  store.loadPosition(p.fen, playerColor.value)
+  store.loadPosition(p.fen, 'puzzle')
   
   if (typeof store.setDrill === 'function') {
     store.setDrill(p.solution)

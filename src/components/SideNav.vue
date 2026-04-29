@@ -215,6 +215,7 @@ const navSections = computed(() => {
       showTitle: true,
       items: [
         { path: '/path',      icon: '🛣️',  label: "Knight's Path", badge: 'LEVEL 1', auth: true },
+        { path: '/academy',   icon: '🏛️',  label: 'The Scholar\'s Sanctum', badge: null, auth: true },
         { path: '/play',      icon: '♟',  label: 'Direct Combat',   badge: 'LIVE', auth: false },
         { path: '/puzzles',   icon: '⚡',  label: 'Siege Trials',    badge: 'NEW',  auth: false },
         { path: '/gauntlet',  icon: '🔥',  label: 'The Great Gauntlet',   badge: null,   auth: true  },

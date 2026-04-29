@@ -197,13 +197,16 @@
                 </div>
               </div>
 
-              <div class="settings-actions mt-6">
+              <div class="settings-actions mt-6" style="flex-wrap: wrap;">
                 <button @click="saveIdentity" class="btn btn-primary" :disabled="isSaving">
-                  {{ isSaving ? 'Save Identity' : 'Save Changes' }}
+                  {{ isSaving ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Changes' }}
                 </button>
                 <button @click="syncAllIntelligence" class="btn btn-ghost" :disabled="isSyncing">
                   {{ isSyncing ? 'Synchronizing DNA...' : '⚡ Manual DNA Sync' }}
                 </button>
+                <div v-if="saveError" class="text-danger" style="width: 100%; margin-top: 8px; font-size: 0.85rem;">
+                  {{ saveError }}
+                </div>
               </div>
 
               <h3>Authentication & Session</h3>
@@ -240,11 +243,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
+import { useUiStore } from '../stores/uiStore'
 import { supabase } from '../api/supabaseClient'
 import { fetchRecentChesscomGames } from '../api/chesscomApi'
+import { fetchRecentLichessGames } from '../api/lichessApi'
 
 const settings = useSettingsStore()
 const userStore = useUserStore()
+const uiStore = useUiStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -268,24 +274,47 @@ const tabs = [
   ]
   
   // Identity Form State
-  const editUsername = ref(userStore.profile?.username || '')
-  const editLocation = ref(userStore.profile?.location || '')
-  const editChessComUser = ref(userStore.profile?.chessComUsername || '')
-  const editLichessUser = ref(userStore.profile?.lichessUsername || '')
+  const editUsername = ref('')
+  const editLocation = ref('')
+  const editChessComUser = ref('')
+  const editLichessUser = ref('')
   const isSaving = ref(false)
   const isSyncing = ref(false)
+
+  // Reactively populate form when profile loads
+  watch(() => userStore.profile, (p) => {
+    if (p) {
+      editUsername.value = p.username || ''
+      editLocation.value = p.location || ''
+      editChessComUser.value = p.chesscom_handle || ''
+      editLichessUser.value = p.lichess_handle || ''
+    }
+  }, { immediate: true })
   
   const libraryStore = useLibraryStore()
   
+  const saveError = ref('')
+  const saveSuccess = ref(false)
+
   async function saveIdentity() {
     isSaving.value = true
+    saveError.value = ''
+    saveSuccess.value = false
     try {
-      await userStore.updateProfile({
+      const result = await userStore.updateProfile({
         username: editUsername.value,
         location: editLocation.value,
-        chessComUsername: editChessComUser.value,
-        lichessUsername: editLichessUser.value
+        chesscom_handle: editChessComUser.value,
+        lichess_handle: editLichessUser.value
       })
+      if (result?.error) {
+        saveError.value = result.error.message || 'Failed to save identity.'
+      } else {
+        saveSuccess.value = true
+        setTimeout(() => { saveSuccess.value = false }, 3000)
+      }
+    } catch (err: any) {
+      saveError.value = err.message || 'An unexpected error occurred.'
     } finally {
       isSaving.value = false
     }
@@ -293,15 +322,36 @@ const tabs = [
   
   async function syncAllIntelligence() {
     isSyncing.value = true
+    let chessComCount = 0
+    let lichessCount = 0
+
     try {
-      // Logic for syncing from Chess.com/Lichess (imported from previous ProfileView logic)
       if (editChessComUser.value.trim()) {
-        const games = await fetchRecentChesscomGames(editChessComUser.value.trim(), 12)
+        const games = await fetchRecentChesscomGames(editChessComUser.value.trim())
         for (const game of games) {
-          await libraryStore.saveGameToLibrary(game.pgn, ['Chess.com'])
+          const res = await libraryStore.saveGameToLibrary(game.pgn, ['Chess.com'])
+          if (res) chessComCount++
         }
       }
-      // Add Lichess logic if needed
+      
+      if (editLichessUser.value.trim()) {
+        const games = await fetchRecentLichessGames(editLichessUser.value.trim())
+        for (const game of games) {
+          const res = await libraryStore.saveGameToLibrary(game.pgn, ['Lichess'])
+          if (res) lichessCount++
+        }
+      }
+
+      if (chessComCount === 0 && lichessCount === 0) {
+        uiStore.addToast('Vault is already up to date. No new games found.', 'info')
+      } else {
+        const parts = []
+        if (chessComCount > 0) parts.push(`${chessComCount} from Chess.com`)
+        if (lichessCount > 0) parts.push(`${lichessCount} from Lichess`)
+        uiStore.addToast(`DNA Synchronized! Added ${parts.join(' and ')}.`, 'success')
+      }
+    } catch (e) {
+      uiStore.addToast('Failed to synchronize DNA from external sources.', 'error')
     } finally {
       isSyncing.value = false
     }

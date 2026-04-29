@@ -1,13 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { supabase } from '../api/supabaseClient'
 import type { Session } from '@supabase/supabase-js'
-import { BASE_RATING } from '../composables/useRatingSystem'
+
+import { logger } from '../utils/logger'
 
 // --- Specialized Composables (Pillar Architecture) ---
 import { useUserIdentity } from './user/useUserIdentity'
 import { useUserStats } from './user/useUserStats'
 import { useUserGamification } from './user/useUserGamification'
+import { useRatingSystem } from '../composables/useRatingSystem'
 
 // --- Exported Interfaces ---
 export interface UserProfile {
@@ -34,6 +36,8 @@ export interface PastGame {
   result: 'win' | 'loss' | 'draw'
   opening: string
   opponentRating?: number
+  accuracy?: number
+  rating?: number
 }
 
 export interface PuzzleAttempt {
@@ -42,6 +46,8 @@ export interface PuzzleAttempt {
   solved: boolean
   themes: string[]
   time_taken_seconds: number
+  attempts: number
+  hint_level: number
   created_at: string
 }
 
@@ -64,6 +70,7 @@ export const useUserStore = defineStore('user', () => {
   const identity = useUserIdentity(profile)
   const stats = useUserStats(pastGames, puzzleAttempts)
   const gamification = useUserGamification(profile)
+  const ratingSystem = useRatingSystem(pastGames)
 
   // --- LIFECYCLE ---
   supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -105,11 +112,13 @@ export const useUserStore = defineStore('user', () => {
         return {
           id: row.id,
           date: row.created_at,
-          opponent: isWhite ? row.black_username : row.white_username,
+          white: row.white_username,
+          black: row.black_username,
           result: result as 'win' | 'loss' | 'draw',
-          rating: isWhite ? row.white_rating : row.black_rating,
+          opening: row.opening || row.eco || 'Unknown',
+          opponentRating: isWhite ? row.black_rating : row.white_rating,
           accuracy: isWhite ? row.white_accuracy : row.black_accuracy,
-          eco: row.eco
+          rating: isWhite ? row.white_rating : row.black_rating
         }
       })
     }
@@ -143,6 +152,8 @@ export const useUserStore = defineStore('user', () => {
       solved,
       themes,
       time_taken_seconds: timeTaken,
+      attempts,
+      hint_level: hintLevel,
       created_at: new Date().toISOString()
     }).select().single()
 
@@ -168,8 +179,25 @@ export const useUserStore = defineStore('user', () => {
       .update(updates)
       .eq('id', profile.value.id)
     
-    if (!error) profile.value = { ...profile.value, ...updates }
+    if (error) {
+      logger.error('[UserStore] Failed to update profile:', error)
+    } else {
+      profile.value = { ...profile.value, ...updates }
+    }
     return { error }
+  }
+
+  /**
+   * Records the completion of a Daily Gauntlet.
+   */
+  async function submitGauntletResult(date: string, time: number) {
+    if (!session.value) return
+    
+    // Award special gauntlet XP and ensure streak is updated
+    await gamification.addXP(25)
+    await gamification.updateStreak()
+    
+    logger.info(`[UserStore] Gauntlet completed: ${date} in ${time}s. Bonus XP awarded.`)
   }
 
   // --- PUBLIC API ---
@@ -188,6 +216,8 @@ export const useUserStore = defineStore('user', () => {
     
     // Composable exposures (Gamification)
     ...gamification,
+    currentStreak: gamification.streak,
+    solvedToday: stats.solvedTodayCount,
 
     // Spaced Repetition Queue
     puzzleQueue,
@@ -196,11 +226,10 @@ export const useUserStore = defineStore('user', () => {
     fetchUserData,
     submitPuzzleAttempt,
     updateProfile,
+    submitGauntletResult,
     
     // Global Computed (Bridge between stats and identity)
-    rating: computed(() => {
-      const hist = stats.calculatedRatingHistory.value
-      return hist.length > 0 ? hist[hist.length - 1].rating : BASE_RATING
-    })
+    rating: ratingSystem.currentRating,
+    performanceHistory: ratingSystem.history
   }
 })

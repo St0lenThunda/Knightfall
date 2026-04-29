@@ -163,19 +163,19 @@
               <div class="cheat-forensics glass-sm">
                 <div class="forensic-item">
                   <span class="label">Robotic Rhythm:</span>
-                  <span class="value" :style="{ color: store.antiCheat.roboticScore.value > 50 ? 'var(--rose)' : 'inherit' }">
-                    {{ store.antiCheat.roboticScore.value.toFixed(0) }}%
+                  <span class="value" :style="{ color: store.antiCheat.roboticScore > 50 ? 'var(--rose)' : 'inherit' }">
+                    {{ store.antiCheat.roboticScore.toFixed(0) }}%
                   </span>
                 </div>
                 <div class="forensic-item">
                   <span class="label">Engine Correlation:</span>
-                  <span class="value" :style="{ color: store.antiCheat.correlationScore.value > 50 ? 'var(--rose)' : 'inherit' }">
-                    {{ ((store.antiCheat.engineMatches.value / (store.antiCheat.totalAnalyzedMoves.value || 1)) * 100).toFixed(0) }}%
+                  <span class="value" :style="{ color: store.antiCheat.correlationScore > 50 ? 'var(--rose)' : 'inherit' }">
+                    {{ ((store.antiCheat.engineMatches / (store.antiCheat.totalAnalyzedMoves || 1)) * 100).toFixed(0) }}%
                   </span>
                 </div>
                 <div class="forensic-item">
                   <span class="label">Window Blurs:</span>
-                  <span class="value">{{ store.antiCheat.blurCount.value }}</span>
+                  <span class="value">{{ store.antiCheat.blurCount }}</span>
                 </div>
                 <div class="forensic-item">
                   <span class="label">Total Suspicion:</span>

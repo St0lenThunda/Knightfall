@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import { supabase } from '../../api/supabaseClient'
 import type { UserProfile } from '../userStore'
 
@@ -131,9 +131,30 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     }
   }
 
+  // --- Academy Achievements ---
+  const completedLessons = ref<string[]>(JSON.parse(localStorage.getItem('knightfall_completed_lessons') || '[]'))
+
+  function markLessonComplete(lessonId: string) {
+    if (!completedLessons.value.includes(lessonId)) {
+      completedLessons.value.push(lessonId)
+      localStorage.setItem('knightfall_completed_lessons', JSON.stringify(completedLessons.value))
+      addXP(50) // Reward XP
+    }
+  }
+
+  const badges = computed(() => {
+    const b = []
+    if (completedLessons.value.length >= 1) b.push({ id: 'first_lesson', name: 'First Steps', icon: '📜', color: 'var(--blue)' })
+    if (completedLessons.value.length >= 5) b.push({ id: 'scholar_novice', name: 'Dedicated Scholar', icon: '📚', color: 'var(--teal)' })
+    if (completedLessons.value.length >= 10) b.push({ id: 'scholar_adept', name: 'Academy Adept', icon: '🏛️', color: 'var(--gold)' })
+    if (completedLessons.value.length >= 20) b.push({ id: 'scholar_master', name: 'Master Theoretician', icon: '👑', color: 'var(--rose)' })
+    return b
+  })
+
   return {
     hearts, xp, streak, maxHearts,
     currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName,
-    addXP, deductHeart, refillHearts, updateStreak
+    completedLessons, badges,
+    addXP, deductHeart, refillHearts, updateStreak, markLessonComplete
   }
 }

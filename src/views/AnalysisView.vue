@@ -37,32 +37,55 @@
 
     <div class="analysis-layout" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
       <!-- Board column -->
-      <div class="board-container">
-        <EvaluationHeader 
-          :playerNames="playerNames"
-          :evalNum="evalNum"
-          :evalPercent="evalPercent"
-          :hasGame="hasGame"
-          :moveQuality="currentMoveQuality"
-        />
+      <Transition name="board-entry" appear>
+        <div v-if="hasGame" class="board-container" key="active-board">
+          <EvaluationHeader 
+            :playerNames="playerNames"
+            :evalNum="evalNum"
+            :evalPercent="evalPercent"
+            :hasGame="hasGame"
+            :moveQuality="currentMoveQuality"
+          />
 
-        <ChessBoard 
-          :flipped="false" 
-          :arrows="engineArrows" 
-          :moveQuality="currentMoveQuality"
-          :lastMove="currentViewedMove" 
-        />
-      </div>
+          <ChessBoard 
+            :flipped="false" 
+            :interactive="false"
+            :arrows="engineArrows" 
+            :moveQuality="currentMoveQuality"
+            :lastMove="currentViewedMove" 
+          />
+        </div>
+        <div v-else class="board-container empty-board" key="empty-board">
+          <div class="analysis-instructional-state">
+            <div class="instructional-card glass-card">
+              <div class="pulse-icon">🔮</div>
+              <h2>The Oracle Awaits</h2>
+              <p class="instruction-text">
+                Upload a match from your history or paste a PGN to begin a deep analytical review. 
+                I will reveal your tactical DNA and find the hidden winning stratagems.
+              </p>
+              <div class="instruction-actions">
+                <router-link to="/profile?tab=vault" class="btn btn-primary btn-glow">
+                  🏛 Browse Vault
+                </router-link>
+                <button class="btn btn-ghost" @click="importPgn">
+                  📂 Paste PGN
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
-      <!-- Panel -->
       <!-- Main Analysis Sidebar -->
-      <!-- Modular Sidebar -->
-      <AnalysisSidebar 
-        v-model:isCollapsed="isSidebarCollapsed"
-        :metrics="metrics"
-        :diagnosis="diagnosis"
-        @showLegend="showHealthLegend = true"
-      >
+      <Transition name="sidebar-entry" appear>
+        <AnalysisSidebar 
+          v-if="hasGame"
+          v-model:isCollapsed="isSidebarCollapsed"
+          :metrics="metrics"
+          :diagnosis="diagnosis"
+          @showLegend="showHealthLegend = true"
+        >
         <template #default="{ activeTab }">
           <Transition name="fade-slide" mode="out-in">
             <!-- TAB 1: INSIGHTS -->
@@ -71,12 +94,20 @@
                 <div class="engine-info">
                   <span class="badge badge-accent">STOCKFISH 16.1</span>
                   
-                  <div v-if="currentMoveQuality" class="quality-badge-mini animated-pop-in" :style="{ '--q-color': currentMoveQuality.color }">
+                  <!-- <div v-if="currentMoveQuality" class="quality-badge-mini animated-pop-in" :style="{ '--q-color': currentMoveQuality.color }">
                     <span class="q-icon">{{ currentMoveQuality.icon }}</span>
                     <span class="q-label">{{ currentMoveQuality.label }}</span>
-                  </div>
+                  </div> -->
 
                   <span class="depth">Depth {{ engineStore.currentDepth }}</span>
+                  <button 
+                    class="btn btn-xs btn-outline ml-auto" 
+                    @click="deepCloudScan" 
+                    :disabled="isCloudScanning"
+                    title="Fetch high-depth Cloud Evaluation for this position"
+                  >
+                    {{ isCloudScanning ? 'Scanning...' : '☁️ Deep Scan' }}
+                  </button>
                </div>
 
                <div class="nav-controls-minimal mt-4">
@@ -153,6 +184,8 @@
           </Transition>
         </template>
       </AnalysisSidebar>
+      <div v-else class="sidebar-placeholder"></div>
+      </Transition>
     </div>
 
         <!-- Health Legend Modal -->
@@ -561,6 +594,42 @@ function runHighlightPace() {
 }
 
 
+import { fetchCloudEval } from '../api/lichessApi'
+
+const isCloudScanning = ref(false)
+
+async function deepCloudScan() {
+  if (isCloudScanning.value) return
+  isCloudScanning.value = true
+  uiStore.addToast('Initiating Deep Cloud Scan...', 'info')
+  
+  try {
+    const fen = store.fen
+    const cloudData = await fetchCloudEval(fen)
+    
+    if (cloudData && cloudData.pvs && cloudData.pvs.length > 0) {
+      engineStore.stop() // Stop local calculation
+      
+      const topPv = cloudData.pvs[0]
+      // Inject cloud accuracy directly into the engine's reactive state
+      engineStore.evalScoreCp = topPv.cp || 0
+      engineStore.evalMate = topPv.mate || null
+      engineStore.currentDepth = cloudData.depth || 40
+      engineStore.bestMove = topPv.moves?.split(' ')[0] || ''
+      engineStore.pv = topPv.moves?.split(' ') || []
+      engineStore.isAnalyzing = false
+      
+      uiStore.addToast(`Cloud Scan Complete: Depth ${cloudData.depth} evaluation injected.`, 'success')
+    } else {
+      uiStore.addToast('No Cloud Eval found for this position.', 'warning')
+    }
+  } catch (err) {
+    uiStore.addToast('Deep Scan aborted (Lichess Rate Limit).', 'error')
+  } finally {
+    isCloudScanning.value = false
+  }
+}
+
 </script>
 
 <style scoped>
@@ -595,6 +664,99 @@ function runHighlightPace() {
 .quality-badge-mini .q-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: white; }
 
 /* Loading overlay */
+.analysis-loading-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Empty State / Instructional UI */
+.analysis-instructional-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: var(--space-8);
+  background: radial-gradient(circle at center, rgba(var(--accent-rgb), 0.1) 0%, transparent 70%);
+}
+
+.instructional-card {
+  max-width: 500px;
+  text-align: center;
+  padding: var(--space-10);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  animation: float 6s ease-in-out infinite;
+}
+
+.pulse-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-6);
+  filter: drop-shadow(0 0 15px var(--accent));
+  animation: pulse-glow 3s infinite;
+}
+
+.instruction-text {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: var(--space-8);
+}
+
+.instruction-actions {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+}
+
+.btn-glow {
+  box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.4);
+}
+
+/* Entry Animations */
+.board-entry-enter-active {
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.board-entry-enter-from {
+  opacity: 0;
+  transform: translateX(-50px) scale(0.95);
+}
+
+.sidebar-entry-enter-active {
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 0.2s; /* Staggered entry */
+}
+.sidebar-entry-enter-from {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px var(--accent)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 30px var(--accent)); }
+}
+
+.sidebar-placeholder {
+  background: rgba(0,0,0,0.1);
+  border-left: 1px solid var(--border);
+}
+
+.empty-board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .analysis-loading-overlay {
   position: absolute;
   inset: 0;
@@ -1189,11 +1351,26 @@ function runHighlightPace() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+}
+
+.panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(17, 17, 24, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: var(--space-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-scrollable-content {
+  padding: var(--space-4);
 }
 
 .review-pane-padding {
-  padding: var(--space-6);
+  padding: var(--space-2);
   padding-bottom: var(--space-12);
 }
 

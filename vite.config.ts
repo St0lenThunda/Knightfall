@@ -20,8 +20,9 @@ export default defineConfig({
     allowedHosts: true
   },
   test: {
-    environment: 'happy-dom',
     globals: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
+    environment: 'happy-dom',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

@@ -46,7 +46,7 @@ describe('CoachStore (The Brain)', () => {
     it('identifies "Theoretical Specialist" when user loses many games with ECO codes', () => {
       const libraryStore = useLibraryStore()
       const userStore = useUserStore()
-      userStore.isMe = vi.fn((name: string) => name === 'Player1')
+      userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Player1')
       
       libraryStore.games = [
         { id: '1', white: 'Player1', black: 'Bot', result: '0-1', eco: 'B01', pgn: '', date: '', event: '', movesCount: 20, addedAt: 0 },
@@ -65,7 +65,7 @@ describe('CoachStore (The Brain)', () => {
     it('triggers "White Side Weakness" when color gap is significant', () => {
       const libraryStore = useLibraryStore()
       const userStore = useUserStore()
-      userStore.isMe = vi.fn((name: string) => name === 'Thunda')
+      userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Thunda')
 
       // 100% win as Black, 0% win as White
       libraryStore.games = [
@@ -81,7 +81,7 @@ describe('CoachStore (The Brain)', () => {
     it('triggers "Opening Vulnerability" for short average losses', () => {
       const libraryStore = useLibraryStore()
       const userStore = useUserStore()
-      userStore.isMe = vi.fn((name: string) => name === 'Thunda')
+      userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Thunda')
 
       libraryStore.games = [
         { id: '1', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 15, addedAt: 0, pgn: '' },
@@ -96,7 +96,7 @@ describe('CoachStore (The Brain)', () => {
     it('triggers "Endgame Leaks" for long average losses', () => {
       const libraryStore = useLibraryStore()
       const userStore = useUserStore()
-      userStore.isMe = vi.fn((name: string) => name === 'Thunda')
+      userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Thunda')
 
       libraryStore.games = [
         { id: '1', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 65, addedAt: 0, pgn: '' }

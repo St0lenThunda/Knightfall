@@ -5,7 +5,7 @@ import { useLibraryStore } from '../../../stores/libraryStore'
 const libraryStore = useLibraryStore()
 
 const intelStatusText = computed(() => {
-  if (libraryStore.isBulkAnalyzing) return `Analyzing game ${libraryStore.analyzedGamesCount + 1} of ${libraryStore.games.length}...`
+  if (libraryStore.isBulkAnalyzing) return `Analyzing game ${libraryStore.liveAnalyzedCount} of ${libraryStore.games.length}...`
   if (libraryStore.analysisProgress === 100) return 'Vault intelligence fully synthesized.'
   return `${libraryStore.games.length - libraryStore.analyzedGamesCount} games awaiting deep synthesis.`
 })
@@ -73,18 +73,18 @@ defineEmits(['toggleIntel'])
             </div>
           </div>
 
-          <div class="intel-main-action">
-            <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container-v2" style="width: 100%;">
+          <div class="intel-main-action" :class="{ 'is-analyzing': libraryStore.isBulkAnalyzing }">
+            <div v-if="libraryStore.isBulkAnalyzing" class="intel-progress-container-v2">
               <div class="intel-progress-bar-v2">
                 <div class="intel-progress-fill-v2" :style="{ width: libraryStore.analysisProgress + '%' }"></div>
               </div>
-              <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; font-family: monospace;">
+              <div class="intel-progress-meta">
                 <span class="muted">{{ Math.round(libraryStore.analysisProgress) }}% Complete</span>
-                <span class="text-accent">Rem: {{ libraryStore.estimatedTimeRemaining || '--' }}</span>
+                <span class="text-accent">ETA: {{ libraryStore.estimatedTimeRemaining || '--:--' }}</span>
               </div>
             </div>
             <button @click="$emit('toggleIntel')" class="btn" :class="libraryStore.isBulkAnalyzing ? 'btn-ghost' : 'btn-primary'">
-              {{ libraryStore.isBulkAnalyzing ? 'Pause' : (libraryStore.analysisProgress === 100 ? 'Restart' : 'Start Synthesis') }}
+              {{ libraryStore.isBulkAnalyzing ? 'Pause Analysis' : (libraryStore.analysisProgress === 100 ? 'Restart Synthesis' : 'Start Synthesis') }}
             </button>
           </div>
         </div>
@@ -121,7 +121,12 @@ defineEmits(['toggleIntel'])
 .summary-stat .label { font-size: 0.55rem; font-weight: 800; opacity: 0.6; }
 .summary-stat .val { font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; }
 
-.intel-main-action { display: flex; align-items: center; gap: var(--space-4); min-width: 240px; }
-.intel-progress-bar-v2 { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.intel-main-action { display: flex; align-items: center; gap: var(--space-6); min-width: 240px; }
+.intel-main-action.is-analyzing { flex-direction: column; align-items: flex-end; gap: var(--space-3); }
+
+.intel-progress-container-v2 { width: 100%; }
+.intel-progress-bar-v2 { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
 .intel-progress-fill-v2 { height: 100%; background: var(--accent-gradient); transition: width 0.4s ease; }
+.intel-progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700; }
+
 </style>

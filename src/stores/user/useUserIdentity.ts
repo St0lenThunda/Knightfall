@@ -29,20 +29,30 @@ export function useUserIdentity(profile: Ref<UserProfile | null>) {
     // 2. Authenticated Flow: Prevent generic name collisions
     const genericNames = ['white', 'black', 'guest', 'knight', 'anonymous', 'unknown']
     const myUsername = profile.value.username?.toLowerCase()
+    const myChesscom = profile.value.chesscom_handle?.toLowerCase()
+    const myLichess = profile.value.lichess_handle?.toLowerCase()
     
     // If it's a generic name, only count as 'Me' if it's actually our username (e.g. someone named 'Guest')
     if (genericNames.includes(n) && myUsername !== n) return false
 
-    return n === myUsername || 
-           n === profile.value.chesscom_handle?.toLowerCase() ||
-           n === profile.value.lichess_handle?.toLowerCase()
+    // Strict Comparison: Ensure we have a value to compare against
+    const matchesUsername = myUsername && n === myUsername
+    const matchesChesscom = myChesscom && n === myChesscom
+    const matchesLichess = myLichess && n === myLichess
+
+    if (matchesUsername || matchesChesscom || matchesLichess) return true
+
+    // Fuzzy Substring Comparison: Catch variations of the handles
+    const fuzzyUsername = myUsername && n.includes(myUsername)
+    const fuzzyChesscom = myChesscom && n.includes(myChesscom)
+    const fuzzyLichess = myLichess && n.includes(myLichess)
+
+    return !!(fuzzyUsername || fuzzyChesscom || fuzzyLichess)
   }
 
   /** Centralized check for administrative privileges. */
   const isAdmin = computed(() => {
-    if (!profile.value) return false
-    const username = profile.value.username?.toLowerCase()
-    return profile.value.role === 'admin' || username === 'thunda'
+    return profile.value?.role === 'admin'
   })
 
   /** Verification of connected platforms. */

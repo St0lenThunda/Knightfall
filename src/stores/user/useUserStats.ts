@@ -1,6 +1,5 @@
 import { computed, type Ref } from 'vue'
 import type { PastGame, PuzzleAttempt } from '../userStore'
-import { BASE_RATING, calculateNewRating } from '../../composables/useRatingSystem'
 
 /**
  * User Stats Composable
@@ -74,50 +73,11 @@ export function useUserStats(
     }).sort((a, b) => b.games - a.games)
   })
 
-  /** Actual rating history calculated using the Elo system. */
-  const calculatedRatingHistory = computed(() => {
-    const normalizeDate = (d: string) => {
-      if (!d || d.includes('?')) return new Date().toISOString()
-      const clean = d.replace(/\./g, '-')
-      const p = new Date(clean)
-      return isNaN(p.getTime()) ? new Date().toISOString() : p.toISOString()
-    }
-
-    let current = BASE_RATING
-    const history: { date: string, rating: number }[] = []
-    
-    // Dedup and Sort
-    const uniqueIds = new Set<string>()
-    const sorted = [...pastGames.value]
-      .filter(g => {
-        if (uniqueIds.has(g.id)) return false
-        uniqueIds.add(g.id)
-        return true
-      })
-      .sort((a, b) => new Date(normalizeDate(a.date)).getTime() - new Date(normalizeDate(b.date)).getTime())
-    
-    if (sorted.length > 0) {
-      const firstDate = new Date(normalizeDate(sorted[0].date))
-      firstDate.setDate(firstDate.getDate() - 1)
-      history.push({ date: firstDate.toISOString(), rating: BASE_RATING })
-    }
-
-    sorted.forEach(g => {
-      const resultValue = g.result === 'win' ? 1.0 : (g.result === 'draw' ? 0.5 : 0.0)
-      const oppRating = g.opponentRating || current
-      current = calculateNewRating(current, oppRating, resultValue)
-      history.push({ date: normalizeDate(g.date), rating: current })
-    })
-
-    return history
-  })
-
   return {
     winLossDraw,
     puzzleStats,
     activityHeatmap,
     solvedTodayCount,
     openingPerformance,
-    calculatedRatingHistory
   }
 }

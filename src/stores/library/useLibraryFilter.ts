@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { ref, shallowRef, watch, type Ref } from 'vue'
 import type { LibraryGame } from '../libraryStore'
 
 /**
@@ -16,7 +16,7 @@ export function useLibraryFilter(
   sortOrder: Ref<string>
 ) {
   const isFiltering = ref(false)
-  const filteredGames = ref<LibraryGame[]>([])
+  const filteredGames = shallowRef<LibraryGame[]>([])
   const allTags = ref<string[]>(['My Games', 'Bot Match', 'Local'])
 
   /**

@@ -33,21 +33,23 @@ const formattedEval = computed(() => {
 
 <template>
   <header class="evaluation-header">
-    <!-- Matchup Header -->
-    <div v-if="hasGame" class="game-matchup-header glass-sm">
-       <span class="player-pill white">
-         {{ playerNames.white }} <span class="elo">{{ playerNames.whiteElo }}</span>
-       </span>
-       <span class="vs">vs</span>
-       <span class="player-pill black">
-         {{ playerNames.black }} <span class="elo">{{ playerNames.blackElo }}</span>
-       </span>
-    </div>
+    <!-- Matchup & Quality Row -->
+    <div class="header-top-row">
+      <div v-if="hasGame" class="game-matchup-header glass-sm">
+         <span class="player-pill white">
+           {{ playerNames.white }} <span class="elo">{{ playerNames.whiteElo }}</span>
+         </span>
+         <span class="vs">vs</span>
+         <span class="player-pill black">
+           {{ playerNames.black }} <span class="elo">{{ playerNames.blackElo }}</span>
+         </span>
+      </div>
 
-    <!-- Quality Indicator (High Visibility) -->
-    <div v-if="moveQuality" class="quality-badge animated-pop-in" :style="{ '--q-color': moveQuality.color }">
-        <span class="q-icon">{{ moveQuality.icon }}</span>
-        <span class="q-label">{{ moveQuality.label }}</span>
+      <!-- Quality Indicator (High Visibility) -->
+      <div v-if="moveQuality" class="quality-badge animated-pop-in" :style="{ '--q-color': moveQuality.color }">
+          <span class="q-icon">{{ moveQuality.icon }}</span>
+          <span class="q-label">{{ moveQuality.label }}</span>
+      </div>
     </div>
 
     <!-- Evaluation Bar Control -->
@@ -71,6 +73,14 @@ const formattedEval = computed(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
+}
+
+.header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
 }
 
 .game-matchup-header {
@@ -141,12 +151,12 @@ const formattedEval = computed(() => {
 .quality-badge {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: rgba(0, 0, 0, 0.4);
-  padding: 8px 24px;
+  padding: 4px 16px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--q-color);
-  box-shadow: 0 0 20px var(--q-color), inset 0 0 10px var(--q-color);
+  border: 1px solid var(--q-color);
+  box-shadow: 0 0 15px var(--q-color);
   animation: pulse-glow-quality 2s infinite;
 }
 

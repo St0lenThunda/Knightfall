@@ -3,7 +3,6 @@
  * PieceLayer: Manages the animated rendering of chess pieces.
  * Uses TransitionGroup to handle smooth 'slide' animations between FEN states.
  */
-import { computed } from 'vue'
 
 interface Piece {
   id: string

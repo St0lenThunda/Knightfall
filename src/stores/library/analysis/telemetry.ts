@@ -13,6 +13,7 @@ export function useAnalysisTelemetry() {
   const engineNodesPerSecond = ref(0)
   const estimatedTimeRemaining = ref<string | null>(null)
   const analysisProgress = ref(0)
+  const liveAnalyzedCount = ref(0)
   const failedGames = ref<{ id: string, reason: string }[]>([])
 
   /**
@@ -27,6 +28,7 @@ export function useAnalysisTelemetry() {
     engineNodesPerSecond.value = 0
     estimatedTimeRemaining.value = 'Calculating...'
     analysisProgress.value = 0
+    liveAnalyzedCount.value = 0
     failedGames.value = []
   }
 
@@ -39,6 +41,7 @@ export function useAnalysisTelemetry() {
     engineNodesPerSecond,
     estimatedTimeRemaining,
     analysisProgress,
+    liveAnalyzedCount,
     failedGames,
     resetTelemetry
   }
