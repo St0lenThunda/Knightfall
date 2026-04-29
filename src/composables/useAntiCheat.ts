@@ -112,6 +112,13 @@ export function useAntiCheat() {
 
   function registerBlur() {
     blurCount.value++
+    
+    // Fire UI Toast Alert (Longer duration as requested)
+    import('../stores/uiStore').then(({ useUiStore }) => {
+      const ui = useUiStore()
+      ui.addToast(`[WARDEN] Visibility Violation Detected. (Count: ${blurCount.value})`, 'warning', 6000)
+    })
+
     import('../stores/adminStore').then(({ useAdminStore }) => {
       useAdminStore().recordSuspicion(suspicionScore.value, true)
     })

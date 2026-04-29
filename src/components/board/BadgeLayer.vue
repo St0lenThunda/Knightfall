@@ -13,6 +13,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits(['badge-click'])
 
 const files = ['a','b','c','d','e','f','g','h']
 const ranks = ['8','7','6','5','4','3','2','1']
@@ -52,6 +53,7 @@ const badgeData = computed(() => {
            left: badgeData.x + '%',
            top: badgeData.y + '%'
          }"
+         @click="emit('badge-click')"
     >
       {{ badgeData.icon }}
     </div>
@@ -82,15 +84,24 @@ const badgeData = computed(() => {
   margin-left: 20px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   border: 2px solid rgba(255, 255, 255, 0.3);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .animated-pop-in {
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: 
+    popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards,
+    pulse-badge 2s infinite 0.3s;
 }
 
 @keyframes popIn {
   from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
   to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@keyframes pulse-badge {
+  0% { box-shadow: 0 4px 12px rgba(0,0,0,0.5); transform: translate(-50%, -50%) scale(1); }
+  50% { box-shadow: 0 0 15px rgba(255,255,255,0.4); transform: translate(-50%, -50%) scale(1.1); }
+  100% { box-shadow: 0 4px 12px rgba(0,0,0,0.5); transform: translate(-50%, -50%) scale(1); }
 }
 </style>

@@ -22,6 +22,9 @@
 - [ ] **Component Testing**: Write snapshot and interaction tests for `WarRoomPanel.vue` and `SideNav.vue`.
 - [ ] **E2E Smoke Tests**: Implement Playwright flows for the "Happy Path" (Import -> Analyze).
 
+## 📥 Backlog (Low Priority)
+- [ ] **Elo-Weighted Intelligence**: Adapt coaching thresholds (blunder/mistake deltas) and explanation complexity based on player rating to provide more personalized feedback.
+
 ## Known Issues
 - **Uncovered Sub-Composables**: While the orchestrators are tested, the deep logic in `useLibraryFilter` and `useLibrarySync` still lacks coverage.
 - **Worker Environment**: Tests require global `Worker` mocks as happy-dom does not natively support Web Workers.

@@ -142,7 +142,7 @@ const gameSeed = computed(() => {
 })
 
 function getMoveQuality(move: any, index: number) {
-  // If the store already has a tag from real analysis, use it
+  // Priority 1: If the store already has a tag from real analysis, use it
   if (move.tag) {
     const s = move.tag.severity
     if (s === 'blunder') return { label: 'blunder', icon: '??', color: 'var(--rose)' }
@@ -150,14 +150,24 @@ function getMoveQuality(move: any, index: number) {
     if (s === 'inaccuracy') return { label: 'inaccuracy', icon: '?!', color: 'var(--gold)' }
   }
 
-  // Fallback to deterministic pseudo-random for UI demo
-  const hash = (move.san.charCodeAt(0) * 11 + index * 7 + (move.isCapture ? 13 : 0) + gameSeed.value) % 100
-  if (hash > 88) return { label: 'great', icon: '!!', color: 'var(--teal)' }
-  if (hash > 75) return { label: 'best', icon: '★', color: 'var(--teal)' }
-  if (hash > 20) return { label: 'good', icon: '✓', color: 'var(--accent)' }
-  if (hash > 10) return { label: 'inaccuracy', icon: '?!', color: 'var(--gold)' }
-  if (hash > 3) return { label: 'mistake', icon: '?', color: 'var(--orange)' }
-  return { label: 'blunder', icon: '??', color: 'var(--rose)' }
+  // Priority 2: Use real eval data if available
+  const allMoves = store.moveHistory
+  if (move.eval !== undefined && index > 0) {
+    const prevMove = allMoves[index - 1]
+    if (prevMove?.eval !== undefined) {
+      const evalDelta = Math.abs(move.eval - prevMove.eval)
+      if (evalDelta >= 2.5) return { label: 'blunder', icon: '??', color: 'var(--rose)' }
+      if (evalDelta >= 1.0) return { label: 'mistake', icon: '?!', color: 'var(--orange)' }
+      if (evalDelta >= 0.4) return { label: 'inaccuracy', icon: '?', color: 'var(--gold)' }
+      if (evalDelta <= 0.05) return { label: 'best', icon: '★', color: 'var(--teal)' }
+      if (evalDelta <= 0.15) return { label: 'great', icon: '!!', color: 'var(--teal)' }
+      if (evalDelta <= 0.3) return { label: 'good', icon: '✓', color: 'var(--accent)' }
+      return { label: 'book', icon: '📖', color: 'var(--accent)' }
+    }
+  }
+
+  // Fallback: No eval data — neutral label
+  return { label: 'book', icon: '📖', color: 'var(--accent)' }
 }
 
 const accuracy = computed(() => {

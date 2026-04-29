@@ -24,7 +24,7 @@
     <div class="play-layout" :class="{ 'game-active': !showSetup, 'history-open': showHistory }">
       <!-- Left: setup panel (shown when no game started) -->
       <Transition name="slide-right">
-        <div class="setup-panel glass" v-show="showSetup">
+        <div class="setup-panel glass" v-if="showSetup">
           <h3 style="margin-bottom: var(--space-5);">New Game</h3>
 
           <!-- Mode select -->
@@ -366,7 +366,7 @@ watch(() => store.isCheaterBusted, (busted) => {
 </script>
 
 <style scoped>
-.play-page { padding-top: var(--space-6); }
+.play-page { padding: var(--space-2) var(--space-6); }
 
 .play-header {
   display: flex;
@@ -380,25 +380,32 @@ watch(() => store.isCheaterBusted, (busted) => {
 
 .play-layout {
   display: grid;
-  grid-template-columns: 280px auto 0px;
-  gap: var(--space-5);
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-8);
   align-items: start;
   justify-content: center;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  width: 100%;
 }
-.play-layout.history-open {
-  grid-template-columns: 280px auto 260px;
-}
+
+/* When game is active, we hide the left setup panel and center the board */
 .play-layout.game-active {
-  grid-template-columns: 0px auto 0px;
+  grid-template-columns: 1fr;
 }
+
+/* If history is open, we add a third column on the right */
+.play-layout.history-open {
+  grid-template-columns: 280px 1fr 320px;
+}
+
 .play-layout.game-active.history-open {
-  grid-template-columns: 0px auto 260px;
+  grid-template-columns: 1fr 320px;
 }
 
 @media (max-width: 1200px) {
   .play-layout { grid-template-columns: 1fr 260px; }
+  .play-layout.game-active { grid-template-columns: 1fr; }
   .setup-panel { position: absolute; top: 0; left: 0; z-index: 50; width: 300px; height: 100%; }
 }
 @media (max-width: 760px) {
@@ -471,8 +478,9 @@ watch(() => store.isCheaterBusted, (busted) => {
 .board-area {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-4);
   align-items: center;
+  width: 100%;
 }
 
 .board-wrapper {
@@ -480,6 +488,7 @@ watch(() => store.isCheaterBusted, (busted) => {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
 }
 
 .game-over-overlay {

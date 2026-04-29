@@ -10,6 +10,8 @@ import { useAntiCheat } from '../composables/useAntiCheat'
 import { useAdminStore } from './adminStore'
 import { useUiStore } from './uiStore'
 
+import { safeLoadPgn } from '../utils/pgnParser'
+
 export type GameMode = 'local' | 'vs-computer' | 'puzzle' | 'analysis'
 
 export interface TimeControl {
@@ -61,6 +63,7 @@ export const useGameStore = defineStore('game', () => {
   const isThinking = ref(false)
   const promotionPending = ref<{ from: Square; to: Square } | null>(null)
   const loadedGameId = ref<string | null>(null)
+  const originalPgn = ref<string>('')
   const drillIndex = ref(0)
   const currentDrill = ref<string[]>([])
 
@@ -76,6 +79,20 @@ export const useGameStore = defineStore('game', () => {
 
   // --- COMPUTED PROPERTIES ---
   const fen = computed(() => { boardTrigger.value; return chess.value.fen() })
+  /**
+   * Reconstructs a reliable PGN from the internal moveHistory.
+   * We cannot rely on chess.value.pgn() because goToMove() uses
+   * chess.load(fen), which resets Chess.js's internal move list.
+   * If we have an originalPgn (from loadPgn), prefer that.
+   * Otherwise, rebuild from the moveHistory SAN list.
+   */
+  const pgn = computed(() => {
+    boardTrigger.value
+    // If we loaded a game from the library, return the stored original
+    if (originalPgn.value) return originalPgn.value
+    // Otherwise, get whatever Chess.js has (works for live games before navigation)
+    return chess.value.pgn()
+  })
   const turn = computed(() => { boardTrigger.value; return chess.value.turn() as Color })
   const board = computed(() => { boardTrigger.value; return chess.value.board() })
   const isGameOver = computed(() => { boardTrigger.value; return forceGameOver.value || chess.value.isGameOver() })
@@ -99,6 +116,37 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'vs-computer') return turn.value === playerColor.value
     return true
   })
+
+  // --- CLOCK UTILITIES ---
+  let clockInterval: any = null
+  function stopClock() { if (clockInterval) { clearInterval(clockInterval); clockInterval = null } }
+  function startClock() {
+    stopClock()
+    clockInterval = setInterval(() => {
+      if (isGameOver.value) { stopClock(); return }
+      if (turn.value === 'w') {
+        whiteTime.value--
+        if (whiteTime.value <= 0) handleFlag('w')
+      } else {
+        blackTime.value--
+        if (blackTime.value <= 0) handleFlag('b')
+      }
+    }, 1000)
+  }
+  const pauseClock = () => stopClock()
+  const resumeClock = () => startClock()
+
+  function handleFlag(loser: Color) {
+    timeOutWinner.value = loser === 'w' ? 'b' : 'w'
+    forceGameOver.value = true
+    boardTrigger.value++
+  }
+
+  function resign(loser: Color) {
+    resignationWinner.value = loser === 'w' ? 'b' : 'w'
+    forceGameOver.value = true
+    boardTrigger.value++
+  }
 
   // --- PERSISTENCE: Restore state on refresh ---
   watch([() => loadedGameId.value, () => boardTrigger.value], () => {
@@ -182,7 +230,13 @@ export const useGameStore = defineStore('game', () => {
     worker.postMessage('uci')
     
     const tempChess = new Chess()
-    tempChess.loadPgn(game.pgn)
+    try {
+      safeLoadPgn(tempChess, game.pgn)
+    } catch (e) {
+      logger.error('[FastScan] Critically malformed PGN in background scan', e)
+      worker.terminate()
+      return
+    }
     const history = tempChess.history({ verbose: true })
     if (history.length === 0) {
       worker.terminate()
@@ -262,14 +316,21 @@ export const useGameStore = defineStore('game', () => {
     // We create a fresh instance to avoid carrying over any previous state/markers
     const newChess = new Chess()
     try {
-      newChess.loadPgn(pgn)
+      safeLoadPgn(newChess, pgn)
       chess.value = newChess
       mode.value = gameMode
       loadedGameId.value = id || null
+      originalPgn.value = pgn  // Preserve the full PGN for debug/export
       
       // Rebuild move history for navigation and analysis timeline
       const moves = newChess.history({ verbose: true })
       const tempChess = new Chess()
+
+      // Look up the library game for pre-computed evals from the fast scan
+      const libraryStore = useLibraryStore()
+      const libraryGame = id ? libraryStore.gamesMap.get(id) : null
+      const precomputedEvals = libraryGame?.evals || []
+
       moveHistory.value = moves.map((m, i) => {
         tempChess.move(m)
         return {
@@ -278,8 +339,17 @@ export const useGameStore = defineStore('game', () => {
           from: m.from,
           to: m.to,
           moveNumber: Math.ceil((i + 1) / 2),
+          // Inject the pre-computed eval from the library's fast scan
+          // Fast scan stores centipawns (e.g. 35 = +0.35), so divide by 100
+          eval: precomputedEvals[i]?.score !== undefined
+            ? precomputedEvals[i].score / 100
+            : undefined,
         }
       })
+
+      if (precomputedEvals.length > 0) {
+        logger.info(`[GameStore] Injected ${precomputedEvals.length} pre-computed evals from library.`)
+      }
       
       // Focus on the end of the game by default
       viewIndex.value = moveHistory.value.length - 1
@@ -313,7 +383,31 @@ export const useGameStore = defineStore('game', () => {
   function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
     stopClock()
     antiCheat.reset()
-    chess.value = new Chess()
+    const fresh = new Chess()
+
+    // Populate PGN headers so exports never show '?'
+    const userStore = useUserStore()
+    const playerName = userStore.displayName || 'Knight'
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '.')
+
+    fresh.header('Event', 'Knightfall Match')
+    fresh.header('Site', 'Knightfall')
+    fresh.header('Date', today)
+
+    if (m === 'vs-computer') {
+      if (color === 'w') {
+        fresh.header('White', playerName)
+        fresh.header('Black', activeBot.value.name)
+      } else {
+        fresh.header('White', activeBot.value.name)
+        fresh.header('Black', playerName)
+      }
+    } else {
+      fresh.header('White', playerName)
+      fresh.header('Black', playerName)
+    }
+
+    chess.value = fresh
     mode.value = m
     playerColor.value = color
     timeControl.value = tc || TIME_CONTROLS[3]
@@ -329,6 +423,7 @@ export const useGameStore = defineStore('game', () => {
     resignationWinner.value = null
     timeOutWinner.value = null
     loadedGameId.value = null
+    originalPgn.value = ''
     boardTrigger.value++
   }
 
@@ -409,7 +504,7 @@ export const useGameStore = defineStore('game', () => {
         san: move.san,
         fen: chess.value.fen(),
         from, to,
-        moveNumber: Math.ceil(moveHistory.value.length / 2) + 1,
+        moveNumber: Math.ceil(moveHistory.value.length / 2),
       })
 
       lastMove.value = { from, to }
@@ -441,11 +536,15 @@ export const useGameStore = defineStore('game', () => {
   function goToMove(index: number) {
     if (index < 0 || index >= moveHistory.value.length) {
       viewIndex.value = -1
-      const lastMoveFen = moveHistory.value[moveHistory.value.length - 1]?.fen || new Chess().fen()
+      const last = moveHistory.value[moveHistory.value.length - 1]
+      const lastMoveFen = last?.fen || new Chess().fen()
       chess.value.load(lastMoveFen)
+      lastMove.value = last ? { from: last.from as Square, to: last.to as Square } : null
     } else {
       viewIndex.value = index
-      chess.value.load(moveHistory.value[index].fen)
+      const move = moveHistory.value[index]
+      chess.value.load(move.fen)
+      lastMove.value = { from: move.from as Square, to: move.to as Square }
     }
     boardTrigger.value++
   }
@@ -476,26 +575,35 @@ export const useGameStore = defineStore('game', () => {
 
   /** Orchestrates a computer response. */
   async function computerMove() {
-    if (isGameOver.value) return
+    if (isGameOver.value || turn.value === playerColor.value) return
     isThinking.value = true
     try {
       await new Promise(r => setTimeout(r, 800)) // Slight delay for "thinking" feel
-      const moves = chess.value.moves()
-      if (moves.length > 0) {
-        const move = moves[Math.floor(Math.random() * moves.length)]
-        const result = chess.value.move(move)
+      
+      const engineStore = useEngineStore()
+      let move: string | any = null
+      
+      // If the engine has a suggestion, use it
+      if (engineStore.suggestedMove) {
+        move = engineStore.suggestedMove
+      } else {
+        const moves = chess.value.moves()
+        if (moves.length === 0) return
+        move = moves[Math.floor(Math.random() * moves.length)]
+      }
+      
+      const result = chess.value.move(move)
         
         if (result) {
           moveHistory.value.push({
             san: result.san, fen: chess.value.fen(),
             from: result.from, to: result.to,
-            moveNumber: Math.ceil(moveHistory.value.length / 2) + 1,
+            moveNumber: Math.ceil(moveHistory.value.length / 2),
           })
           lastMove.value = { from: result.from, to: result.to }
           boardTrigger.value++
           logger.info(`[GameStore] Computer moved: ${result.san}`)
         }
-      }
     } catch (e) {
       logger.error('[GameStore] Computer move failed:', e)
     } finally {
@@ -503,35 +611,7 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function resign(loser: Color) {
-    resignationWinner.value = loser === 'w' ? 'b' : 'w'
-    forceGameOver.value = true
-    boardTrigger.value++
-  }
 
-  function handleFlag(loser: Color) {
-    timeOutWinner.value = loser === 'w' ? 'b' : 'w'
-    forceGameOver.value = true
-    boardTrigger.value++
-  }
-
-  let clockInterval: any = null
-  function startClock() {
-    stopClock()
-    clockInterval = setInterval(() => {
-      if (isGameOver.value) { stopClock(); return }
-      if (turn.value === 'w') {
-        whiteTime.value--
-        if (whiteTime.value <= 0) handleFlag('w')
-      } else {
-        blackTime.value--
-        if (blackTime.value <= 0) handleFlag('b')
-      }
-    }, 1000)
-  }
-  function stopClock() { if (clockInterval) { clearInterval(clockInterval); clockInterval = null } }
-  function pauseClock() { stopClock() }
-  function resumeClock() { startClock() }
 
   /** Initializes a training drill with a specific solution path. */
   function setDrill(solution: string[]) {
@@ -556,7 +636,7 @@ export const useGameStore = defineStore('game', () => {
     timeControl, whiteTime, blackTime, gameStarted, forceGameOver, gameActive,
     fen, turn, board, isGameOver, isCheck, isCheckmate, isStalemate, activeBot,
     isDraw, gameResult, timeOutWinner, resignationWinner, loadedGameId, isPlayersTurn,
-    suspicionScore, isCheaterBusted, registerBlur, antiCheat,
+    suspicionScore, isCheaterBusted, registerBlur, antiCheat, pgn,
     newGame, loadPgn, loadPosition, selectSquare, makeMove, goToMove, stepForward, stepBack, undoMove, computerMove, resign, handleFlag,
     startClock, stopClock, pauseClock, resumeClock, setDrill, drillIndex
   }

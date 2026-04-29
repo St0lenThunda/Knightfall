@@ -239,6 +239,7 @@ export const useLibraryStore = defineStore('library', () => {
     const total = games.value.length
     for (let i = 0; i < total; i++) {
       const g = games.value[i]
+      if (!g) continue // Safety: prevents crash if list changes during loop
       let changed = false
       
       if (i % 50 === 0) {

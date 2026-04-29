@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { toRefs } from 'vue'
+import { useGameStore } from '../../stores/gameStore'
+
 /**
  * PieceLayer: Manages the animated rendering of chess pieces.
  * Uses TransitionGroup to handle smooth 'slide' animations between FEN states.
@@ -24,7 +27,26 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   theme: 'classic'
 })
-const emit = defineEmits(['dragstart'])
+const emit = defineEmits(['dragstart', 'square-click', 'piece-drop'])
+const store = useGameStore()
+const { mode, playerColor } = toRefs(store)
+
+/**
+ * HANDLE PIECE DROP (CAPTURE)
+ * Allows dropping a piece onto another piece to trigger a capture.
+ */
+function onDrop(sq: string, event: DragEvent) {
+  emit('piece-drop', { sq, event })
+}
+
+/**
+ * TRIGGER SQUARE SELECTION
+ * Allows capture/selection by clicking directly on pieces.
+ */
+function onPieceClick(sq: string) {
+  if (!props.isInteractive || props.isThinking) return
+  emit('square-click', sq)
+}
 
 /**
  * Maps piece types to visual assets (e.g. /pieces/classic/wn.png)
@@ -51,8 +73,11 @@ function onDragStart(sq: string, event: DragEvent) {
           top: p.top + '%',
         }"
         :class="{ 'no-interact': !isInteractive || isThinking }"
-        :draggable="isInteractive && !isThinking && p.color === turn"
+        :draggable="isInteractive && !isThinking && p.color === turn && (mode !== 'vs-computer' || p.color === playerColor)"
         @dragstart="onDragStart(p.sq, $event)"
+        @dragover.prevent
+        @drop="onDrop(p.sq, $event)"
+        @click="onPieceClick(p.sq)"
       >
         <img :src="getPieceUrl(p)" :alt="p.type" class="piece-img" />
       </div>
@@ -75,10 +100,11 @@ function onDragStart(sq: string, event: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: grab;
+  z-index: 10;
+  transition: left 0.75s cubic-bezier(0.4, 0, 0.2, 1), top 0.75s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: left, top;
   pointer-events: auto;
-  z-index: 2;
 }
 
 .piece-wrapper.no-interact {

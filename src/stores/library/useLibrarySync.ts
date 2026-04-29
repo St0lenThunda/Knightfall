@@ -112,7 +112,11 @@ export function useLibrarySync(
       syncedGames.forEach(g => store.put(g))
       
       if (syncedGames.length > 0) {
-        games.value = [...games.value, ...syncedGames]
+        // --- PREVENTION: Ensure absolute uniqueness before updating store ---
+        const allGames = [...games.value, ...syncedGames]
+        const uniqueMap = new Map()
+        allGames.forEach(g => uniqueMap.set(g.id, g))
+        games.value = Array.from(uniqueMap.values())
       }
 
       const msg = [
@@ -182,11 +186,11 @@ export function useLibrarySync(
             result: game.result,
             white_id: isWhite ? session.user.id : null,
             black_id: !isWhite ? session.user.id : null,
-            eco: game.eco || null,
-            opening: game.event || null,
             metadata: {
               white: white,
               black: black,
+              eco: game.eco || null,
+              opening: game.event || null,
               acpl: game.acpl,
               missedWins: game.missedWins,
               theoreticalAccuracy: game.theoreticalAccuracy

@@ -8,6 +8,9 @@ export interface TaggedMistake {
   severity: MistakeSeverity
   theme: string
   evalDrop: number
+  movePlayed?: string
+  bestMove?: string
+  explanation: string
 }
 
 /**
@@ -24,7 +27,9 @@ export class TaggingService {
     fenBefore: string,
     fenAfter: string,
     evalBefore: number,
-    evalAfter: number
+    evalAfter: number,
+    movePlayed?: string,
+    bestMove?: string
   ): TaggedMistake | null {
     const evalDrop = Math.abs(evalAfter - evalBefore)
     
@@ -44,7 +49,12 @@ export class TaggingService {
         category: 'opening',
         severity,
         theme: 'Opening Trap / Theory Deviation',
-        evalDrop
+        evalDrop,
+        movePlayed,
+        bestMove,
+        explanation: bestMove
+          ? `${movePlayed || 'This move'} deviates from known theory. **${bestMove}** was the book move here — it avoids a known tactical trap and keeps the position within safe opening principles.`
+          : `${movePlayed || 'This move'} falls into a known opening trap. Review the theory for this line to avoid losing tempo or material early.`
       }
     }
 
@@ -59,11 +69,17 @@ export class TaggingService {
 
     // If material was lost (and not part of a trade), it's tactical
     if (materialLoss > 0) {
+      const pieceType = materialLoss >= 9 ? 'the queen' : materialLoss >= 5 ? 'a rook' : materialLoss >= 3 ? 'a minor piece' : 'a pawn'
       return {
         category: 'tactics',
         severity,
         theme: materialLoss >= 3 ? 'Major Piece Hang' : 'Tactical Oversight',
-        evalDrop
+        evalDrop,
+        movePlayed,
+        bestMove,
+        explanation: bestMove
+          ? `${movePlayed || 'This move'} leaves ${pieceType} undefended. **${bestMove}** was needed to protect the material or create a counter-threat. Always check: "Does my move leave anything hanging?"`
+          : `${movePlayed || 'This move'} loses ${pieceType} — a ${evalDrop.toFixed(1)}-pawn swing. Scan for undefended pieces before committing to a move.`
       }
     }
 
@@ -74,7 +90,12 @@ export class TaggingService {
         category: 'missed_win',
         severity: 'blunder',
         theme: 'Missed Winning Opportunity',
-        evalDrop
+        evalDrop,
+        movePlayed,
+        bestMove,
+        explanation: bestMove
+          ? `The position was winning (${evalBefore > 0 ? '+' : ''}${evalBefore.toFixed(1)}), but ${movePlayed || 'this move'} let the advantage slip away. **${bestMove}** was a forcing continuation that would have converted the advantage decisively.`
+          : `A winning position was squandered. The advantage dropped from ${evalBefore > 0 ? '+' : ''}${evalBefore.toFixed(1)} to near equality. Look for checks, captures, and threats when you're ahead.`
       }
     }
 
@@ -83,7 +104,14 @@ export class TaggingService {
       category: moveCount > 40 ? 'endgame' : 'positional',
       severity,
       theme: moveCount > 40 ? 'Endgame Technique' : 'Positional Inaccuracy',
-      evalDrop
+      evalDrop,
+      movePlayed,
+      bestMove,
+      explanation: bestMove
+        ? moveCount > 40
+          ? `${movePlayed || 'This move'} is imprecise in the endgame. **${bestMove}** was more accurate — in endgames, every tempo matters. Focus on king activity and pawn advancement.`
+          : `${movePlayed || 'This move'} weakens the position by ${evalDrop.toFixed(1)} pawns. **${bestMove}** maintains better piece coordination and long-term structure.`
+        : `A ${severity} that costs ${evalDrop.toFixed(1)} pawns. Focus on improving your worst-placed piece before making committal moves.`
     }
   }
 

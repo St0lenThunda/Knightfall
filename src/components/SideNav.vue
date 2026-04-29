@@ -61,7 +61,7 @@
           <RouterLink v-for="item in section.items" :key="item.path"
             :to="item.path"
             class="nav-link"
-            :class="{ active: route.path === item.path }"
+            :class="{ active: isLinkActive(item.path) }"
             :data-tooltip="collapsed ? item.label : undefined"
           >
             <span class="nav-icon">{{ item.icon }}</span>
@@ -176,6 +176,33 @@ const version = __APP_VERSION__
 const isDev = import.meta.env.DEV
 const emit = defineEmits(['toggle'])
 const collapsed = ref(false)
+
+/**
+ * Determines if a navigation link should be highlighted as active.
+ * Handles sub-routes (like Lessons under Academy) and query params (Soul Mapping).
+ */
+function isLinkActive(path: string) {
+  const currentPath = route.path
+  
+  // Normalize path for comparison (strip query for base checks)
+  const [basePath, queryStr] = path.split('?')
+  
+  // 1. Academy sub-route mapping (Lessons are part of the Academy context)
+  if (basePath === '/academy' && currentPath.startsWith('/lesson')) return true
+  
+  // 2. Query Parameter logic (Soul Mapping vs War Room)
+  if (queryStr === 'tab=dna') {
+    return currentPath === '/profile' && route.query.tab === 'dna'
+  }
+  
+  // 3. War Room (Profile) should only be active if NOT on the DNA tab
+  if (path === '/profile') {
+    return currentPath === '/profile' && route.query.tab !== 'dna'
+  }
+
+  // 4. Standard path matching
+  return currentPath === basePath
+}
 
 // Accordion State
 const collapsedSections = ref(new Set<string>())

@@ -29,6 +29,8 @@ const formattedEval = computed(() => {
   if (Math.abs(props.evalNum) >= 90) return props.evalNum > 0 ? 'M+' : 'M-'
   return `${sign}${props.evalNum.toFixed(1)}`
 })
+
+const emit = defineEmits(['badge-click'])
 </script>
 
 <template>
@@ -46,7 +48,12 @@ const formattedEval = computed(() => {
       </div>
 
       <!-- Quality Indicator (High Visibility) -->
-      <div v-if="moveQuality" class="quality-badge animated-pop-in" :style="{ '--q-color': moveQuality.color }">
+      <div v-if="moveQuality" 
+           class="quality-badge animated-pop-in" 
+           :class="{ 'is-tactical': ['inaccuracy', 'mistake', 'blunder'].includes(moveQuality.id) }"
+           :style="{ '--q-color': moveQuality.color }" 
+           @click="emit('badge-click')"
+      >
           <span class="q-icon">{{ moveQuality.icon }}</span>
           <span class="q-label">{{ moveQuality.label }}</span>
       </div>
@@ -153,10 +160,16 @@ const formattedEval = computed(() => {
   align-items: center;
   gap: 8px;
   background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  pointer-events: auto;
   padding: 4px 16px;
   border-radius: var(--radius-full);
   border: 1px solid var(--q-color);
-  box-shadow: 0 0 15px var(--q-color);
+  box-shadow: 0 0 5px var(--q-color);
+}
+
+.quality-badge.is-tactical {
   animation: pulse-glow-quality 2s infinite;
 }
 

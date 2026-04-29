@@ -45,6 +45,7 @@
             :evalPercent="evalPercent"
             :hasGame="hasGame"
             :moveQuality="currentMoveQuality"
+            @badge-click="handleBadgeClick"
           />
 
           <ChessBoard 
@@ -53,6 +54,7 @@
             :arrows="engineArrows" 
             :moveQuality="currentMoveQuality"
             :lastMove="currentViewedMove" 
+            @badge-click="handleBadgeClick"
           />
         </div>
         <div v-else class="board-container empty-board" key="empty-board">
@@ -153,7 +155,7 @@
 
               <!-- Scrollable Body -->
               <div class="sidebar-scrollable-content neon-scroll">
-                <CoachPanel />
+                <CoachPanel @update:tag="handleTagUpdate" />
                 <div class="history-integration mt-4">
                   <div class="label px-4 mb-2">GAME HISTORY</div>
                   <MoveHistory hideHeader />
@@ -255,6 +257,49 @@
             </div>
           </Transition>
         </Teleport>
+
+        <!-- Deterministic Tag Popup (Oracle's Insight) -->
+        <Teleport to="body">
+          <Transition name="modal">
+            <div v-if="showTagPopup && currentTag" class="modal-overlay" @click.self="showTagPopup = false">
+              <div class="tag-popup-modal glass-heavy animated-scale-in" :class="currentTag.severity">
+                <div class="popup-accent-bar"></div>
+                
+                <header class="popup-header">
+                  <div class="severity-badge">
+                    {{ currentTag.severity.toUpperCase() }}
+                  </div>
+                  <button class="btn-close" @click="showTagPopup = false">✕</button>
+                </header>
+
+                <div class="popup-body">
+                  <div class="tag-main-info">
+                    <span class="tag-icon">{{ currentTag.category === 'tactics' ? '⚡' : currentTag.category === 'opening' ? '📖' : currentTag.category === 'missed_win' ? '🎯' : '🧱' }}</span>
+                    <div class="tag-title-group">
+                      <h3>{{ currentTag.theme }}</h3>
+                      <p class="eval-drop">Evaluation drop: <strong>{{ currentTag.evalDrop.toFixed(1) }}</strong> pawns</p>
+                    </div>
+                  </div>
+
+                  <div class="tag-explanation-box glass-xs" v-html="renderedExplanation"></div>
+
+                  <div v-if="engineStore.suggestedMove" class="better-move-suggestion">
+                    <label>ORACLE'S SUGGESTION</label>
+                    <div class="suggestion-line">
+                      <span class="move-arrow">➜</span>
+                      <span class="suggested-move">{{ engineStore.suggestedMove }}</span>
+                      <span class="suggestion-reason">was significantly stronger in this position.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <footer class="popup-footer">
+                  <button class="btn btn-primary btn-glow" @click="showTagPopup = false">Understood</button>
+                </footer>
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
     </div>
 </template>
 
@@ -267,8 +312,10 @@ import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getMoveQuality } from '../utils/analysisUtils'
-import { logger } from '../utils/logger'
 import { usePositionalHealth } from '../composables/usePositionalHealth'
+import { renderMarkdown } from '../utils/markdown'
+import { logger } from '../utils/logger'
+import type { TaggedMistake } from '../services/taggingService'
 
 // Sub-components
 import ChessBoard from '../components/ChessBoard.vue'
@@ -296,6 +343,28 @@ const { metrics, diagnosis } = usePositionalHealth(
   () => store.fen,
   () => engineStore.evalNumber
 )
+
+
+const showTagPopup = ref(false)
+const currentTag = ref<TaggedMistake | null>(null)
+
+function handleTagUpdate(tag: TaggedMistake | null) {
+  currentTag.value = tag
+}
+
+function handleBadgeClick() {
+  // The deterministicTag is already stored in currentTag via CoachPanel updates
+  if (currentTag.value) {
+    showTagPopup.value = true
+  }
+}
+
+// Close popup when moving to a different position
+watch(() => store.viewIndex, () => {
+  showTagPopup.value = false
+})
+
+const renderedExplanation = computed(() => renderMarkdown(currentTag.value?.explanation || null))
 
 
 const gameSeed = computed(() => {
@@ -410,7 +479,7 @@ const currentMoveQuality = computed(() => {
   const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
   const move = store.moveHistory[idx]
   if (!move) return null
-  return getMoveQuality(move, idx, gameSeed.value)
+  return getMoveQuality(move, idx, gameSeed.value, store.moveHistory)
 })
 
 const playerNames = computed(() => {
@@ -571,7 +640,7 @@ function runHighlightPace() {
   }
 
   const nextMove = store.moveHistory[nextIdx]
-  const quality = getMoveQuality(nextMove, nextIdx, gameSeed.value)
+  const quality = getMoveQuality(nextMove, nextIdx, gameSeed.value, store.moveHistory)
   
   store.goToMove(nextIdx)
 
@@ -585,10 +654,10 @@ function runHighlightPace() {
   }
 
   // DYNAMIC TEMPO:
-  // Inaccuracies = 1.8s (Brief moment to notice)
-  // Best/Good = 0.8s (Standard flow)
-  let delay = 800
-  if (quality.label === 'inaccuracy') delay = 1800
+  // Standard moves = 1500ms (Ample time to see the slide)
+  // Inaccuracies/Mistakes = 2500ms (Deep study time)
+  let delay = 1500
+  if (quality.label === 'inaccuracy' || quality.label === 'mistake') delay = 2500
 
   playTimeout = setTimeout(runHighlightPace, delay)
 }
@@ -1390,4 +1459,175 @@ async function deepCloudScan() {
   opacity: 0;
   transform: translateX(-10px);
 }
+
+.engine-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.engine-info .depth {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ─── TAG POPUP STYLES ─── */
+.tag-popup-modal {
+  width: 90%;
+  max-width: 480px;
+  background: rgba(13, 13, 20, 0.9);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.popup-accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--accent-bright); /* Fallback */
+}
+
+/* Severity specific colors for accent bar and badge */
+.tag-popup-modal.inaccuracy .popup-accent-bar,
+.tag-popup-modal.inaccuracy .severity-badge {
+  background: #f59e0b !important;
+}
+
+.tag-popup-modal.mistake .popup-accent-bar,
+.tag-popup-modal.mistake .severity-badge {
+  background: #f97316 !important;
+}
+
+.tag-popup-modal.blunder .popup-accent-bar,
+.tag-popup-modal.blunder .severity-badge {
+  background: #f43f5e !important;
+}
+
+.popup-header {
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.severity-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: white;
+}
+
+.popup-body {
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.tag-main-info {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+}
+
+.tag-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.tag-title-group h3 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+}
+
+.eval-drop {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.eval-drop strong {
+  color: var(--rose-bright);
+}
+
+.tag-explanation-box {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: var(--space-6);
+}
+
+.tag-explanation-box :deep(p) {
+  margin-bottom: var(--space-3);
+}
+
+.tag-explanation-box :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.tag-explanation-box :deep(strong) {
+  color: white;
+  font-weight: 700;
+}
+
+.better-move-suggestion {
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.better-move-suggestion label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--accent-bright);
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-2);
+}
+
+.suggestion-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.move-arrow {
+  color: var(--teal-bright);
+}
+
+.suggested-move {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.suggestion-reason {
+  color: var(--text-muted);
+}
+
+.popup-footer {
+  padding: var(--space-4) var(--space-6);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: flex-end;
+}
+
 </style>

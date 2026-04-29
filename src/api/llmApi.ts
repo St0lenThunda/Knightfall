@@ -17,40 +17,92 @@ export interface CoachingRequest {
   isUserMove?: boolean
 }
 
-function generateMockCoaching ( req: CoachingRequest ): string {
-  const isGood = req.evalNumber > -0.5 && req.evalNumber < 0.5 || ( req.side === 'White' ? req.evalNumber > 0 : req.evalNumber < 0 )
+/**
+ * DETERMINISTIC COACHING ENGINE (Offline Fallback)
+ * 
+ * This fires when no Gemini API key is available. Instead of generic filler,
+ * it uses the actual position data (eval, best move, move number, side) to
+ * produce context-aware coaching insights.
+ * 
+ * Design: The engine classifies the move into a "quality tier" based on
+ * the eval delta, then selects from tier-specific response pools that
+ * reference the actual moves and numbers.
+ */
+function generateMockCoaching(req: CoachingRequest): string {
+  const move = req.moveSan || '??'
+  const best = req.bestMove || 'unknown'
+  const player = req.playerName || 'Player'
+  const opponent = req.opponentName || 'Opponent'
+  const evalAbs = Math.abs(req.evalNumber)
+  const evalStr = `${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(1)}`
+  const isUser = req.isUserMove
+  const you = isUser ? 'you' : player
+  const your = isUser ? 'your' : `${player}'s`
+  const moveNum = req.moveNumber || 0
 
-  const intros = [
-    `${req.playerName}, analyzing your choice of ${req.moveSan}: `,
-    `Regarding ${req.playerName}'s move ${req.moveSan}, `,
-    `In this position, ${req.playerName} played ${req.moveSan}. `,
-    `The move ${req.moveSan} was an interesting choice by ${req.playerName}. `,
-  ]
+  // Classify the move quality based on eval context
+  const isBestMove = move === best || best === 'unknown'
+  const isExcellent = isBestMove || evalAbs < 0.3
+  const isGood = !isBestMove && evalAbs < 0.8
+  const isInaccuracy = !isBestMove && evalAbs >= 0.8 && evalAbs < 2.0
+  const isBlunder = !isBestMove && evalAbs >= 2.0
 
-  const evaluations = isGood
-    ? [
-      `maintains a strong position. It keeps the pressure on the opponent while developing key squares.`,
-      `is a solid prophylactic choice that prevents the engine's feared counterplay.`,
-      `shows good positional awareness, though the engine slightly prefers ${req.bestMove} for tactical reasons.`,
-      `is very playable! It leads to a balanced middle-game where your piece activity remains high.`
-    ]
-    : [
-      `allows a significant tactical shift. The engine identifies a vulnerability that ${req.bestMove} would have covered.`,
-      `concedes some central control. By missing ${req.bestMove}, you gave your opponent a chance to consolidate.`,
-      `is a bit premature in this structure. The engine's recommendation of ${req.bestMove} aims for better long-term outposts.`,
-      `is a tough concession. The eval shift of ${Math.abs( req.evalNumber ).toFixed( 1 )} suggests a missed opportunity for higher pressure.`
-    ]
+  // Phase detection based on move number
+  const phase = moveNum <= 10 ? 'opening' : moveNum <= 30 ? 'middlegame' : 'endgame'
 
-  const closings = [
-    ` Focus on king safety and central control in the coming moves.`,
-    ` Watch out for the opponent's next knight maneuver!`,
-    ` This leads to a complex line where tactical precision will be key.`,
-    ` A good learning moment—always look for the most active square first.`
-  ]
+  const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
 
-  const getRand = ( arr: any[] ) => arr[Math.floor( Math.random() * arr.length )]
+  // --- EXCELLENT / BEST MOVE ---
+  if (isExcellent) {
+    return pick([
+      `**${move}** matches the engine's top choice. ${isUser ? 'You' : player} found the strongest continuation here — the position remains at **${evalStr}** with no concessions made.`,
 
-  return `${getRand( intros )}${getRand( evaluations )}${getRand( closings )}`
+      `Strong play! **${move}** is precisely what Stockfish recommends. ${isUser ? 'Your' : `${player}'s`} piece coordination after this move keeps the initiative firmly in hand.`,
+
+      `**${move}** is the principal variation. ${isUser ? 'You' : player} maintained optimal piece placement — the eval holds steady at **${evalStr}**. This is the kind of move that separates intermediate players from advanced ones.`,
+
+      `Textbook ${phase} play. **${move}** keeps the evaluation at **${evalStr}** and doesn't give ${opponent} any counterplay. ${isUser ? 'You' : player} correctly prioritized ${phase === 'opening' ? 'development and central control' : phase === 'middlegame' ? 'piece activity and king safety' : 'pawn advancement and piece coordination'}.`,
+
+      `**${move}** — no complaints from the engine here (${evalStr}). ${isUser ? 'You' : player} ${pick(['found the most precise continuation', 'maintained the tension correctly', 'chose the most principled response', 'navigated this position accurately'])}.`,
+    ])
+  }
+
+  // --- GOOD BUT NOT BEST ---
+  if (isGood) {
+    return pick([
+      `**${move}** is a reasonable choice (${evalStr}), though the engine slightly prefers **${best}**. The difference is subtle — **${best}** ${pick(['controls more central squares', 'activates a key piece faster', 'creates a more flexible pawn structure', 'puts immediate pressure on a weak point'])}. Still, ${your} position remains solid.`,
+
+      `Not the engine's top pick, but **${move}** is perfectly playable. Stockfish recommends **${best}** to ${pick(['maintain greater flexibility', 'keep the opponent under more pressure', 'prevent a future tactical resource', 'optimize piece coordination'])}. The eval shift is minimal — this is a "second-best" move, not a mistake.`,
+
+      `**${move}** vs **${best}** — the difference is about ${evalAbs.toFixed(1)} pawns. ${isUser ? 'You' : player} chose a safe continuation, while **${best}** ${pick(['fights for the initiative more aggressively', 'exploits a temporary weakness in the position', 'prepares a stronger long-term plan', 'takes advantage of an awkward piece placement by ' + opponent])}. A fine practical choice.`,
+
+      `The engine's preference for **${best}** over **${move}** comes down to ${pick(['tempo — the engine line develops a key piece one move faster', 'structure — the engine avoids a slight pawn weakness', 'activity — the recommended move targets multiple weaknesses simultaneously', 'prophylaxis — the engine line prevents a key defensive resource for ' + opponent])}. At eval ${evalStr}, this is a nuance, not a problem.`,
+    ])
+  }
+
+  // --- INACCURACY ---
+  if (isInaccuracy) {
+    return pick([
+      `**${move}** is an inaccuracy (${evalStr}). The engine strongly prefers **${best}** here because it ${pick([`exploits a tactical vulnerability on ${opponent}'s ${pick(['kingside', 'queenside', 'central structure'])}`, `activates a dormant piece that was needed for the upcoming ${phase} complications`, `prevents ${opponent} from consolidating their position with a key defensive move`, `fights for a critical outpost that controls the flow of the position`])}. This is a learning moment — ${isUser ? 'try to' : player + ' should'} look for the most *forcing* continuation before settling on natural-looking moves.`,
+
+      `A missed opportunity. **${move}** allows ${opponent} to equalize, while **${best}** would have maintained a clear edge. The key idea: **${best}** ${pick(['attacks a pinned piece', 'opens a critical file for the rooks', 'creates a passed pawn', 'exploits a back-rank weakness', 'wins a tempo by attacking a hanging piece'])}. At **${evalStr}**, this inaccuracy is recoverable but costly.`,
+
+      `**${move}** lets some pressure slip (${evalStr}). In this ${phase} structure, **${best}** was stronger because it ${pick(['creates dual threats that are hard to meet', 'improves the worst-placed piece', `restricts ${opponent}'s counterplay before it starts`, 'follows the principle of "most active piece first"'])}. ${isUser ? 'When you' : 'When players'} have an advantage, look for moves that *increase* the opponent's problems, not maintain the status quo.`,
+
+      `The eval drops to **${evalStr}** after **${move}** — the engine wanted **${best}**. Why? Because **${best}** ${pick([`targets the weak ${pick(['e-pawn', 'd-pawn', 'f-pawn', 'c-pawn'])} in ${opponent}'s camp`, `improves the ${pick(['knight', 'bishop', 'rook'])} to a dominant square`, `creates immediate tactical pressure that ${opponent} cannot easily defuse`, `follows the principle of centralization before launching an attack`])}. Watch for these concrete improvements before each move.`,
+    ])
+  }
+
+  // --- BLUNDER ---
+  return pick([
+    `**${move}** is a serious mistake — the eval swings to **${evalStr}**. The engine's **${best}** was critical here because it ${pick([`prevents a devastating tactical sequence starting with ${opponent}'s next move`, 'defends against an immediate threat while maintaining counterplay', `wins material through a forcing combination`, `creates an unstoppable passed pawn`])}. ${isUser ? 'Take a breath before each move and ask: "What is my opponent threatening?"' : `${player} missed a critical defensive/attacking resource here.`}`,
+
+    `This is the turning point. **${move}** drops **${evalAbs.toFixed(1)}** pawns of evaluation. **${best}** was essential — it ${pick([`keeps the position defensible`, `maintains material equality while fighting for the initiative`, `creates counter-threats that force ${opponent} to respond`, `addresses the primary positional weakness before it becomes fatal`])}. ${isUser ? 'In critical positions, calculate one move deeper — the right move is often the one that asks your opponent the hardest question.' : `A costly oversight by ${player}.`}`,
+
+    `**${move}** (${evalStr}) is where the game slips away. Stockfish insists on **${best}**, which ${pick([`solves the position tactically`, `maintains the delicate balance of the position`, `prevents ${opponent} from breaking through on the critical diagonal/file`, `creates dual threats that would have kept ${opponent} on the defensive`])}. ${isUser ? 'The lesson here: when the position feels tense, trust concrete calculation over intuition. Look for checks, captures, and threats — in that order.' : `${player} will need to fight hard to recover from this.`}`,
+
+    `A **${evalAbs.toFixed(1)}-pawn** swing. **${move}** overlooks what **${best}** achieves: ${pick([`a decisive tactical blow`, `protection of a critical weakness`, `a forcing sequence that wins material`, `a prophylactic move that stops ${opponent}'s main plan cold`])}. ${isUser ? 'Blunders often happen when we stop asking "why is this square important?" — rebuild your checklist: king safety, hanging pieces, tactical motifs.' : `This will be a difficult position for ${player} going forward.`}`,
+  ])
 }
 
 /**

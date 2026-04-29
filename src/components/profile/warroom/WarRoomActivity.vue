@@ -9,7 +9,10 @@ const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 
 const recentGames = computed(() => {
-  return [...libraryStore.personalGames].reverse().slice(0, 5).map(g => {
+  // --- ROBUST SORTING: Ensure newest games are always first ---
+  const sorted = [...libraryStore.personalGames].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0))
+  
+  return sorted.slice(0, 5).map(g => {
     const isWhite = userStore.isMe(g.white)
     const isBlack = userStore.isMe(g.black)
     

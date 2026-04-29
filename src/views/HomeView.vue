@@ -1,251 +1,200 @@
 <template>
   <div class="page home-page">
 
-    <!-- Logged in view: Dashboard -->
+    <!-- 🏛️ SCHOLAR'S DASHBOARD (Logged In) -->
     <template v-if="userStore.session && userStore.profile">
-      <section class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">Library Performance</div>
-          <div class="stat-value text-gradient">{{ libraryStore.performanceRating }}</div>
-          <div class="stat-delta up">▲ Chronological Elo</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Library Games</div>
-          <div class="stat-value">{{ libraryStore.games.length }}</div>
-          <div class="stat-delta">Combined Sources</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Unique Openings</div>
-          <div class="stat-value text-teal-gradient">{{ libraryStore.openingStats.length }}</div>
-          <div class="stat-delta">Repertoire Depth</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Library Win Rate</div>
-          <div class="stat-value" :style="{ color: libraryWinRate > 50 ? 'var(--green)' : 'var(--gold)' }">
-            {{ libraryWinRate }}%
+      <div class="scholar-dashboard animated-fade-in">
+        
+        <!-- Welcome Header -->
+        <header class="scholar-header">
+          <div class="welcome-text">
+            <h1 class="text-gradient">Welcome back, Scholar {{ userStore.profile.username }}</h1>
+            <p class="muted">Your curriculum is waiting. You've completed {{ totalCompleted }} lessons this week.</p>
           </div>
-          <div class="stat-delta up">▲ Trending Up</div>
-        </div>
-      </section>
-
-      <!-- Two column: Feature cards + Activity -->
-      <section class="home-grid">
-        <!-- Feature spotlight cards -->
-        <div class="feature-cards">
-          <h3 style="margin-bottom: var(--space-4);">What's waiting for you</h3>
-          <div class="feature-card glass" v-for="f in features" :key="f.title"
-            @click="f.id === 'analysis' ? handleQuickAnalysis() : router.push(f.path)" style="cursor: pointer;">
-            <div class="feature-icon" :style="{ background: f.bg }">{{ f.icon }}</div>
-            <div class="feature-body">
-              <div class="feature-title">{{ f.title }}</div>
-              <div class="feature-desc muted">{{ f.desc }}</div>
+          <div class="quick-stats">
+            <div class="mini-stat">
+              <span class="label">RANK</span>
+              <span class="val">{{ scholarRank }}</span>
             </div>
-            <div class="feature-arrow">›</div>
+            <div class="mini-stat">
+              <span class="label">ACADEMIC XP</span>
+              <span class="val">{{ userStore.xp }}</span>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <!-- Recent activity + Weakness report -->
-        <div class="right-column">
-          <!-- Weakness DNA -->
-          <div class="glass weakness-card">
-            <div class="card-header">
-              <h4>🧬 Weakness DNA</h4>
-              <span class="badge badge-rose">AI INSIGHT</span>
+        <div class="scholar-grid">
+          <!-- Primary Path: The Scholar's Journey -->
+          <section class="scholar-path-section glass">
+            <div class="section-header">
+              <h3>📜 Your Scholar's Path</h3>
+              <RouterLink to="/academy" class="btn btn-ghost btn-sm">Enter Sanctum →</RouterLink>
             </div>
-            <p class="muted" style="font-size: 0.85rem; margin: var(--space-3) 0;">
-              Based on your last {{ libraryStore.games.length }} analyzed games, we found patterns in your mistakes:
-            </p>
-            <div class="weakness-items">
-              <div v-for="w in weaknesses" :key="w.label" class="weakness-item">
-                <div class="weakness-label">
-                  <span>{{ w.icon }} {{ w.label }}</span>
-                  <span style="font-size: 0.8rem; color: var(--text-muted);">{{ w.pct }}%</span>
+            
+            <div class="path-visualizer">
+              <div v-for="(subject, sIdx) in curriculum" :key="sIdx" class="path-node" :class="{ 'completed': isSubjectDone(subject) }">
+                <div class="node-icon">{{ subject.icon }}</div>
+                <div class="node-details">
+                  <div class="node-title">{{ subject.title }}</div>
+                  <div class="node-progress">
+                    <div class="progress-bar-bg">
+                      <div class="progress-bar-fill" :style="{ width: getSubjectPct(subject) + '%' }"></div>
+                    </div>
+                    <span>{{ getSubjectProgress(subject) }}/{{ subject.lessons.length }}</span>
+                  </div>
                 </div>
-                <div class="progress-bar">
-                  <div class="progress-bar-fill" :style="{ width: w.pct + '%', background: w.color }"></div>
+                <div class="node-status">{{ getSubjectStatus(subject) }}</div>
+              </div>
+            </div>
+
+            <!-- Next Recommended Lesson -->
+            <div class="next-lesson-cta" v-if="nextLesson">
+              <div class="cta-label">CONTINUE STUDYING</div>
+              <div class="cta-content">
+                <div class="lesson-icon">📖</div>
+                <div class="lesson-text">
+                  <div class="lesson-name">{{ nextLesson.name }}</div>
+                  <div class="lesson-subject">{{ nextLesson.subjectTitle }}</div>
+                </div>
+                <button class="btn btn-primary" @click="router.push('/lesson/' + nextLesson.id)">Resume Lesson</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Side Intel: The Hall of Records & DNA -->
+          <aside class="scholar-sidebar">
+            <!-- DNA Pulse -->
+            <div class="glass pulse-card">
+              <h4>🧬 DNA Pulse</h4>
+              <div class="dna-mini-chart">
+                <div v-for="w in weaknesses" :key="w.label" class="dna-row">
+                  <div class="dna-label">
+                    <span>{{ w.label }}</span>
+                    <span>{{ w.pct }}%</span>
+                  </div>
+                  <div class="dna-bar">
+                    <div class="dna-fill" :style="{ width: w.pct + '%', background: w.color }"></div>
+                  </div>
+                </div>
+              </div>
+              <RouterLink to="/profile?tab=dna" class="btn btn-ghost btn-xs full-width">Detailed Soul Map</RouterLink>
+            </div>
+
+            <!-- Hall of Records (Recent Achievements) -->
+            <div class="glass records-card">
+              <h4>🏆 Hall of Records</h4>
+              <div class="records-list">
+                <div v-for="badge in userStore.badges.slice(0, 3)" :key="badge.id" class="record-item">
+                  <span class="record-icon" :style="{ borderColor: badge.color }">{{ badge.icon }}</span>
+                  <div class="record-info">
+                    <div class="record-name">{{ badge.name }}</div>
+                    <div class="record-date muted">Earned Recently</div>
+                  </div>
+                </div>
+                <div v-if="userStore.badges.length === 0" class="empty-records muted">
+                  Complete lessons to earn badges.
                 </div>
               </div>
             </div>
-            <RouterLink to="/dna" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
-              Full DNA Lab →
-            </RouterLink>
-          </div>
-
-          <!-- Mini Prescription Engine (The Clinic) -->
-          <div v-if="miniRx.length > 0" class="glass clinic-mini-card">
-            <div class="card-header">
-              <h4>📋 The Clinic</h4>
-              <span class="badge badge-teal">ACTIVE RX</span>
-            </div>
-            <div class="mini-prescriptions">
-              <div v-for="rx in miniRx" :key="rx.id" class="mini-rx-item" :class="rx.severity">
-                <span class="rx-icon">{{ rx.icon }}</span>
-                <div class="rx-info">
-                  <div class="rx-title">{{ rx.title }}</div>
-                  <router-link :to="rx.link" class="rx-action">{{ rx.linkText }}</router-link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent games -->
-          <div class="glass recent-games">
-            <div class="card-header">
-              <h4>Recent Games</h4>
-              <RouterLink to="/profile?tab=vault" class="btn-cleanup-text">VIEW VAULT →</RouterLink>
-            </div>
-            <div class="game-list">
-              <div v-for="g in recentGames" :key="g.id" class="game-row" @click="router.push('/analysis?id=' + g.id)" style="cursor:pointer;">
-                <div class="game-result-dot" :class="g.result"></div>
-                <div class="game-info">
-                  <span class="game-opponent">vs {{ g.opponent }}</span>
-                  <span class="game-meta muted">{{ g.control }} · {{ g.opening }}</span>
-                </div>
-                <div class="game-score" :class="g.result">{{ g.score }}</div>
-              </div>
-              <div v-if="recentGames.length === 0" class="muted" style="padding: var(--space-4); text-align:center; font-size:0.85rem;">
-                No games in archive yet.
-              </div>
-            </div>
-          </div>
+          </aside>
         </div>
-      </section>
+      </div>
     </template>
 
-    <!-- Guest view: Sales / Marketing section -->
+    <!-- 🏝️ INTERACTIVE SANDBOX (Guest / Landing) -->
     <template v-else>
-      <!-- Hero section (Guest only) -->
-      <section class="hero">
-        <div class="hero-content">
-          <div class="hero-eyebrow">
-            <span class="badge badge-accent">✦ EARLY ACCESS</span>
+      <div class="landing-sandbox animated-fade-in">
+        
+        <!-- Hero Section -->
+        <section class="hero-minimal">
+          <h1 class="hero-title">Chess, <span class="text-gradient">Deconstructed.</span></h1>
+          <p class="hero-desc">The high-fidelity laboratory for players who seek genuine mastery. No flashy marketing, just pure intelligence.</p>
+          <div class="hero-btns">
+            <button class="btn btn-primary btn-lg" @click="handleGetStarted">Join the Academy</button>
+            <RouterLink to="/play" class="btn btn-ghost btn-lg">Enter as Guest</RouterLink>
           </div>
-          <h1>Chess, <span class="text-gradient">reimagined</span>.</h1>
-          <p class="hero-subtitle">
-            AI-powered coaching. Pattern-based learning. Premium design.
-            <br>The chess platform you deserved all along.
-          </p>
-          <div class="hero-actions">
-            <RouterLink to="/play" class="btn btn-primary btn-lg" id="hero-play-btn">
-              ♟ Play Now
-            </RouterLink>
-            <RouterLink to="/puzzles" class="btn btn-ghost btn-lg" id="hero-puzzles-btn">
-              ⚡ Solve Puzzles
-            </RouterLink>
-          </div>
-          <div class="hero-stats">
-            <div class="hero-stat">
-              <span class="hero-stat-value">12k+</span>
-              <span class="hero-stat-desc">Players</span>
-            </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-              <span class="hero-stat-value">98%</span>
-              <span class="hero-stat-desc">Ad-free forever</span>
-            </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-              <span class="hero-stat-value">500ms</span>
-              <span class="hero-stat-desc">Avg. move latency</span>
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <!-- Mini preview board -->
-        <div class="hero-board glass">
-          <div class="hero-board-header">
-            <div class="player-chip">
-              <div class="player-avatar" style="background: linear-gradient(135deg, #374151, #1f2937);">♚</div>
-              <span>Engine Level 4</span>
-              <span class="badge badge-teal">1650</span>
+        <!-- The Sandbox: Interactive Components -->
+        <section class="sandbox-grid">
+          
+          <!-- Sandbox 1: The Oracle Preview -->
+          <div class="sandbox-item glass oracle-preview">
+            <div class="sandbox-header">
+              <span class="badge badge-teal">LIVE PREVIEW</span>
+              <h3>The Oracle's Insight</h3>
             </div>
-          </div>
-          <div class="mini-board">
-            <div v-for="(row, ri) in previewBoard" :key="ri" class="mini-row">
-              <div v-for="(cell, ci) in row" :key="ci" class="mini-sq" :class="(ri+ci)%2===0?'mini-light':'mini-dark'">
-                {{ cell }}
+            <div class="oracle-mock">
+              <div class="mock-board">
+                <!-- Simple 4x4 representation of a blunder position -->
+                <div class="mini-grid">
+                  <div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div>
+                  <div class="mini-cell"></div><div class="mini-cell blunder-sq">♞</div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div>
+                  <div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell best-sq">★</div><div class="mini-cell"></div><div class="mini-cell"></div>
+                  <div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div>
+                  <div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div><div class="mini-cell"></div>
+                </div>
+                <div class="blunder-line"></div>
+              </div>
+              <div class="mock-chat">
+                <div class="coach-tag blunder">CRITICAL BLUNDER</div>
+                <p class="typewriter">"By jumping the Knight to f6 here, you've abandoned control of the center. White's Bishop now has a direct path to your King..."</p>
               </div>
             </div>
+            <p class="sandbox-footer muted">Our AI Coach doesn't just show the move; it explains the <i>why</i> in plain English.</p>
           </div>
-          <div class="hero-board-footer">
-            <div class="player-chip">
-              <div class="player-avatar" style="background: linear-gradient(135deg, var(--accent), #7c3aed);">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
-              <span>{{ userStore.profile?.username || 'Player' }}</span>
-              <span class="badge badge-gold">{{ userStore.profile?.rating || 1200 }}</span>
+
+          <!-- Sandbox 2: DNA Lab Preview -->
+          <div class="sandbox-item glass dna-preview">
+            <div class="sandbox-header">
+              <span class="badge badge-rose">REAL ANALYTICS</span>
+              <h3>Your Playstyle DNA</h3>
             </div>
-            <span class="badge badge-green" style="margin-left: auto;">● LIVE</span>
-          </div>
-        </div>
-      </section>
+            <div class="dna-visual">
+              <!-- Radar Chart SVG -->
+              <svg viewBox="0 0 200 200" class="radar-chart">
+                <!-- Background Polygons (Grid) -->
+                <polygon points="100,20 176,75 147,165 53,165 24,75" class="radar-grid" />
+                <polygon points="100,60 138,87 123,132 77,132 62,87" class="radar-grid" />
+                
+                <!-- Axes -->
+                <line x1="100" y1="100" x2="100" y2="20" class="radar-axis" />
+                <line x1="100" y1="100" x2="176" y2="75" class="radar-axis" />
+                <line x1="100" y1="100" x2="147" y2="165" class="radar-axis" />
+                <line x1="100" y1="100" x2="53" y2="165" class="radar-axis" />
+                <line x1="100" y1="100" x2="24" y2="75" class="radar-axis" />
+                
+                <!-- Data Area (The DNA) -->
+                <polygon points="100,40 160,80 130,140 70,150 40,85" class="radar-data" />
+                
+                <!-- Points -->
+                <circle cx="100" cy="40" r="3" class="radar-point" />
+                <circle cx="160" cy="80" r="3" class="radar-point" />
+                <circle cx="130" cy="140" r="3" class="radar-point" />
+                <circle cx="70" cy="150" r="3" class="radar-point" />
+                <circle cx="40" cy="85" r="3" class="radar-point" />
+              </svg>
 
-      <section class="landing-sales">
-        <div class="section-title-wrap">
-          <h2 class="section-title">A New Era of Chess Study</h2>
-          <p class="section-subtitle muted">Bespoke technology designed for the modern grandmaster and the aspiring novice alike.</p>
-        </div>
+              <!-- Labels -->
+              <div class="radar-label t">TACTICS</div>
+              <div class="radar-label s">STRATEGY</div>
+              <div class="radar-label e">ENDGAME</div>
+              <div class="radar-label o">OPENING</div>
+              <div class="radar-label a">AGGRESSION</div>
+            </div>
+            <p class="sandbox-footer muted">We scan your entire library to find the specific patterns holding you back.</p>
+          </div>
 
-        <!-- Showcase 1: AI Coaching -->
-        <div class="feature-showcase">
-          <div class="showcase-content">
-            <div class="badge badge-accent">🔬 NEXT-GEN ANALYSIS</div>
-            <h2>Live AI Coaching</h2>
-            <p>Don't just see the 'Best Move'. Understand the <i>why</i>. Our AI coach breaks down complex positional nuances into plain English, helping you build genuine intuition.</p>
-            <ul class="feature-list">
-              <li><span>✓</span> Line-by-line tactical commentary</li>
-              <li><span>✓</span> Critical moments automatically flagged</li>
-              <li><span>✓</span> Dynamic threats and ideas visualization</li>
-            </ul>
-          </div>
-          <div class="showcase-image glass">
-            <img src="/images/landings/ai_coaching.png" alt="AI Coaching Interface" />
-          </div>
-        </div>
+        </section>
 
-        <!-- Showcase 2: Weakness DNA -->
-        <div class="feature-showcase reverse">
-          <div class="showcase-content">
-            <div class="badge badge-rose">🧬 PATTERN DETECTION</div>
-            <h2>Weakness DNA</h2>
-            <p>Every chess player has a signature mistake pattern. We analyze your entire game history to map your tactical gaps, from endgame conversion to structural vulnerabilities.</p>
-            <ul class="feature-list">
-              <li><span>✓</span> Automated mistake classification</li>
-              <li><span>✓</span> Spaced-repetition puzzle training</li>
-              <li><span>✓</span> Personalized improvement roadmap</li>
-            </ul>
-          </div>
-          <div class="showcase-image glass">
-            <img src="/images/landings/weakness_dna.png" alt="Weakness DNA Analytics" />
-          </div>
-        </div>
-
-        <!-- Showcase 3: Aesthetics -->
-        <div class="feature-showcase">
-          <div class="showcase-content">
-            <div class="badge badge-gold">✨ PREMIUM EXPERIENCE</div>
-            <h2>Design Without Compromise</h2>
-            <p>Knightfall is more than a tool—it's a sanctuary. We've built a distraction-free, high-fidelity environment where you can lose yourself in the beauty of the game.</p>
-            <ul class="feature-list">
-              <li><span>✓</span> Sleek obsidian and glass aesthetics</li>
-              <li><span>✓</span> Fluid, physics-based animations</li>
-              <li><span>✓</span> Zero ads, zero distractions</li>
-            </ul>
-          </div>
-          <div class="showcase-image glass">
-            <img src="/images/landings/premium_design.png" alt="Premium Knightfall UI" />
-          </div>
-        </div>
-
-        <!-- Call to action -->
-        <div class="landing-cta glass">
-          <h2>Ready to elevate your game?</h2>
-          <p class="muted">Join 12,000+ players mastering the art of the 64 squares.</p>
-          <div class="cta-btns">
-            <button class="btn btn-primary btn-lg" @click="handleGetStarted">Create Account</button>
-            <RouterLink to="/play" class="btn btn-ghost btn-lg">Explore as Guest</RouterLink>
-          </div>
-        </div>
-      </section>
+        <!-- Final CTA -->
+        <section class="final-cta">
+          <h2>Ready to become a Scholar?</h2>
+          <button class="btn btn-primary" @click="handleGetStarted">Initialize My Journey</button>
+        </section>
+      </div>
     </template>
+
   </div>
 </template>
 
@@ -254,355 +203,327 @@ import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
-import { useGameStore } from '../stores/gameStore'
 import { useCoachStore } from '../stores/coachStore'
 
 const router = useRouter()
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
-const gameStore = useGameStore()
 const coachStore = useCoachStore()
 
-// If logged in, the Profile is now the Dashboard
-if (userStore.session && userStore.profile) {
-  router.replace('/profile')
+/**
+ * 🎓 SCHOLAR'S DASHBOARD LOGIC
+ */
+const curriculum = [
+  {
+    title: 'Foundations',
+    icon: '🏰',
+    lessons: [
+      { id: 'basics-board', name: 'The Board & Coordinates' },
+      { id: 'basics-movement', name: 'Piece Movement' },
+      { id: 'basics-principles', name: 'Opening Principles' }
+    ]
+  },
+  {
+    title: 'Tactical Mastery',
+    icon: '⚔️',
+    lessons: [
+      { id: 'tactics-forks', name: 'Forks & Double Attacks' },
+      { id: 'tactics-pins', name: 'Pins & Skewers' }
+    ]
+  },
+  {
+    title: 'Strategic Command',
+    icon: '🧭',
+    lessons: [
+      { id: 'strategy-pawns', name: 'Pawn Structures' },
+      { id: 'strategy-outposts', name: 'Outposts' }
+    ]
+  }
+]
+
+function isCompleted(id: string) {
+  return userStore.completedLessons.includes(id)
 }
 
-// Mini preview board (simplified static)
-const previewBoard = [
-  ['♜','♞','♝','♛','♚','♝','','♜'],
-  ['♟','♟','♟','','♟','♟','♟','♟'],
-  ['','','','','','♞','',''],
-  ['','','','♟','','','',''],
-  ['','','','','♙','','',''],
-  ['','','♘','','','','',''],
-  ['♙','♙','♙','♙','','♙','♙','♙'],
-  ['♖','','♗','♕','♔','♗','♘','♖'],
-]
+function getSubjectProgress(subject: any) {
+  return subject.lessons.filter((l: any) => isCompleted(l.id)).length
+}
 
-const features = [
-  { id: 'play',     icon: '♟', title: 'Play a Game',       desc: 'Local, vs computer, or multiplayer',    path: '/play',     bg: 'var(--accent-dim)' },
-  { id: 'puzzles',  icon: '⚡', title: 'Adaptive Puzzles',  desc: 'Training targeted at your Weakness DNA', path: '/puzzles',  bg: 'var(--rose-dim)' },
-  { id: 'gauntlet', icon: '🔥', title: 'Daily Gauntlet',  desc: '5 puzzles, one shot, daily glory',      path: '/gauntlet', bg: 'var(--accent-dim)' },
-  { id: 'dna',      icon: '🧬', title: 'DNA Lab',           desc: 'Discover your hidden playstyle patterns', path: '/dna',      bg: 'var(--teal-dim)' },
-  { id: 'opening',  icon: '📖', title: 'Opening Lab',       desc: 'Build a bulletproof repertoire',          path: '/opening-lab', bg: 'var(--gold-dim)' },
-  { id: 'analysis', icon: '🔬', title: 'Game Analysis',     desc: 'AI coaching — line by line breakdowns',  path: '/analysis', bg: 'var(--teal-dim)' },
-  { id: 'profile',  icon: '📈', title: 'Your Profile',      desc: 'Rating history & opening stats',          path: '/profile',  bg: 'var(--gold-dim)' },
-]
+function getSubjectPct(subject: any) {
+  return (getSubjectProgress(subject) / subject.lessons.length) * 100
+}
 
+function isSubjectDone(subject: any) {
+  return getSubjectProgress(subject) === subject.lessons.length
+}
+
+function getSubjectStatus(subject: any) {
+  const prog = getSubjectProgress(subject)
+  if (prog === 0) return 'LOCKED'
+  if (prog === subject.lessons.length) return 'MASTERED'
+  return 'IN PROGRESS'
+}
+
+const totalCompleted = computed(() => userStore.completedLessons.length)
+
+const scholarRank = computed(() => {
+  const count = totalCompleted.value
+  if (count > 15) return 'Arch-Scholar'
+  if (count > 10) return 'Grand Sage'
+  if (count > 5) return 'Adept'
+  return 'Novice'
+})
+
+const nextLesson = computed(() => {
+  for (const subject of curriculum) {
+    for (const lesson of subject.lessons) {
+      if (!isCompleted(lesson.id)) {
+        return { ...lesson, subjectTitle: subject.title }
+      }
+    }
+  }
+  return null
+})
+
+/**
+ * 🧬 DNA PULSE LOGIC
+ */
 const weaknesses = computed(() => {
   const report = coachStore.archetypeReport
-  const base = [
-    { label: report.label,  pct: report.missRate, icon: '🧬', color: 'var(--rose)' }
+  return [
+    { label: report.label || 'Tactical Accuracy', pct: report.missRate || 15, icon: '🧬', color: 'var(--rose)' },
+    { label: 'Time Control', pct: 22, icon: '⏱', color: 'var(--teal)' },
+    { label: 'Positioning', pct: 18, icon: '♟', color: 'var(--gold)' }
   ]
-  
-  // Signal 2: Time/Structure
-  const hasTimeIssues = coachStore.dnaPrescriptions.some(rx => rx.id === 'clock-management')
-  if (hasTimeIssues) {
-    base.push({ label: 'Time Management', pct: 22, icon: '⏱', color: 'var(--teal)' })
-  } else {
-    base.push({ label: 'Structural Gaps', pct: 14, icon: '🏗️', color: 'var(--teal)' })
-  }
-
-  // Signal 3: Tactical/Opening Vulnerability
-  const hasTacticalVuln = coachStore.dnaPrescriptions.some(rx => rx.id === 'opening-vuln')
-  if (hasTacticalVuln) {
-    base.push({ label: 'Tactical Traps', pct: 31, icon: '⚠️', color: 'var(--gold)' })
-  } else {
-    base.push({ label: 'Positioning', pct: 18, icon: '♟', color: 'var(--gold)' })
-  }
-  
-  return base
-})
-
-const miniRx = computed(() => {
-  // Pull the top 2 high-priority items
-  const combined = [...coachStore.dnaPrescriptions, ...coachStore.openingPrescriptions]
-  return combined
-    .filter(rx => rx.severity === 'critical' || rx.severity === 'warning')
-    .slice(0, 2)
-})
-
-const libraryWinRate = computed(() => libraryStore.libraryWinRate)
-
-const recentGames = computed(() => {
-  return [...libraryStore.games].reverse().slice(0, 5).map(g => {
-    const isWhite = userStore.isMe(g.white)
-    
-    const won = (g.result === '1-0' && isWhite) || (g.result === '0-1' && !isWhite)
-    const draw = g.result === '1/2-1/2'
-    
-    return {
-      id: g.id,
-      opponent: isWhite ? g.black : g.white,
-      result: won ? 'win' : (draw ? 'draw' : 'loss'),
-      control: g.event || 'Blitz',
-      opening: g.eco || '---',
-      score: g.result
-    }
-  })
 })
 
 function handleGetStarted() {
   document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
 }
-
-function handleQuickAnalysis() {
-  if (libraryStore.games.length > 0) {
-    const latest = libraryStore.games[libraryStore.games.length - 1]
-    gameStore.loadPgn(latest.pgn, 'analysis', latest.id)
-  }
-  router.push('/analysis')
-}
 </script>
 
 <style scoped>
-.home-page { padding-top: var(--space-6); }
+.home-page {
+  padding: var(--space-8);
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
-/* ─── HERO ─── */
-.hero {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-10);
-  align-items: center;
+/* --- SCHOLAR DASHBOARD --- */
+.scholar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   margin-bottom: var(--space-10);
-  padding-bottom: var(--space-10);
+  padding-bottom: var(--space-6);
   border-bottom: 1px solid var(--border);
 }
-@media (max-width: 1100px) { .hero { grid-template-columns: 1fr; } .hero-board { display: none; } }
 
-.hero-eyebrow { margin-bottom: var(--space-4); }
-.hero h1 { margin-bottom: var(--space-4); }
-.hero-subtitle {
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  max-width: 480px;
-  margin-bottom: var(--space-6);
-  line-height: 1.7;
+.quick-stats {
+  display: flex;
+  gap: var(--space-6);
 }
 
-.hero-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-8); }
-
-.hero-stats { display: flex; align-items: center; gap: var(--space-5); }
-.hero-stat { text-align: center; }
-.hero-stat-value { display: block; font-size: 1.4rem; font-weight: 800; }
-.hero-stat-desc { font-size: 0.78rem; color: var(--text-muted); }
-.hero-stat-divider { width: 1px; height: 36px; background: var(--border); }
-
-/* Mini board */
-.hero-board {
-  width: 320px;
-  padding: var(--space-4);
+.mini-stat {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  animation: pulse-glow 3s infinite;
-}
-.hero-board-header, .hero-board-footer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.player-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-.player-avatar {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem;
+  align-items: flex-end;
 }
 
-.mini-board { border-radius: 6px; overflow: hidden; }
-.mini-row { display: flex; }
-.mini-sq {
-  width: 35px; height: 35px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
-.mini-light { background: var(--sq-light); }
-.mini-dark  { background: var(--sq-dark); }
+.mini-stat .label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; }
+.mini-stat .val { font-size: 1.5rem; font-weight: 900; color: var(--accent-bright); }
 
-/* ─── STATS ROW ─── */
-.stats-row {
+.scholar-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 340px;
+  gap: var(--space-8);
+}
+
+.scholar-path-section {
+  padding: var(--space-6);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+.path-visualizer {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
   margin-bottom: var(--space-8);
 }
-@media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 500px) { .stats-row { grid-template-columns: 1fr; } }
 
-/* ─── HOME GRID ─── */
-.home-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: var(--space-6);
-  align-items: start;
-}
-@media (max-width: 1100px) { .home-grid { grid-template-columns: 1fr; } }
-
-.feature-cards { display: flex; flex-direction: column; gap: var(--space-3); }
-.feature-card {
+.path-node {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-5);
-  transition: all var(--duration) var(--ease);
-}
-.feature-card:hover {
-  background: var(--bg-card-hover);
-  transform: translateX(3px);
-  border-color: rgba(255,255,255,0.12);
-}
-.feature-icon {
-  width: 48px; height: 48px;
-  border-radius: var(--radius-md);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem;
-  flex-shrink: 0;
-}
-.feature-title { font-weight: 700; margin-bottom: 3px; }
-.feature-desc { font-size: 0.85rem; }
-.feature-arrow { margin-left: auto; color: var(--text-muted); font-size: 1.2rem; }
-
-/* ─── RIGHT COLUMN ─── */
-.right-column { display: flex; flex-direction: column; gap: var(--space-4); }
-
-.weakness-card, .recent-games { padding: var(--space-5); }
-
-.card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-.weakness-items { display: flex; flex-direction: column; gap: var(--space-3); }
-.weakness-item { display: flex; flex-direction: column; gap: 6px; }
-.weakness-label {
-  display: flex; justify-content: space-between;
-  font-size: 0.85rem; font-weight: 500;
-}
-
-.game-list { display: flex; flex-direction: column; gap: 2px; margin-top: var(--space-3); }
-.game-row {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  transition: background 0.15s ease;
-}
-.game-row:hover { background: var(--bg-elevated); }
-.game-result-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.game-result-dot.win  { background: var(--green); }
-.game-result-dot.loss { background: var(--rose); }
-.game-result-dot.draw { background: var(--gold); }
-
-.game-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.game-opponent { font-size: 0.88rem; font-weight: 600; }
-.game-meta { font-size: 0.75rem; }
-.game-score {
-  font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700;
-}
-.game-score.win  { color: var(--green); }
-.game-score.loss { color: var(--rose); }
-.game-score.draw { color: var(--gold); }
-
-/* ─── MINI CLINIC ─── */
-.clinic-mini-card { padding: var(--space-5); background: linear-gradient(rgba(45, 212, 191, 0.05), transparent); }
-.mini-prescriptions { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
-.mini-rx-item {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-3); border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
-}
-.mini-rx-item.critical { border-left: 3px solid var(--rose); }
-.mini-rx-item.warning { border-left: 3px solid var(--gold); }
-
-.rx-info { display: flex; flex-direction: column; gap: 2px; }
-.rx-title { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); }
-.rx-action { font-size: 0.75rem; font-weight: 800; color: var(--accent-bright); text-decoration: none; text-transform: uppercase; }
-.rx-action:hover { color: white; text-decoration: underline; }
-
-/* ─── LANDING SALES ─── */
-.landing-sales {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-20);
-  padding: var(--space-10) 0;
-}
-
-.section-title-wrap {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto var(--space-6);
-}
-.section-title { font-size: 2.5rem; margin-bottom: var(--space-2); }
-.section-subtitle { font-size: 1.1rem; }
-
-.feature-showcase {
-  display: flex;
-  align-items: center;
-  gap: var(--space-10);
-}
-.feature-showcase.reverse { flex-direction: row-reverse; }
-
-.showcase-content { flex: 1; }
-.showcase-content h2 { font-size: 2rem; margin: var(--space-4) 0 var(--space-2); }
-.showcase-content p { font-size: 1.05rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: var(--space-4); }
-
-.feature-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.feature-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-.feature-list span { color: var(--accent-bright); font-weight: 800; }
-
-.showcase-image {
-  flex: 1.2;
+  padding: var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.4);
-  background: var(--bg-surface);
-  line-height: 0;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
 }
-.showcase-image img {
-  width: 100%;
-  height: auto;
-  transition: transform 0.6s ease;
-}
-.feature-showcase:hover .showcase-image img { transform: scale(1.03); }
 
-.landing-cta {
-  text-align: center;
-  padding: var(--space-12);
-  border-radius: var(--radius-xl);
+.path-node.completed { border-color: var(--teal-dim); background: rgba(45, 212, 191, 0.03); }
+
+.node-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
-  background: linear-gradient(rgba(139, 92, 246, 0.05), rgba(139, 92, 246, 0.02));
-  border: 1px dashed var(--border);
+  justify-content: center;
+  font-size: 1.5rem;
 }
-.landing-cta h2 { font-size: 2.2rem; }
-.cta-btns { display: flex; gap: var(--space-4); margin-top: var(--space-2); }
+
+.node-details { flex: 1; }
+.node-title { font-weight: 700; margin-bottom: 4px; }
+
+.node-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.progress-bar-bg { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+.path-node.completed .progress-bar-fill { background: var(--teal); }
+
+.node-status { font-size: 0.65rem; font-weight: 800; opacity: 0.6; }
+
+.next-lesson-cta {
+  background: linear-gradient(135deg, var(--accent-dim), transparent);
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--accent-dim);
+}
+
+.cta-label { font-size: 0.65rem; font-weight: 900; letter-spacing: 0.15em; margin-bottom: var(--space-4); color: var(--accent-bright); }
+.cta-content { display: flex; align-items: center; gap: var(--space-6); }
+.lesson-icon { font-size: 2rem; }
+.lesson-text { flex: 1; }
+.lesson-name { font-weight: 800; font-size: 1.1rem; }
+.lesson-subject { font-size: 0.85rem; color: var(--text-muted); }
+
+.scholar-sidebar { display: flex; flex-direction: column; gap: var(--space-6); }
+.pulse-card, .records-card { padding: var(--space-5); }
+.pulse-card h4, .records-card h4 { margin-bottom: var(--space-4); font-size: 0.9rem; }
+
+.dna-mini-chart { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
+.dna-label { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px; }
+.dna-bar { height: 3px; background: var(--border); border-radius: 1px; }
+.dna-fill { height: 100%; border-radius: 1px; }
+
+.records-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.record-item { display: flex; align-items: center; gap: var(--space-3); }
+.record-icon { width: 32px; height: 32px; border-radius: 50%; border: 1px solid; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated); }
+.record-name { font-size: 0.85rem; font-weight: 700; }
+.record-date { font-size: 0.7rem; }
+
+/* --- LANDING SANDBOX --- */
+.hero-minimal { text-align: center; padding: var(--space-20) 0; }
+.hero-title { font-size: 4rem; font-weight: 900; margin-bottom: var(--space-4); }
+.hero-desc { font-size: 1.25rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto var(--space-10); line-height: 1.6; }
+.hero-btns { display: flex; justify-content: center; gap: var(--space-4); }
+
+.sandbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-20);
+}
+
+.sandbox-item { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); }
+.sandbox-header { display: flex; flex-direction: column; gap: 4px; }
+
+.oracle-mock { display: flex; gap: var(--space-6); align-items: center; }
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 24px);
+  grid-template-rows: repeat(5, 24px);
+  border: 1px solid var(--border);
+}
+.mini-cell { border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.blunder-sq { background: rgba(244, 63, 94, 0.2); color: var(--rose); }
+.best-sq { background: rgba(16, 185, 129, 0.1); color: var(--teal); font-size: 10px; box-shadow: inset 0 0 8px var(--teal-dim); }
+
+.coach-tag { font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px; width: fit-content; }
+.coach-tag.blunder { background: var(--rose); color: white; }
+.typewriter { font-size: 0.85rem; line-height: 1.5; font-style: italic; color: var(--text-muted); }
+
+.dna-visual { 
+  height: 220px; 
+  position: relative; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(139, 92, 246, 0.08), transparent); 
+  border-radius: var(--radius-md); 
+  overflow: hidden;
+}
+
+.radar-chart {
+  width: 180px;
+  height: 180px;
+  filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.2));
+}
+
+.radar-grid {
+  fill: rgba(255, 255, 255, 0.02);
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1;
+}
+
+.radar-data {
+  fill: rgba(139, 92, 246, 0.25);
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px var(--accent));
+  animation: pulse-dna 4s infinite ease-in-out;
+}
+
+.radar-point {
+  fill: var(--accent-bright);
+}
+
+.radar-label {
+  position: absolute;
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.radar-label.t { top: 10px; left: 50%; transform: translateX(-50%); color: var(--accent-bright); }
+.radar-label.s { top: 65px; right: 10px; }
+.radar-label.e { bottom: 30px; right: 25px; }
+.radar-label.o { bottom: 30px; left: 25px; }
+.radar-label.a { top: 65px; left: 10px; }
+
+@keyframes pulse-dna {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+.final-cta { text-align: center; padding: var(--space-12) 0; }
+.final-cta h2 { margin-bottom: var(--space-6); font-size: 2rem; }
 
 @media (max-width: 900px) {
-  .feature-showcase, .feature-showcase.reverse { flex-direction: column; gap: var(--space-8); }
-  .section-title { font-size: 2rem; }
-  .landing-sales { gap: var(--space-12); }
+  .scholar-grid, .sandbox-grid { grid-template-columns: 1fr; }
+  .hero-title { font-size: 2.5rem; }
 }
+
+.full-width { width: 100%; justify-content: center; }
 </style>

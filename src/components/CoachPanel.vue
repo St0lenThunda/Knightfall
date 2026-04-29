@@ -4,14 +4,7 @@
     Handles caching, debounced API calls to Gemini, and markdown rendering.
   -->
   <div class="coaching-section">
-    <!-- Level 1: Deterministic Tag (Instant) -->
-    <div v-if="deterministicTag" class="mistake-tag-banner animated-slide-in" :class="deterministicTag.severity">
-      <span class="tag-icon">{{ deterministicTag.category === 'tactics' ? '⚡' : deterministicTag.category === 'opening' ? '📖' : '🧱' }}</span>
-      <div class="tag-content">
-        <div class="tag-title">{{ deterministicTag.severity.toUpperCase() }}: {{ deterministicTag.theme }}</div>
-        <div class="tag-desc">Eval drop: {{ deterministicTag.evalDrop.toFixed(1) }} pawns</div>
-      </div>
-    </div>
+    <!-- Level 1 Deterministic Tag removed from here, emitted to parent instead -->
 
     <div v-if="isCoachThinking" class="coach-thinking-compact">
       <div class="spinner"></div>
@@ -43,11 +36,14 @@ const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
 const userStore = useUserStore()
 
+const emit = defineEmits(['update:tag'])
+
 const isCoachThinking = ref(false)
 const coachResponse = ref<string | null>(null)
 const deterministicTag = ref<TaggedMistake | null>(null)
 
 const renderedCoach = computed(() => renderMarkdown(coachResponse.value))
+const renderedExplanation = computed(() => renderMarkdown(deterministicTag.value?.explanation || null))
 
 const currentGame = computed(() => {
   if (!store.loadedGameId) return null
@@ -96,28 +92,72 @@ const comparisonData = computed(() => {
 
 /**
  * DETERMINISTIC TAGGING (Level 1 Intelligence)
- * Monitors engine output to instantly classify moves as blunders/mistakes.
+ * 
+ * Compares the eval of the position BEFORE a move to the eval AFTER.
+ * Eval sources (in priority order):
+ *   1. Pre-computed evals from the library's post-game fast scan
+ *   2. Live-cached evals from prior navigation in this session
+ *   3. Heuristic: use the engine's live eval of the current position
+ * 
+ * The engine evaluates the position you're CURRENTLY viewing. So when
+ * viewing move N, engineStore gives us eval(position_N). We need 
+ * eval(position_{N-1}) to compute the delta — that comes from the
+ * moveHistory cache.
  */
+
+// Cache the engine eval onto the current move whenever analysis finishes
+watch(() => engineStore.isAnalyzing, (busy) => {
+  if (busy) return // Still thinking
+  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+  if (idx >= 0 && store.moveHistory[idx]) {
+    store.moveHistory[idx].eval = engineStore.evalScoreCp / 100
+  }
+})
+
+// Run tagging whenever the engine finishes analysis
 watch(() => [engineStore.isAnalyzing, store.viewIndex], ([isEngBusy]) => {
-  // Only tag when engine finishes analyzing the BEFORE position
-  if (isEngBusy || !comparisonData.value) return
+  if (isEngBusy || !comparisonData.value) {
+    deterministicTag.value = null
+    return
+  }
 
   const { playedMove, beforeFen } = comparisonData.value
+  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
   
-  // To detect a mistake, we need:
-  // 1. The eval of the position BEFORE the move (engineStore.evalScoreCp)
-  // 2. The eval of the position AFTER the move (playedMove.eval)
+  // The eval of the CURRENT position (after the move was played)
+  // This is the engine's live evaluation of the position we're viewing
+  const evalAfter = engineStore.evalScoreCp / 100
   
-  const evalBefore = engineStore.evalScoreCp / 100
-  const evalAfter = playedMove.eval ?? evalBefore // Fallback to before if no data
+  // The eval of the PREVIOUS position (before the move was played)
+  // Priority: pre-computed (from library) → live-cached (from prior navigation)
+  const prevMove = idx > 0 ? store.moveHistory[idx - 1] : null
+  
+  let evalBefore: number
+  if (prevMove?.eval !== undefined) {
+    // We have data for the previous position — use it
+    evalBefore = prevMove.eval
+  } else if (idx === 0) {
+    // First move of the game — starting position is roughly equal
+    evalBefore = 0.2 // Slight white advantage (standard opening eval)
+  } else {
+    // No cached eval for previous position — skip tagging for now
+    // The eval will get cached as the user navigates, enabling future tags
+    deterministicTag.value = null
+    emit('update:tag', null)
+    return
+  }
 
-  // Identify mistake
+  // Identify mistake with full context (move played + engine's best move)
   deterministicTag.value = TaggingService.identifyMistake(
     beforeFen,
     playedMove.fen,
     evalBefore,
-    evalAfter
+    evalAfter,
+    playedMove.san,
+    engineStore.suggestedMove || undefined
   )
+  
+  emit('update:tag', deterministicTag.value)
 }, { immediate: true })
 
 const hasGame = computed(() => store.moveHistory.length > 0)
@@ -281,6 +321,18 @@ watch(() => [store.viewIndex, store.loadedGameId], () => {
 .tag-desc {
   font-size: 0.8rem;
   opacity: 0.7;
+}
+
+.tag-explanation {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: var(--space-2);
+}
+
+.tag-explanation :deep(strong) {
+  color: var(--accent-bright);
+  font-weight: 700;
 }
 
 /* Thinking State */
