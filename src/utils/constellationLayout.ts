@@ -1,4 +1,4 @@
-import type { OpeningNode, GraphNode, GraphEdge, ConstellationLayout } from '../stores/libraryStore'
+import type { OpeningNode, GraphNode, GraphEdge, ConstellationLayout } from '../stores/library/types'
 
 /**
  * Calculates a visual layout for the Opening Tree (Constellation).

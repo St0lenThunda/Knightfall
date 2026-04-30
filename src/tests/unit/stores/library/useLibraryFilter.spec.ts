@@ -122,6 +122,7 @@ describe('useLibraryFilter', () => {
     expect(allTags.value.length).toBe(5)
 
     games.value = [...games.value, { id: '4', tags: ['Unique'], white: '', black: '', result: '', date: '', addedAt: 400, event: '', eco: '' }]
+    await nextTick()
     
     vi.advanceTimersByTime(1100)
     await nextTick()

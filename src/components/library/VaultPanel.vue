@@ -98,8 +98,8 @@
 
     <div v-if="viewMode === 'grid'" class="vault-grid">
       <GameCard 
-        v-for="game in displayedGames" 
-        :key="game.id" 
+        v-for="(game, index) in displayedGames" 
+        :key="game.id + '-' + index" 
         v-memo="[game.id, game.tags?.length]"
         :game="game" 
         @click="selectedGame = game"
@@ -110,16 +110,24 @@
     <div v-else class="vault-list">
       <div class="list-header muted">
         <div class="col-result">Result</div>
-        <div class="col-date">Date</div>
-        <div class="col-players">Players</div>
-        <div class="col-opening">Opening / Event</div>
-        <div class="col-moves">Moves</div>
+        <div class="col-date sortable" @click="setSort('date')" :class="{ active: libraryStore.sortBy === 'date' }">
+          Date <span v-if="libraryStore.sortBy === 'date'">{{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}</span>
+        </div>
+        <div class="col-players sortable" @click="setSort('player')" :class="{ active: libraryStore.sortBy === 'player' }">
+          Players <span v-if="libraryStore.sortBy === 'player'">{{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}</span>
+        </div>
+        <div class="col-opening sortable" @click="setSort('opening')" :class="{ active: libraryStore.sortBy === 'opening' }">
+          Opening / Event <span v-if="libraryStore.sortBy === 'opening'">{{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}</span>
+        </div>
+        <div class="col-moves sortable" @click="setSort('movesCount')" :class="{ active: libraryStore.sortBy === 'movesCount' }">
+          Moves <span v-if="libraryStore.sortBy === 'movesCount'">{{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}</span>
+        </div>
         <div class="col-tags">Source</div>
         <div class="col-actions"></div>
       </div>
       <GameRow
-        v-for="game in displayedGames"
-        :key="game.id"
+        v-for="(game, index) in displayedGames"
+        :key="game.id + '-' + index"
         v-memo="[game.id, game.tags?.length]"
         :game="game"
         @click="selectedGame = game"
@@ -154,6 +162,16 @@
           Next →
         </button>
       </div>
+    </div>
+
+    <!-- Lazy Loading (Vault Overflow) -->
+    <div v-if="libraryStore.hasMoreGames" class="vault-overflow glass-sm">
+      <div class="overflow-text">
+        <span class="muted">Showing {{ libraryStore.games.length }} of {{ libraryStore.totalVaultGames }} games in your vault.</span>
+      </div>
+      <button class="btn btn-primary btn-sm" :disabled="libraryStore.isImporting" @click="libraryStore.loadMoreGames">
+        {{ libraryStore.isImporting ? 'Syncing...' : 'Load 500 More' }}
+      </button>
     </div>
 
     <!-- Details Modal -->
@@ -191,14 +209,15 @@ import GameCard from './GameCard.vue'
 import GameRow from './GameRow.vue'
 import GameDetailsModal from './GameDetailsModal.vue'
 import ConfirmModal from '../ConfirmModal.vue'
+import { Storage, StorageKey } from '../../utils/storage'
 
 const router = useRouter()
 const libraryStore = useLibraryStore()
 
-const viewMode = ref<'grid' | 'list'>(localStorage.getItem('vault_view_mode') as any || 'grid')
+const viewMode = ref<'grid' | 'list'>(Storage.get(StorageKey.VAULT_VIEW_MODE, 'grid'))
 
 watch(viewMode, (mode) => {
-  localStorage.setItem('vault_view_mode', mode)
+  Storage.set(StorageKey.VAULT_VIEW_MODE, mode)
 })
 
 function handleAnalyze(game: LibraryGame) {
@@ -223,13 +242,22 @@ function toggleSortOrder() {
   libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'
 }
 
+function setSort(column: string) {
+  if (libraryStore.sortBy === column) {
+    toggleSortOrder()
+  } else {
+    libraryStore.sortBy = column
+    libraryStore.sortOrder = 'desc' // Default to descending for new sorts (e.g. highest moves, newest date)
+  }
+}
 
-const limit = ref(Number(localStorage.getItem('vault_limit')) || 20)
+
+const limit = ref(Storage.get(StorageKey.VAULT_LIMIT, 20))
 const currentPage = ref(1)
 const selectedGame = ref<LibraryGame | null>(null)
 
 watch(limit, (newLimit) => {
-  localStorage.setItem('vault_limit', newLimit.toString())
+  Storage.set(StorageKey.VAULT_LIMIT, newLimit)
   currentPage.value = 1 // Reset to first page when limit changes
 })
 
@@ -441,14 +469,27 @@ function prevPage() {
 
 .list-header {
   display: flex;
-  align-items: center;
-  padding: 0 var(--space-4);
+  padding: var(--space-2) var(--space-4);
   gap: var(--space-4);
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   margin-bottom: var(--space-2);
+}
+
+.list-header > div.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.list-header > div.sortable:hover {
+  color: var(--text-bright);
+}
+
+.list-header > div.sortable.active {
+  color: var(--accent);
 }
 
 /* Row column alignments matching GameRow.vue */
@@ -538,4 +579,20 @@ function prevPage() {
 /* Modal Transition */
 .modal-enter-active, .modal-leave-active { transition: all 0.3s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
+
+.vault-overflow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-4);
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px dashed rgba(139, 92, 246, 0.2);
+}
+
+.overflow-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
 </style>

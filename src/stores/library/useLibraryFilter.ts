@@ -1,5 +1,5 @@
 import { ref, shallowRef, watch, type Ref } from 'vue'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame } from './types'
 
 /**
  * Composable for library filtering and sorting.
@@ -45,7 +45,19 @@ export function useLibraryFilter(
       const matchesResult = fr === 'all' || g.result.startsWith(fr)
       
       // 3. Tag Filter
-      const matchesTag = st === 'all' || (g.tags && g.tags.includes(st))
+      let matchesTag = true
+      if (st !== 'all') {
+        const lowerTags = (g.tags || []).map(t => t.toLowerCase())
+        if (st === 'imported') {
+          matchesTag = lowerTags.includes('chess.com') || lowerTags.includes('lichess') || lowerTags.includes('chesscom')
+        } else if (st === 'native') {
+          matchesTag = lowerTags.includes('my games') && !lowerTags.includes('chess.com') && !lowerTags.includes('lichess') && !lowerTags.includes('chesscom')
+        } else if (st === 'assets') {
+          matchesTag = !lowerTags.includes('my games')
+        } else {
+          matchesTag = !!(g.tags && g.tags.includes(st))
+        }
+      }
       
       // 4. Perspective Filter
       let matchesPerspective = true

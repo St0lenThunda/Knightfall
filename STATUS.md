@@ -1,26 +1,22 @@
 # Project Status: Knightfall Intelligence
 
-**Last Updated**: 2026-04-30 08:15
-**Current Version**: v0.29.1
+**Last Updated**: 2026-04-30 22:45
+**Current Version**: v0.29.4
 
 ## 🎯 Recent Accomplishments
-- **Hardened Build Pipeline**: Resolved all TS build regressions (`TS6133`, `TS2554`) to restore production parity.
-- **Storage Abstraction**: Implemented centralized `Storage` utility to eliminate raw `localStorage` access risks.
-- **Decomposed God Component**: Extracted `useAnalysisSession` and `useAnalysisPlayers` from `AnalysisView.vue`, reducing modularity risks.
-- **Production Guardrails**: Automated log gating and audited production dependencies to minimize bundle bloat.
+- **Phase 3 Storage Hardening Complete**: Centralized 100% of legacy `localStorage` usage into the type-safe `Storage` utility, including administrative session metrics.
+- **Shadow Realm Intelligence Integration**: Deeply integrated tactical drill validation into the "Clinic" view with pulse-based urgency indicators.
+- **Ghost Mastery Analytics**: Implemented real-time progress tracking for personalized puzzle success rates in the `PuzzlesView`.
+- **Telemetry Exposure**: `libraryStore` and `adminStore` now publicly expose and persist critical analysis properties (`NPS`, `movesAnalyzed`, etc.).
+- **TypeScript Zero-Defect State**: Resolved all 28 regressions; `vue-tsc` build is green.
+
+## 🚧 In Progress / Next Priorities
+1. **Paging Optimization**: Implement virtual scrolling for the `VaultPanel` to support 10k+ game libraries.
+2. **Shadow Realm Solvability**: Finalize the "Mortal Engine" validation layer to discard drills that are not strictly winning.
+3. **UI/UX Modularization**: Decompose `PuzzlesView.vue` (currently ~800 lines) into smaller sub-components.
 
 ## ⚠️ Known Debt / Blockers
-- **Legacy Keys**: 20+ `localStorage` keys still using direct access in stores (`settingsStore`, `adminStore`).
-
-## 🚀 Recent Wins (v0.29.2)
-- **Analysis Hardening (Phase 2)**: Successfully decomposed `AnalysisView.vue` from 1.4k+ lines to **545 lines**.
-- **Component Organization**: Established `src/components/analysis/` for feature-scoped UI modules.
-- **Deno/Supabase Sync**: Standardized import maps and Edge Function structure for tactical harvesting.
-
-## 🛠 Next Steps
-1. **Storage Hardening (Phase 3)**: Migrate remaining legacy `localStorage` calls to `src/utils/storage.ts`.
-2. **Library Store Overhaul**: Introduce paging and better caching for large PGN vaults.
-3. **Shadow Realm Validation**: Integrate tactical drill validation more deeply into the user profile's "Clinic" view.
+- **Paging Optimization**: Large vaults (>5k games) need more efficient "load more" triggers in the UI.
 
 ## 🧠 Brain Context (Handoff)
-The Intelligence Engine is now stable for production. The new `Storage` utility is the primary entry point for persistence. `AnalysisView` has been split at the logic level (composables), but the template/styles still reside in the main file—this is the next target for modularity.
+The Intelligence Engine is now fully hardened and feature-complete for the current milestone. All storage leaks are plugged, and the tactical "Shadow Realm" is now a first-class citizen of the user's daily clinic. The next phase should focus on UI performance for large datasets and finalizing the solver-validation logic for generated drills.

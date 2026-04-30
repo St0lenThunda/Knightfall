@@ -1,12 +1,17 @@
 import { type Ref } from 'vue'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame } from './types'
 import { logger } from '../../utils/logger'
 
 /**
  * Composable for IndexedDB persistence logic.
  * Handles the lifecycle of the local KnightfallLibrary database.
  */
-export function useLibraryIdb(games: Ref<LibraryGame[]>) {
+export function useLibraryIdb(
+  games: Ref<LibraryGame[]>,
+  isProcessingIntegrity: Ref<boolean>,
+  integrityProgress: Ref<number>,
+  integrityMessage: Ref<string>
+) {
   let db: IDBDatabase | null = null
 
   /**
@@ -74,6 +79,58 @@ export function useLibraryIdb(games: Ref<LibraryGame[]>) {
   }
 
   /**
+   * Gets the total number of games in the vault.
+   */
+  async function getGameCount(): Promise<number> {
+    const activeDb = await initDb()
+    return new Promise((resolve) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const request = store.count()
+      request.onsuccess = () => resolve(request.result)
+    })
+  }
+
+  /**
+   * Loads a slice of games from IndexedDB using cursors for maximum efficiency.
+   * Optimized for large vaults where getAll() would block the main thread.
+   */
+  async function loadGamesPaged(limit: number, offset: number, sortBy = 'addedAt', sortOrder: 'asc' | 'desc' = 'desc'): Promise<LibraryGame[]> {
+    const activeDb = await initDb()
+    return new Promise((resolve) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const index = store.index(sortBy)
+      const direction = sortOrder === 'desc' ? 'prev' : 'next'
+      
+      const results: LibraryGame[] = []
+      let skipped = 0
+      const request = index.openCursor(null, direction)
+
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result
+        if (!cursor) {
+          resolve(results)
+          return
+        }
+
+        if (skipped < offset) {
+          skipped++
+          cursor.continue()
+          return
+        }
+
+        if (results.length < limit) {
+          results.push(cursor.value)
+          cursor.continue()
+        } else {
+          resolve(results)
+        }
+      }
+    })
+  }
+
+  /**
    * Deletes a single game from IndexedDB and updates memory.
    */
   async function deleteGame(id: string) {
@@ -130,32 +187,38 @@ export function useLibraryIdb(games: Ref<LibraryGame[]>) {
     const { generateGameFingerprint } = await import('../../utils/gameFingerprint')
     const activeDb = await initDb()
     
-    logger.info('[IDB] Starting vault deduplication and ID upgrade...')
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = 'Scanning for duplicates...'
     
-    // 1. Gather all current unique games
     const uniqueMap = new Map<string, LibraryGame>()
-    let totalScanned = 0
+    const totalScanned = games.value.length
 
-    for (const game of games.value) {
-      totalScanned++
-      const newId = generateGameFingerprint(game.white, game.black, game.pgn)
+    games.value.forEach((game, index) => {
+      // 1. Upgrade legacy ID or fix missing player names
+      const white = (game.white || 'Unknown').trim()
+      const black = (game.black || 'Unknown').trim()
+      const newId = generateGameFingerprint(white, black, game.pgn)
       
-      const existing = uniqueMap.get(newId)
-      if (!existing) {
-        uniqueMap.set(newId, { ...game, id: newId })
+      if (!uniqueMap.has(newId)) {
+        uniqueMap.set(newId, { ...game, id: newId, white, black })
       } else {
-        // Keep the one with more analysis if possible
+        // Tie-breaker: Keep the one with more analysis/clocks
+        const existing = uniqueMap.get(newId)!
         const existingEvals = (existing.evals || []).length
         const currentEvals = (game.evals || []).length
         if (currentEvals > existingEvals) {
-          uniqueMap.set(newId, { ...game, id: newId })
+          uniqueMap.set(newId, { ...game, id: newId, white, black })
         }
       }
-    }
+      
+      if (index % 100 === 0) integrityProgress.value = Math.round((index / totalScanned) * 40)
+    })
 
     const uniqueGames = Array.from(uniqueMap.values())
     const duplicateCount = totalScanned - uniqueGames.length
     
+    integrityMessage.value = `Upgrading ${uniqueGames.length} entries...`
     logger.info(`[IDB] Found ${duplicateCount} duplicates. Upgrading ${uniqueGames.length} games.`)
 
     // 2. Nuclear Swap: Clear and Re-fill
@@ -163,17 +226,27 @@ export function useLibraryIdb(games: Ref<LibraryGame[]>) {
     const store = transaction.objectStore('games')
     store.clear()
     
-    uniqueGames.forEach(g => store.put(JSON.parse(JSON.stringify(g))))
+    uniqueGames.forEach((g, i) => {
+      store.put(JSON.parse(JSON.stringify(g)))
+      if (i % 50 === 0) integrityProgress.value = 40 + Math.round((i / uniqueGames.length) * 60)
+    })
 
-    transaction.oncomplete = () => {
-      games.value = uniqueGames
-      logger.info('[IDB] Vault upgrade complete.')
-    }
+    return new Promise<void>((resolve) => {
+      transaction.oncomplete = () => {
+        games.value = uniqueGames
+        isProcessingIntegrity.value = false
+        integrityProgress.value = 100
+        logger.info('[IDB] Vault upgrade complete.')
+        resolve()
+      }
+    })
   }
 
   return {
-    initDb,
+    initDb, // Exported for sub-composables
     loadGames,
+    getGameCount,
+    loadGamesPaged,
     deleteGame,
     persistGameUpdate,
     resetLibrary,

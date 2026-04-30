@@ -1,9 +1,21 @@
 <script setup lang="ts">
 import { useLibraryStore } from '../../../stores/libraryStore'
+import { useUiStore } from '../../../stores/uiStore'
 
 const libraryStore = useLibraryStore()
+const uiStore = useUiStore()
 
 defineEmits(['deduplicateVault', 'showWipeConfirm'])
+
+async function handleIntegrityAction(actionFn: () => Promise<any>, successMsg: string) {
+  try {
+    await actionFn()
+    uiStore.addToast(successMsg, 'success')
+  } catch (err: any) {
+    uiStore.addToast(`Operation failed: ${err.message || 'Unknown error'}`, 'error')
+    libraryStore.isProcessingIntegrity = false // Fallback to clear overlay
+  }
+}
 </script>
 
 <template>
@@ -13,28 +25,33 @@ defineEmits(['deduplicateVault', 'showWipeConfirm'])
     </div>
     <div class="integrity-grid mt-6">
       <div class="integrity-item">
-        <button class="btn btn-ghost btn-sm" @click="libraryStore.syncCloudGames()">🔄 Refresh Cloud DNA</button>
-        <p class="muted">Synchronize your local library with the cloud to download games played on other devices.</p>
+        <button class="btn btn-ghost btn-sm" @click="handleIntegrityAction(() => libraryStore.syncCloudGames(), 'Cloud synchronization complete.')">🔄 Refresh Cloud DNA</button>
+        <p class="muted">Synchronize your local library with the cloud. <br/><em>Use this if you played games on another device and they aren't showing up here.</em></p>
       </div>
       
       <div class="integrity-item">
-        <button class="btn btn-ghost btn-sm" @click="libraryStore.pushLocalGamesToCloud()">☁️ Push Vault to Cloud</button>
-        <p class="muted">Back up your local collection to Supabase for cross-device access and permanent safety.</p>
+        <button class="btn btn-ghost btn-sm" @click="handleIntegrityAction(() => libraryStore.pushLocalGamesToCloud(), 'Vault successfully pushed to cloud.')">☁️ Push Vault to Cloud</button>
+        <p class="muted">Back up your local collection to Supabase. <br/><em>Use this if you just imported a large PGN file locally and want it saved to your account.</em></p>
       </div>
 
       <div class="integrity-item">
-        <button class="btn btn-ghost btn-sm" @click="libraryStore.repairVaultMetadata()">🛡️ Sanitize Vault</button>
-        <p class="muted">Re-validate all metadata, repair broken PGN headers, and apply missing platform tags (Chess.com/Lichess).</p>
+        <button class="btn btn-ghost btn-sm" @click="handleIntegrityAction(() => libraryStore.repairVaultMetadata(), 'Metadata sanitization complete.')">🛡️ Sanitize Metadata</button>
+        <p class="muted">Re-validate all metadata and PGN headers. <br/><em>Use this if you notice missing Elo ratings, incorrect dates, or 'Unknown' openings in your vault.</em></p>
+      </div>
+
+      <div class="integrity-item">
+        <button class="btn btn-ghost btn-sm" @click="handleIntegrityAction(() => libraryStore.repairVaultIdentity(), 'Identity repair complete. Tags updated.')">🧬 Repair Identity</button>
+        <p class="muted">Recalculates 'My Games' tags based on your profile. <br/><em>Use this if your 'Weakness DNA' is polluted with professional games you didn't actually play.</em></p>
       </div>
 
       <div class="integrity-item">
         <button class="btn btn-ghost btn-sm" @click="$emit('deduplicateVault')">🧹 Clean Duplicates</button>
-        <p class="muted">Scan your entire vault for redundant entries and upgrade legacy games to high-precision IDs.</p>
+        <p class="muted">Scan your entire vault for redundant entries. <br/><em>Use this if you see the same game appearing multiple times after merging collections.</em></p>
       </div>
 
       <div class="integrity-item">
         <button class="btn btn-ghost btn-sm text-rose" @click="$emit('showWipeConfirm')">⚠️ Nuclear Reset</button>
-        <p class="muted">Wipe your entire local and cloud library. <strong class="text-rose">This action is permanent.</strong> Use with caution.</p>
+        <p class="muted">Wipe your entire local and cloud library. <br/><em>Use this if you want to start your Knightfall journey over with a completely clean slate.</em></p>
       </div>
     </div>
 
@@ -57,7 +74,7 @@ defineEmits(['deduplicateVault', 'showWipeConfirm'])
 </template>
 
 <style scoped>
-.card-v3 { padding: var(--space-6); border-radius: var(--radius-xl); }
+.card-v3 { padding: var(--space-6); border-radius: var(--radius-xl); position: relative; overflow: hidden; }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
 
 .integrity-grid { display: flex; flex-direction: column; gap: var(--space-4); }

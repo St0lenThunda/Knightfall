@@ -174,7 +174,7 @@ async function importUrlAction() {
 async function importPgnTextAction() {
     if (!pgnText.value) return
     const beforeCount = libraryStore.games.length
-    await libraryStore.importPgnText(pgnText.value, 'manual-snippet')
+    await libraryStore.importPgnText(pgnText.value, false, ['manual-snippet'])
     pgnText.value = ''
     const afterCount = libraryStore.games.length
     const diff = afterCount - beforeCount

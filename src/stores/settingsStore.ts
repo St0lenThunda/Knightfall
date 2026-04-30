@@ -1,38 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
+import { Storage, StorageKey } from '../utils/storage'
 
 export type BoardTheme = 'classic' | 'wood' | 'obsidian'
 export type PieceTheme = 'classic' | 'neo' | 'glass'
 export type CoachPersonality = 'encouraging' | 'strict' | 'socratic'
 
 export const useSettingsStore = defineStore('settings', () => {
-  const boardTheme = ref<BoardTheme>((localStorage.getItem('boardTheme') as BoardTheme) || 'classic')
-  const pieceTheme = ref<PieceTheme>((localStorage.getItem('pieceTheme') as PieceTheme) || 'classic')
-  const soundEnabled = ref<boolean>(localStorage.getItem('soundEnabled') !== 'false')
+  const boardTheme = ref<BoardTheme>(Storage.get(StorageKey.BOARD_THEME, 'classic'))
+  const pieceTheme = ref<PieceTheme>(Storage.get(StorageKey.PIECE_THEME, 'classic'))
+  const soundEnabled = ref<boolean>(Storage.get(StorageKey.SOUND_ENABLED, true))
   
   // Engine Settings
-  const engineMultiPv = ref<number>(parseInt(localStorage.getItem('engineMultiPv') || '3'))
-  const analysisDepth = ref<number>(parseInt(localStorage.getItem('analysisDepth') || '12'))
+  const engineMultiPv = ref<number>(Storage.get(StorageKey.ENGINE_MULTI_PV, 3))
+  const analysisDepth = ref<number>(Storage.get(StorageKey.ANALYSIS_DEPTH, 12))
   
   // UI/UX
-  const animationSpeed = ref<string>(localStorage.getItem('animationSpeed') || 'normal')
-  const coachPersonality = ref<CoachPersonality>((localStorage.getItem('coachPersonality') as CoachPersonality) || 'encouraging')
-  const showBestMoveArrow = ref<boolean>(localStorage.getItem('showBestMoveArrow') !== 'false')
-  const showThreatArrow = ref<boolean>(localStorage.getItem('showThreatArrow') !== 'false')
+  const animationSpeed = ref<string>(Storage.get(StorageKey.ANIMATION_SPEED, 'normal'))
+  const coachPersonality = ref<CoachPersonality>(Storage.get(StorageKey.COACH_PERSONALITY, 'encouraging'))
+  const showBestMoveArrow = ref<boolean>(Storage.get(StorageKey.SHOW_BEST_MOVE_ARROW, true))
+  const showThreatArrow = ref<boolean>(Storage.get(StorageKey.SHOW_THREAT_ARROW, true))
 
   watch(boardTheme, (newTheme) => {
-    localStorage.setItem('boardTheme', newTheme)
+    Storage.set(StorageKey.BOARD_THEME, newTheme)
     document.documentElement.setAttribute('data-board-theme', newTheme)
   }, { immediate: true })
 
-  watch(pieceTheme, (newVal) => localStorage.setItem('pieceTheme', newVal))
-  watch(soundEnabled, (newVal) => localStorage.setItem('soundEnabled', newVal.toString()))
-  watch(engineMultiPv, (newVal) => localStorage.setItem('engineMultiPv', newVal.toString()))
-  watch(analysisDepth, (newVal) => localStorage.setItem('analysisDepth', newVal.toString()))
-  watch(animationSpeed, (newVal) => localStorage.setItem('animationSpeed', newVal))
-  watch(coachPersonality, (newVal) => localStorage.setItem('coachPersonality', newVal))
-  watch(showBestMoveArrow, (newVal) => localStorage.setItem('showBestMoveArrow', newVal.toString()))
-  watch(showThreatArrow, (newVal) => localStorage.setItem('showThreatArrow', newVal.toString()))
+  watch(pieceTheme, (newVal) => Storage.set(StorageKey.PIECE_THEME, newVal))
+  watch(soundEnabled, (newVal) => Storage.set(StorageKey.SOUND_ENABLED, newVal))
+  watch(engineMultiPv, (newVal) => Storage.set(StorageKey.ENGINE_MULTI_PV, newVal))
+  watch(analysisDepth, (newVal) => Storage.set(StorageKey.ANALYSIS_DEPTH, newVal))
+  watch(animationSpeed, (newVal) => Storage.set(StorageKey.ANIMATION_SPEED, newVal))
+  watch(coachPersonality, (newVal) => Storage.set(StorageKey.COACH_PERSONALITY, newVal))
+  watch(showBestMoveArrow, (newVal) => Storage.set(StorageKey.SHOW_BEST_MOVE_ARROW, newVal))
+  watch(showThreatArrow, (newVal) => Storage.set(StorageKey.SHOW_THREAT_ARROW, newVal))
 
   return { 
     boardTheme, pieceTheme, soundEnabled, 

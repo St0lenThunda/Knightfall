@@ -1,9 +1,8 @@
 import { ref, computed, watch, type Ref } from 'vue'
-import type { LibraryGame, OpeningNode } from '../libraryStore'
+import type { LibraryGame, ConstellationLayout, OpeningNode } from './types'
 import { buildOpeningTree } from '../../utils/constellationUtils'
 import { calculateConstellationLayout } from '../../utils/constellationLayout'
 import { useUserStore } from '../userStore'
-import type { ConstellationLayout } from '../libraryStore'
 import { logger } from '../../utils/logger'
 
 /**

@@ -2,7 +2,7 @@ import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import { supabase } from '../../api/supabaseClient'
 import { useUserStore } from '../userStore'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame } from './types'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
 import { logger } from '../../utils/logger'
@@ -31,30 +31,65 @@ export function useLibrarySync(
     integrityProgress.value = 0
     integrityMessage.value = 'Connecting to cloud vault...'
     
-    const { data: matches, error } = await supabase
+    // PASS 1: Fetch only the UUIDs from the cloud to determine the delta
+    const { data: cloudRefs, error } = await supabase
       .from('matches')
-      .select('*')
+      .select('id')
       .or(`white_id.eq.${session.user.id},black_id.eq.${session.user.id}`)
       .limit(5000)
     
-    if (error || !matches) {
-      logger.error('[Sync] Failed to fetch cloud matches', error)
+    if (error || !cloudRefs) {
+      logger.error('[Sync] Failed to fetch cloud references', error)
       uiStore.addToast('Cloud sync failed.', 'error')
       isProcessingIntegrity.value = false
       return
     }
 
-    integrityMessage.value = `Downloading ${matches.length} matches...`
-
-    // --- OPTIMIZATION: Use Map for O(1) lookup ---
+    // Determine which games we already have synced locally
     const localMap = new Map<string, LibraryGame>()
-    games.value.forEach(g => localMap.set(g.id, g))
+    const localCloudIds = new Set<string>()
+    games.value.forEach(g => {
+      localMap.set(g.id, g)
+      if (g.cloudId) localCloudIds.add(g.cloudId)
+    })
+
+    const missingIds = cloudRefs.map(m => m.id).filter(id => !localCloudIds.has(id))
+    
+    if (missingIds.length === 0) {
+      logger.info('[Sync] Local vault is already 100% synchronized with the cloud.')
+      uiStore.addToast('Vault is completely up to date.', 'success')
+      isProcessingIntegrity.value = false
+      integrityProgress.value = 100
+      return
+    }
+
+    integrityMessage.value = `Downloading ${missingIds.length} new matches...`
+
+    // PASS 2: Download only the missing PGN payloads in chunks (to prevent URI Too Long errors)
+    const CHUNK_SIZE = 100
+    const fetchedMatches = []
+    
+    for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
+      const chunk = missingIds.slice(i, i + CHUNK_SIZE)
+      const { data: matchChunk, error: chunkError } = await supabase
+        .from('matches')
+        .select('*')
+        .in('id', chunk)
+        
+      if (!chunkError && matchChunk) {
+        fetchedMatches.push(...matchChunk)
+      }
+      integrityProgress.value = Math.round(((i + chunk.length) / missingIds.length) * 50) // First 50% is downloading
+    }
+
+    integrityMessage.value = `Parsing ${fetchedMatches.length} matches...`
 
     const chess = new Chess()
     const syncedGames: LibraryGame[] = []
     let backfillCount = 0
     
-    for (const m of matches) {
+    for (let i = 0; i < fetchedMatches.length; i++) {
+      const m = fetchedMatches[i]
       try {
         safeLoadPgn(chess, m.pgn)
         const headers = chess.header()
@@ -76,6 +111,23 @@ export function useLibrarySync(
           continue
         }
 
+        const userStore = useUserStore()
+        const isMe = userStore.isMe(white) || userStore.isMe(black)
+
+        const autoTags: string[] = ['Synced']
+        const lowerPgn = m.pgn.toLowerCase()
+        const lowerEvent = (headers['Event'] || '').toLowerCase()
+        
+        if (lowerPgn.includes('chess.com') || lowerEvent.includes('live chess')) {
+          autoTags.push('Chess.com')
+        }
+        if (lowerPgn.includes('lichess.org') || lowerPgn.includes('lichess')) {
+          autoTags.push('Lichess')
+        }
+        if (isMe) {
+          autoTags.push('My Games')
+        }
+
         const game: LibraryGame = {
           id: stableId,
           pgn: m.pgn,
@@ -89,7 +141,7 @@ export function useLibrarySync(
           addedAt: Date.now(),
           whiteElo: headers['WhiteElo'] ?? undefined,
           blackElo: headers['BlackElo'] ?? undefined,
-          tags: ['My Games', 'Synced'],
+          tags: [...new Set(autoTags)],
           cloudId: m.id 
         }
         syncedGames.push(game)
@@ -98,9 +150,8 @@ export function useLibrarySync(
       }
       
       // Update Progress
-      const idx = matches.indexOf(m)
-      if (idx % 20 === 0) {
-        integrityProgress.value = Math.round((idx / matches.length) * 100)
+      if (i % 20 === 0) {
+        integrityProgress.value = 50 + Math.round((i / fetchedMatches.length) * 50)
         await new Promise(r => setTimeout(r, 0))
       }
     }

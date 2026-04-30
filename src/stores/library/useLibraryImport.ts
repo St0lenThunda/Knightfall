@@ -1,7 +1,7 @@
 import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import JSZip from 'jszip'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame } from './types'
 import { useUserStore } from '../userStore'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
@@ -71,9 +71,8 @@ export function useLibraryImport(
         const isMe = userStore.isMe(white) || userStore.isMe(black)
         const isNative = lowerEvent === 'play vs coach' || lowerEvent === 'knightfall match'
         
-        // Force "My Games" ONLY if BOTH platform and live-chess markers are present,
-        // or if it's an explicit identity/native match.
-        if (!isCurated && (isMe || isNative || (isChessCom && isLiveChess))) {
+        // Force "My Games" ONLY if it is an explicit identity/native match.
+        if (!isCurated && (isMe || isNative)) {
           autoTags.push('My Games')
           if (userStore.displayName) autoTags.push(userStore.displayName)
         }
@@ -189,7 +188,11 @@ export function useLibraryImport(
         addedAt: Date.now(),
         whiteElo: headers['WhiteElo'] ?? undefined,
         blackElo: headers['BlackElo'] ?? undefined,
-        tags: [...new Set(['My Games', userStore.displayName, ...tags])],
+        tags: [...new Set([
+          ...(userStore.isMe(white) || userStore.isMe(black) ? ['My Games'] : []),
+          ...(userStore.displayName ? [userStore.displayName] : []),
+          ...tags
+        ])],
         clocks: telemetry?.clocks,
         evals: telemetry?.evals,
         telemetry: telemetry?.antiCheat,
@@ -242,7 +245,13 @@ export function useLibraryImport(
             addedAt: Date.now(),
             whiteElo: lg.players.white.rating.toString(),
             blackElo: lg.players.black.rating.toString(),
-            tags: ['My Games', userStore.displayName, 'Lichess', lg.speed, lg.perf],
+            tags: [...new Set([
+              ...(username.toLowerCase() === userStore.displayName?.toLowerCase() ? ['My Games'] : []),
+              userStore.displayName || username, 
+              'Lichess', 
+              lg.speed, 
+              lg.perf
+            ])],
             clocks: lg.clocks,
             evals: lg.evals
           }

@@ -135,3 +135,18 @@ export async function fetchCloudEval(fen: string): Promise<any> {
   if (!response.ok) return null
   return await response.json()
 }
+/**
+ * Helper to fetch raw PGN from a Lichess URL.
+ */
+export async function importPgnFromUrl(url: string): Promise<string> {
+  // Extract ID from URL (e.g. https://lichess.org/ABCDEFGH)
+  const idMatch = url.match(/lichess\.org\/([a-zA-Z0-9]{8,12})/)
+  const id = idMatch ? idMatch[1] : url
+
+  const response = await fetch(`https://lichess.org/game/export/${id}?clocks=true&evals=true`, {
+    headers: { 'Accept': 'application/x-chess-pgn' }
+  })
+  
+  if (!response.ok) throw new Error('Failed to fetch PGN from Lichess')
+  return await response.text()
+}

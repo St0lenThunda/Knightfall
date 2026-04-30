@@ -36,6 +36,18 @@ export function useUserStats(
     }
   })
 
+  /** Success rate specifically for personalized Shadow Realm drills. */
+  const shadowRealmStats = computed(() => {
+    const personal = puzzleAttempts.value.filter(a => a.puzzle_id.startsWith('personal-'))
+    const total = personal.length
+    const solved = personal.filter(a => a.solved).length
+    return {
+      total,
+      solved,
+      accuracy: total > 0 ? Math.round((solved / total) * 100) : 100
+    }
+  })
+
   /** Activity Heatmap: Count of puzzles solved by date. */
   const activityHeatmap = computed(() => {
     const map: Record<string, number> = {}
@@ -76,6 +88,7 @@ export function useUserStats(
   return {
     winLossDraw,
     puzzleStats,
+    shadowRealmStats,
     activityHeatmap,
     solvedTodayCount,
     openingPerformance,

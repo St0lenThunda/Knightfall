@@ -208,6 +208,26 @@
             These puzzles are selected based on your <strong style="color: var(--text-primary);">{{ weakness.label }}</strong> weakness ({{ weakness.missRate }}% miss rate).
           </p>
         </div>
+
+        <!-- Ghost Mastery (Shadow Realm Analytics) -->
+        <div v-if="userStore.shadowRealmStats.total > 0" class="glass ghost-mastery">
+          <div class="card-header">
+            <h4>👻 Ghost Mastery</h4>
+          </div>
+          <div class="stats-grid mt-3">
+            <div class="mini-stat">
+              <div class="stat-label">Ghosts Cleared</div>
+              <div class="stat-value text-teal-gradient">{{ userStore.shadowRealmStats.solved }}</div>
+            </div>
+            <div class="mini-stat">
+              <div class="stat-label">Success Rate</div>
+              <div class="stat-value text-rose-gradient">{{ userStore.shadowRealmStats.accuracy }}%</div>
+            </div>
+          </div>
+          <p class="muted mt-3" style="font-size: 0.75rem;">
+            You are {{ userStore.shadowRealmStats.accuracy > 70 ? 'dominating' : 'struggling with' }} your past self.
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -732,8 +752,16 @@ onMounted(() => {
 
 /* Sidebar */
 .puzzle-sidebar { display: flex; flex-direction: column; gap: var(--space-6); }
-.progress-card, .puzzle-queue, .weakness-target { padding: var(--space-6); }
+.progress-card, .puzzle-queue, .weakness-target, .ghost-mastery { padding: var(--space-6); }
 .progress-row { display: flex; justify-content: space-between; align-items: center; }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.mini-stat { background: rgba(255,255,255,0.03); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05); }
+.stat-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.stat-value { font-size: 1.1rem; font-weight: 900; margin-top: 2px; }
+
+.text-teal-gradient { background: linear-gradient(135deg, #2dd4bf, #0d9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.text-rose-gradient { background: linear-gradient(135deg, #fb7185, #e11d48); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
 .queue-list { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-3); }
 .queue-item { display: flex; gap: var(--space-3); align-items: center; }

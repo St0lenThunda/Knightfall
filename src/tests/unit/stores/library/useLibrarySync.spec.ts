@@ -14,7 +14,8 @@ vi.mock('../../../../api/supabaseClient', () => ({
         or: vi.fn(() => ({
           limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
         })),
-        eq: vi.fn(() => Promise.resolve({ data: [], error: null }))
+        eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        in: vi.fn(() => Promise.resolve({ data: [], error: null }))
       })),
       insert: vi.fn(() => ({
         select: vi.fn(() => ({
@@ -82,16 +83,21 @@ describe('useLibrarySync', () => {
   it('syncCloudGames downloads new games and updates local state', async () => {
     (supabase.auth.getSession as any).mockResolvedValue({ data: { session: { user: { id: 'user-123' } } } })
     
-    const mockMatches = [
+    const mockMatchesFull = [
       { id: 'm1', pgn: '[White "Magnus"][Black "Nepo"] 1. e4 e5', result: '1-0', created_at: '2023-01-01T12:00:00Z' }
     ]
     
     const mockFrom = supabase.from as any
-    mockFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: mockMatches, error: null })
-    })
+    mockFrom
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [{ id: 'm1' }], error: null })
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: mockMatchesFull, error: null })
+      })
 
     const { syncCloudGames } = useLibrarySync(
       games, mockInitDb, isProcessingIntegrity, integrityProgress, integrityMessage

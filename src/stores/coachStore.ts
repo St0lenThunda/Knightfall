@@ -10,6 +10,8 @@ import { useCoachArchetype } from './coach/useCoachArchetype'
 import { useCoachPrescriptions } from './coach/useCoachPrescriptions'
 import { useCoachNarrative } from './coach/useCoachNarrative'
 
+import { useCurriculumStore } from './curriculumStore'
+
 /**
  * A Prescription (Rx) represents a piece of coaching advice.
  */
@@ -34,6 +36,7 @@ export interface Prescription {
 export const useCoachStore = defineStore('coach', () => {
   const libraryStore = useLibraryStore()
   const userStore = useUserStore()
+  const curriculumStore = useCurriculumStore()
 
   // --- SUB-COMPOSABLES (Logic Decomposition) ---
   const archetype = useCoachArchetype(
@@ -44,7 +47,9 @@ export const useCoachStore = defineStore('coach', () => {
 
   const prescriptions = useCoachPrescriptions(
     computed(() => libraryStore.personalGames),
-    computed(() => libraryStore.openingStats), // Use the primary library stats
+    computed(() => libraryStore.stats.openingStats),
+    computed(() => curriculumStore.personalPuzzles),
+    computed(() => userStore.puzzleAttempts),
     userStore.isMe
   )
 

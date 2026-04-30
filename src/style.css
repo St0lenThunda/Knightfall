@@ -409,6 +409,19 @@ h4 { font-size: 1rem; font-weight: 600; }
   padding: var(--space-6);
 }
 
+.lab-modal {
+  width: 95%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.6);
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

@@ -20,6 +20,7 @@ export const QUALITIES: MoveQuality[] = [
   { id: 'inaccuracy', label: 'Inaccuracy', icon: '?', color: '#f59e0b' },
   { id: 'mistake', label: 'Mistake', icon: '?!', color: '#f97316' },
   { id: 'blunder', label: 'Blunder', icon: '??', color: '#f43f5e' },
+  { id: 'unknown', label: 'Unknown', icon: '', color: 'transparent' },
 ]
 
 /**
@@ -69,6 +70,6 @@ export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQu
     return QUALITIES.find(q => q.id === 'good')!
   }
 
-  // Fallback: No eval data available — show neutral "book" to avoid misleading labels
-  return QUALITIES.find(q => q.id === 'book')!
+  // Fallback: No eval data available — show neutral "unknown" to avoid misleading labels
+  return QUALITIES.find(q => q.id === 'unknown')!
 }

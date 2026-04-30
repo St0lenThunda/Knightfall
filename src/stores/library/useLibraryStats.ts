@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame } from './types'
 import { ecoToName, ecoToDescription } from '../../utils/ecoLookup'
 import type { useUserStore } from '../userStore'
 import { calculateRatingHistory } from '../../composables/useRatingSystem'
@@ -49,9 +49,9 @@ export function useLibraryStats(
     personalGames.value.forEach(g => {
       // 1. Identity Detection (Persisted)
       // We rely on the 'userSide' property which was resolved during Import/Sanitize.
-      // This avoids hardcoding name-matching logic in the stats engine.
-      const isWhite = g.userSide === 'white'
-      const isBlack = g.userSide === 'black'
+      // We also fallback to userStore.isMe() for legacy games that haven't been fully repaired yet.
+      const isWhite = g.userSide === 'white' || userStore.isMe(g.white)
+      const isBlack = g.userSide === 'black' || userStore.isMe(g.black)
       const result = g.result
       
       const isParticipant = isWhite || isBlack

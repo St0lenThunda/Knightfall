@@ -28,6 +28,8 @@ export const StorageKey = {
   ADMIN_TOTAL_TOKENS: 'admin_total_tokens',
   ADMIN_TOTAL_RESPONSES: 'admin_total_responses',
   ADMIN_AVG_LEN: 'admin_avg_len',
+  ADMIN_MOVES_PLAYED: 'admin_moves_played',
+  ADMIN_MOVES_ANALYZED: 'admin_moves_analyzed',
   BOARD_THEME: 'boardTheme',
   PIECE_THEME: 'pieceTheme',
   SOUND_ENABLED: 'soundEnabled',
@@ -67,7 +69,13 @@ export const Storage = {
     try {
       const value = localStorage.getItem(key);
       if (value === null) return defaultValue;
-      return JSON.parse(value) as T;
+      
+      try {
+        return JSON.parse(value) as T;
+      } catch (e) {
+        // Fallback for legacy strings that weren't JSON-stringified
+        return value as unknown as T;
+      }
     } catch (error) {
       console.error(`[Storage] Error reading key "${key}":`, error);
       return defaultValue;

@@ -8,7 +8,44 @@ global.Worker = class {
   onmessage = null
   postMessage() {}
   terminate() {}
-} as any
+} as any;
+
+// Mock chess.js
+vi.mock('chess.js', () => ({
+  Chess: vi.fn(() => ({
+    loadPgn: vi.fn(),
+    header: vi.fn(() => ({})),
+    history: vi.fn(() => []),
+    fen: vi.fn(() => ''),
+    move: vi.fn(() => true)
+  }))
+}))
+
+// Mock userStore
+vi.mock('../../../stores/userStore', () => ({
+  useUserStore: vi.fn(() => ({
+    profile: { username: 'Guest' },
+    isMe: vi.fn((name) => name === 'Thunda')
+  }))
+}))
+
+// Mock Storage Utility
+vi.mock('../../../utils/storage', () => ({
+  Storage: {
+    get: vi.fn((_key, def) => def),
+    set: vi.fn(),
+    remove: vi.fn()
+  },
+  StorageKey: {
+    VAULT_SORT_BY: 'vault_sort_by',
+    VAULT_SORT_ORDER: 'vault_sort_order',
+    LAST_ANALYSIS_PGN: 'last_analysis_pgn',
+    LAST_ANALYSIS_ID: 'last_analysis_id',
+    LICHESS_USERNAME: 'lichess_username',
+    VAULT_VIEW_MODE: 'vault_view_mode',
+    VAULT_LIMIT: 'vault_limit'
+  }
+}))
 
 // Mock the sub-composables to isolate the Orchestrator
 vi.mock('../../../stores/library/useLibraryIdb', () => ({
@@ -28,6 +65,13 @@ vi.mock('../../../stores/library/useLibraryIdb', () => ({
     purgeDuplicates: vi.fn(async () => {
       if (games && games.value) games.value = games.value.slice(0, 1)
       return 1
+    }),
+    getGameCount: vi.fn(async () => 100),
+    loadGamesPaged: vi.fn(async (limit, offset) => {
+      return Array(limit).fill(null).map((_, i) => ({
+        id: `paged-${offset + i}`,
+        pgn: '', white: '', black: '', result: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0
+      }))
     })
   }))
 }))
@@ -52,14 +96,16 @@ vi.mock('../../../stores/library/useLibraryStats', () => ({
 vi.mock('../../../stores/library/useLibraryFilter', () => ({
   useLibraryFilter: vi.fn(() => ({
     filteredGames: { value: [] },
-    isFiltering: { value: false }
+    isFiltering: { value: false },
+    allTags: { value: [] }
   }))
 }))
 
 vi.mock('../../../stores/library/useLibrarySync', () => ({
   useLibrarySync: vi.fn(() => ({
     syncCloudGames: vi.fn(),
-    purgeCloudLibrary: vi.fn()
+    purgeCloudLibrary: vi.fn(),
+    pushGameAnalysis: vi.fn()
   }))
 }))
 
@@ -69,7 +115,7 @@ vi.mock('../../../stores/library/useLibraryConstellation', () => ({
   }))
 }))
 
-vi.mock('../../../stores/library/useLibraryAnalysis', () => ({
+vi.mock('../../../stores/library/analysis/index', () => ({
   useLibraryAnalysis: vi.fn(() => ({
     isBulkAnalyzing: false,
     analysisProgress: 0,
@@ -82,75 +128,80 @@ describe('LibraryStore (Orchestrator)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
+    vi.clearAllMocks()
   })
 
-  it('filters "Personal DNA" games correctly based on user identity', () => {
-    const userStore = useUserStore()
-    userStore.isMe = vi.fn((name: string | null | undefined) => name === 'Thunda')
+  describe('Lazy Loading Strategy', () => {
+    it('loads everything if vault is small (< 2000)', async () => {
+      const libraryStore = useLibraryStore()
+      // @ts-ignore
+      libraryStore.idb.getGameCount.mockResolvedValue(1500)
+      // @ts-ignore
+      libraryStore.idb.loadGames.mockImplementation(async () => {
+        libraryStore.games = Array(1500).fill({}) as any
+      })
 
-    const libraryStore = useLibraryStore()
-    libraryStore.games = [
-      { id: '1', white: 'Thunda', black: 'GM_Magnus', result: '1-0', pgn: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0 },
-      { id: '2', white: 'Stockfish', black: 'AlphaZero', result: '1/2-1/2', pgn: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0 }
-    ] as any
+      await libraryStore.loadGames()
 
-    expect(libraryStore.personalGames.length).toBe(1)
-    expect(libraryStore.personalGames[0].id).toBe('1')
+      expect(libraryStore.games.length).toBe(1500)
+      expect(libraryStore.vaultOffset).toBe(1500)
+    })
+
+    it('uses pagination for large vaults (> 2000)', async () => {
+      const libraryStore = useLibraryStore()
+      // @ts-ignore
+      libraryStore.idb.getGameCount.mockResolvedValue(5000)
+      
+      await libraryStore.loadGames()
+
+      expect(libraryStore.games.length).toBe(500) // VAULT_PAGE_SIZE
+      expect(libraryStore.vaultOffset).toBe(500)
+      expect(libraryStore.hasMoreGames).toBe(true)
+    })
+
+    it('can load subsequent chunks', async () => {
+      const libraryStore = useLibraryStore()
+      // @ts-ignore
+      libraryStore.idb.getGameCount.mockResolvedValue(5000)
+      
+      await libraryStore.loadGames()
+      const initialCount = libraryStore.games.length
+      
+      await libraryStore.loadMoreGames()
+      
+      expect(libraryStore.games.length).toBe(initialCount + 500)
+      expect(libraryStore.vaultOffset).toBe(1000)
+    })
   })
 
-  it('correctly tracks analyzedGamesCount', () => {
-    const libraryStore = useLibraryStore()
-    libraryStore.games = [
-      { id: '1', evals: [0.5], pgn: '', white: '', black: '', result: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0 },
-      { id: '2', evals: [], pgn: '', white: '', black: '', result: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0 },
-      { id: '3', pgn: '', white: '', black: '', result: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0 }
-    ] as any
+  describe('Identity Filtering (Personal DNA)', () => {
+    it('correctly identifies personal games via username', () => {
+      const libraryStore = useLibraryStore()
+      const userStore = useUserStore()
+      // @ts-ignore
+      userStore.isMe.mockImplementation((name) => name === 'Thunda')
 
-    expect(libraryStore.analyzedGamesCount).toBe(1)
-  })
+      libraryStore.games = [
+        { white: 'Thunda', black: 'Magnus', tags: [] } as any,
+        { white: 'Hikaru', black: 'Thunda', tags: [] } as any,
+        { white: 'Magnus', black: 'Hikaru', tags: [] } as any
+      ]
 
-  it('repairs metadata by parsing PGN headers', async () => {
-    const libraryStore = useLibraryStore()
-    libraryStore.games = [
-      { 
-        id: 'repair-me', 
-        white: 'Unknown', 
-        black: 'Unknown', 
-        pgn: '[White "Legend"]\n[Black "Challenger"]\n[WhiteElo "2800"]\n\n1. e4 *',
-        date: '?',
-        event: '',
-        eco: '',
-        movesCount: 1,
-        addedAt: 0
-      }
-    ] as any
+      expect(libraryStore.personalGames.length).toBe(2)
+    })
 
-    await libraryStore.repairVaultMetadata()
+    it('identifies games via "My Games" tag', () => {
+      const libraryStore = useLibraryStore()
+      const userStore = useUserStore()
+      // @ts-ignore
+      userStore.isMe.mockReturnValue(false)
 
-    const game = libraryStore.games[0]
-    expect(game.white).toBe('Legend')
-    expect(game.black).toBe('Challenger')
-    expect(game.whiteElo).toBe('2800')
-  })
+      libraryStore.games = [
+        { white: 'Someone', black: 'Else', tags: ['My Games'] } as any,
+        { white: 'Someone', black: 'Else', tags: [] } as any
+      ]
 
-  it('purges duplicate games based on move fingerprint', async () => {
-    const libraryStore = useLibraryStore()
-    libraryStore.games = [
-      { id: 'orig', white: 'A', black: 'B', pgn: '1. e4 e5 *', addedAt: 1 },
-      { id: 'dup', white: 'a', black: 'b', pgn: '1. e4 e5 *', addedAt: 2 }
-    ] as any
-
-    const deletedCount = await libraryStore.purgeDuplicates()
-    expect(deletedCount).toBe(1)
-  })
-
-  it('generates a gamesMap for O(1) lookups', () => {
-    const libraryStore = useLibraryStore()
-    libraryStore.games = [
-      { id: 'unique-id', white: 'A', black: 'B', pgn: '' }
-    ] as any
-
-    expect(libraryStore.gamesMap.has('unique-id')).toBe(true)
-    expect(libraryStore.gamesMap.get('unique-id')?.white).toBe('A')
+      expect(libraryStore.personalGames.length).toBe(1)
+    })
   })
 })

@@ -5,4 +5,5 @@
  * High-level logic is decomposed into @/stores/library/analysis/ for 
  * maintainability and long-term stability.
  */
+export type { LibraryGame } from './types'
 export { useLibraryAnalysis } from './analysis/index'

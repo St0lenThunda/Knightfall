@@ -11,6 +11,7 @@ import { useAdminStore } from './adminStore'
 import { useUiStore } from './uiStore'
 
 import { safeLoadPgn } from '../utils/pgnParser'
+import { Storage, StorageKey } from '../utils/storage'
 
 export type GameMode = 'local' | 'vs-computer' | 'puzzle' | 'analysis'
 
@@ -153,9 +154,9 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'analysis') {
       const pgn = chess.value.pgn()
       if (pgn && pgn !== '') {
-        localStorage.setItem('kf_last_analysis_pgn', pgn)
-        if (loadedGameId.value) localStorage.setItem('kf_last_analysis_id', loadedGameId.value)
-        else localStorage.removeItem('kf_last_analysis_id')
+        Storage.set(StorageKey.LAST_ANALYSIS_PGN, pgn)
+        if (loadedGameId.value) Storage.set(StorageKey.LAST_ANALYSIS_ID, loadedGameId.value)
+        else Storage.remove(StorageKey.LAST_ANALYSIS_ID)
       }
     }
   }, { deep: false })
@@ -363,8 +364,16 @@ export const useGameStore = defineStore('game', () => {
         logger.info(`[GameStore] Injected ${precomputedEvals.length} pre-computed evals from library.`)
       }
       
-      // Focus on the end of the game by default
-      viewIndex.value = moveHistory.value.length - 1
+      // By default, jump to the first move for analysis to allow immediate playback
+      if (gameMode === 'analysis' && moveHistory.value.length > 0) {
+        viewIndex.value = 0
+        const first = moveHistory.value[0]
+        chess.value.load(first.fen)
+        lastMove.value = { from: first.from as Square, to: first.to as Square }
+      } else {
+        viewIndex.value = moveHistory.value.length - 1
+      }
+      
       gameStarted.value = true
       forceGameOver.value = false
       boardTrigger.value++
@@ -513,7 +522,7 @@ export const useGameStore = defineStore('game', () => {
         drillIndex.value++
       }
 
-      adminStore.movesPlayed++
+      adminStore.recordMovePlayed()
 
       // Anti-Cheat: Record time and engine correlation for player moves
       if (mode.value === 'vs-computer' && move.color === playerColor.value) {
@@ -619,7 +628,17 @@ export const useGameStore = defineStore('game', () => {
         move = moves[Math.floor(Math.random() * moves.length)]
       }
       
-      const result = chess.value.move(move)
+      // Normalize move format for chess.js (handle UCI strings from engine)
+      let finalMove = move
+      if (typeof move === 'string' && move.length >= 4 && !move.includes(' ')) {
+        finalMove = {
+          from: move.substring(0, 2),
+          to: move.substring(2, 4),
+          promotion: move.substring(4, 5) || 'q'
+        }
+      }
+
+      const result = chess.value.move(finalMove)
         
         if (result) {
           moveHistory.value.push({
@@ -629,6 +648,7 @@ export const useGameStore = defineStore('game', () => {
           })
           lastMove.value = { from: result.from, to: result.to }
           boardTrigger.value++
+          adminStore.recordMovePlayed()
           logger.info(`[GameStore] Computer moved: ${result.san}`)
         }
     } catch (e) {

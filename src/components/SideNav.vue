@@ -18,8 +18,8 @@
       <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
         <div class="user-rating" style="display: flex; gap: 6px; margin-top: 2px;">
-          <span class="badge badge-gold" title="Performance Rating">♔ {{ libraryStore.performanceRating }}</span>
-          <span class="badge badge-primary" title="Experience Points">✨ {{ userStore.xp }} XP</span>
+          <span class="badge badge-gold" title="Performance Rating">♔ {{ libraryStore.stats?.performanceRating || 1200 }}</span>
+          <span class="badge badge-primary" title="Experience Points">✨ {{ userStore.xp || 0 }} XP</span>
         </div>
       </div>
     </div>
@@ -230,11 +230,14 @@ onMounted(() => {
 })
 
 const navSections = computed(() => {
-  const critRx = coachStore.dnaPrescriptions.filter(r => r.severity === 'critical').length +
-                 coachStore.openingPrescriptions.filter(r => r.severity === 'critical').length
+  const dnaRx = coachStore.dnaPrescriptions || []
+  const openingRx = coachStore.openingPrescriptions || []
+
+  const critRx = dnaRx.filter((r: any) => r.severity === 'critical').length +
+                 openingRx.filter((r: any) => r.severity === 'critical').length
   
-  const warnRx = coachStore.dnaPrescriptions.filter(r => r.severity === 'warning').length +
-                 coachStore.openingPrescriptions.filter(r => r.severity === 'warning').length
+  const warnRx = dnaRx.filter((r: any) => r.severity === 'warning').length +
+                 openingRx.filter((r: any) => r.severity === 'warning').length
 
   return [
     {
@@ -261,7 +264,7 @@ const navSections = computed(() => {
       title: 'The High Keep',
       showTitle: true,
       items: [
-        { path: '/profile',   icon: '⬡', label: 'War Room',   badge: libraryStore.personalGames.length > 0 ? `🧬 ${libraryStore.personalGames.length}` : null, auth: true  },
+        { path: '/profile',   icon: '⬡', label: 'War Room',   badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true  },
         { path: '/settings',  icon: '⚙️',  label: 'Codex of Rites',     badge: null,   auth: false },
       ].filter(i => !i.auth || !!userStore.session)
     }

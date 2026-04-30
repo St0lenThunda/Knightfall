@@ -38,19 +38,31 @@
                 <h2>Game Archive</h2>
                 <div class="header-stats">
                   <span class="badge badge-primary">✨ {{ userStore.xp }} XP</span>
-                  <span class="badge badge-accent">{{ libraryStore.personalGames.length }} Personal DNA</span>
-                  <span v-if="libraryStore.games.length > libraryStore.personalGames.length" class="badge badge-outline">📚 {{ libraryStore.games.length - libraryStore.personalGames.length }} Library Assets</span>
-                  <span class="badge badge-outline" title="Games played natively on Knightfall">♞ {{ libraryStore.sourceBreakdown.knightfall }} Native</span>
-                  <span class="badge badge-outline" title="Imported from Chess.com/Lichess">🌍 {{ libraryStore.sourceBreakdown.chessCom + libraryStore.sourceBreakdown.lichess }} Imported</span>
+                  <span class="badge badge-accent filter-badge" @click="applyQuickFilter('My Games')" title="View all Personal DNA">
+                    {{ libraryStore.personalGames.length }} Personal DNA
+                  </span>
+                  <span v-if="libraryStore.games.length > libraryStore.personalGames.length" 
+                        class="badge badge-outline filter-badge" 
+                        @click="applyQuickFilter('assets')" 
+                        title="View Professional / Non-Personal Games">
+                    📚 {{ libraryStore.games.length - libraryStore.personalGames.length }} Library Assets
+                  </span>
+                  <span class="badge badge-outline filter-badge" 
+                        @click="applyQuickFilter('native')" 
+                        title="View games played natively on Knightfall">
+                    ♞ {{ libraryStore.sourceBreakdown.knightfall }} Native
+                  </span>
+                  <span class="badge badge-outline filter-badge" 
+                        @click="applyQuickFilter('imported')" 
+                        title="View games imported from Chess.com or Lichess">
+                    🌍 {{ libraryStore.sourceBreakdown.chessCom + libraryStore.sourceBreakdown.lichess }} Imported
+                  </span>
                   <span class="badge">{{ ECO_COUNT }} Openings</span>
                 </div>
               </div>
               <div class="header-actions">
                 <button class="btn btn-ghost btn-sm" @click="libraryStore.loadGames" title="Reload from Local Storage">
                   🔄 Refresh
-                </button>
-                <button class="btn btn-ghost btn-sm" @click="deduplicateVault" title="Remove Duplicates">
-                  🧹 Clean
                 </button>
                 <button class="btn btn-secondary btn-sm" @click="showLabModal = true">
                   📥 Import & Sources
@@ -234,6 +246,25 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Initial Load Overlay -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="isInitialSync && libraryStore.isProcessingIntegrity" class="page-loader-overlay glass-lg">
+          <div class="progress-info-v2">
+            <div class="spinner-xl"></div>
+            <div class="text-group-center">
+              <h2>Initializing War Room</h2>
+              <span class="status-msg-lg">{{ libraryStore.integrityMessage }}</span>
+              <span class="percentage-lg">{{ libraryStore.integrityProgress }}%</span>
+            </div>
+          </div>
+          <div class="integrity-progress-track-lg">
+            <div class="integrity-progress-fill" :style="{ width: libraryStore.integrityProgress + '%' }"></div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -317,6 +348,15 @@ async function handleNuclearReset() {
   }
 }
 
+// Applies quick filters by utilizing the Virtual Tags engine we just built
+function applyQuickFilter(tag: string) {
+  libraryStore.searchQuery = ''
+  libraryStore.selectedTag = tag
+  uiStore.addToast(`Applied filter: ${tag.charAt(0).toUpperCase() + tag.slice(1)}`, 'info')
+}
+
+const isInitialSync = ref(false)
+
 onMounted(async () => {
   // 1. IMMEDIATE: Handle tab from query param for instant visual feedback
   if (route.query.tab === 'vault') activeTab.value = 'vault'
@@ -327,9 +367,14 @@ onMounted(async () => {
   userStore.fetchUserData()
   
   // 3. DEFERRED: Trigger maintenance tasks after render
-  nextTick(() => {
-    libraryStore.repairVaultMetadata()
-    libraryStore.syncCloudGames()
+  nextTick(async () => {
+    isInitialSync.value = true
+    try {
+      await libraryStore.repairVaultMetadata()
+      await libraryStore.syncCloudGames()
+    } finally {
+      isInitialSync.value = false
+    }
   })
 })
 
@@ -549,5 +594,89 @@ const joinedDate = computed(() => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Page Loader Overlay Styles */
+.page-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+}
+
+.progress-info-v2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+.spinner-xl {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(139, 92, 246, 0.2);
+  border-top-color: var(--accent-bright);
+  border-radius: 50%;
+  animation: rotate 1s linear infinite;
+}
+
+.text-group-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+}
+
+.text-group-center h2 {
+  font-size: 1.5rem;
+  color: white;
+  margin: 0;
+}
+
+.status-msg-lg {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.percentage-lg {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent-bright);
+  margin-top: var(--space-2);
+}
+
+.integrity-progress-track-lg {
+  width: 100%;
+  max-width: 400px;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.integrity-progress-fill {
+  height: 100%;
+  background: var(--accent-gradient);
+  transition: width 0.3s ease;
+}
+
+.filter-badge {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-badge:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 </style>

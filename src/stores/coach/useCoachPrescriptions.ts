@@ -5,11 +5,13 @@ import type { Prescription } from '../coachStore'
 /**
  * Coach Prescriptions Composable
  * 
- * Translates statistical anomalies into actionable advice (Prescriptions).
+ * Translates statistical anomalies and tactical performance into actionable advice.
  */
 export function useCoachPrescriptions(
   games: Ref<LibraryGame[]>,
   openingStats: Ref<any[]>,
+  personalPuzzles: Ref<any[]>,
+  puzzleAttempts: Ref<any[]>,
   isMe: (name: string) => boolean
 ) {
   
@@ -18,6 +20,24 @@ export function useCoachPrescriptions(
     const allGames = games.value
     const rx: Prescription[] = []
     
+    // --- Signal 0: The Shadow Realm (High Priority) ---
+    // If we have harvested mistakes from the user's games, prioritize fixing them.
+    if (personalPuzzles.value.length > 0) {
+      const blunderCount = personalPuzzles.value.filter(p => p.severity === 'blunder').length
+      rx.push({ 
+        id: 'shadow-realm', 
+        icon: '👻', 
+        title: 'Conquer Your Ghosts', 
+        desc: blunderCount > 0 
+          ? `We've harvested ${blunderCount} critical blunders from your recent games.` 
+          : `You have ${personalPuzzles.value.length} tactical ghosts waiting in the Shadow Realm.`, 
+        link: '/puzzles?mode=personal', 
+        linkText: 'Enter Shadow Realm →', 
+        severity: blunderCount > 0 ? 'critical' : 'warning', 
+        category: 'tactics' 
+      })
+    }
+
     if (allGames.length === 0) {
       rx.push({ id: 'import', icon: '📥', title: 'Import Your Games', desc: 'Link your Chess.com account to get personalized prescriptions.', link: '/profile', linkText: 'Set Up Profile →', severity: 'info', category: 'dna' })
       rx.push({ id: 'play', icon: '⚔️', title: 'Play Some Games', desc: 'We need at least a few games to analyze your patterns.', link: '/play', linkText: 'Play Now →', severity: 'info', category: 'dna' })
@@ -25,7 +45,26 @@ export function useCoachPrescriptions(
       return rx
     }
 
-    // --- Signal 1: Color Imbalance ---
+    // --- Signal 1: Tactical Accuracy (from Puzzle History) ---
+    if (puzzleAttempts.value.length > 5) {
+      const recent = puzzleAttempts.value.slice(0, 10)
+      const successRate = Math.round((recent.filter(a => a.solved).length / recent.length) * 100)
+      
+      if (successRate < 50) {
+        rx.push({ 
+          id: 'tactical-blindness', 
+          icon: '👁️', 
+          title: 'Tactical Blindness', 
+          desc: `You've missed ${100 - successRate}% of your recent puzzles. Slow down!`, 
+          link: '/puzzles', 
+          linkText: 'Slow Drills →', 
+          severity: 'critical', 
+          category: 'tactics' 
+        })
+      }
+    }
+
+    // --- Signal 2: Color Imbalance ---
     let whiteWins = 0, whiteLosses = 0, blackWins = 0, blackLosses = 0
     allGames.forEach(g => {
       const amWhite = isMe(g.white)
@@ -51,7 +90,7 @@ export function useCoachPrescriptions(
       rx.push({ id: 'white-weak', icon: '⬜', title: 'White Side Weakness', desc: `Your win rate as White is ${whiteWinPct}% vs ${blackWinPct}% as Black.`, link: '/opening-lab', linkText: 'Study Openings →', severity: 'warning', category: 'dna' })
     }
 
-    // --- Signal 2: Game Length (Phase Vulnerability) ---
+    // --- Signal 3: Game Length (Phase Vulnerability) ---
     const losses = allGames.filter(g => {
       const amWhite = isMe(g.white)
       return (g.result === '0-1' && amWhite) || (g.result === '1-0' && !amWhite)
@@ -63,13 +102,6 @@ export function useCoachPrescriptions(
       } else if (avgLossMoves > 55) {
         rx.push({ id: 'endgame-leaks', icon: '🏁', title: 'Endgame Leaks', desc: `Your losses happen in deep endgames (${avgLossMoves} moves).`, link: '/lesson/pawn-promotion', linkText: 'Endgame Drills →', severity: 'warning', category: 'dna' })
       }
-    }
-
-    // --- Signal 3: Aggression Check ---
-    const decisiveGames = allGames.filter(g => g.result !== '1/2-1/2').length
-    const drawPct = allGames.length > 0 ? Math.round(((allGames.length - decisiveGames) / allGames.length) * 100) : 0
-    if (drawPct < 5 && allGames.length > 10) {
-      rx.push({ id: 'aggressive-play', icon: '⚔️', title: 'Aggressive Stylist', desc: `Only ${drawPct}% of your games end in draws.`, link: '/lesson/pins-101', linkText: 'Defense Training →', severity: 'info', category: 'dna' })
     }
 
     // --- Fallbacks: Maintenance Prescriptions ---
@@ -86,7 +118,7 @@ export function useCoachPrescriptions(
   /** Opening-specific repertoire advice. */
   const openingPrescriptions = computed<Prescription[]>(() => {
     const rx: Prescription[] = []
-    const stats = openingStats.value
+    const stats = openingStats.value || []
 
     if (stats.length === 0) {
       rx.push({ id: 'op-import', icon: '📥', title: 'No Repertoire Data', desc: 'We need your games to analyze your openings.', link: '/profile', linkText: 'Link Account →', severity: 'info', category: 'opening' })

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
 import { logger } from '../utils/logger'
+import { Storage, StorageKey } from '../utils/storage'
 
 /**
  * Admin Store
@@ -12,8 +13,8 @@ import { logger } from '../utils/logger'
 export const useAdminStore = defineStore('admin', () => {
   // --- AI CACHE METRICS ---
   const cacheCount = ref(0)
-  const cacheHits = ref(Number(localStorage.getItem('admin_cache_hits') || 0))
-  const cacheMisses = ref(Number(localStorage.getItem('admin_cache_misses') || 0))
+  const cacheHits = ref(Storage.get(StorageKey.ADMIN_CACHE_HITS, 0))
+  const cacheMisses = ref(Storage.get(StorageKey.ADMIN_CACHE_MISSES, 0))
   
   // --- ENGINE METRICS ---
   const engineNps = ref(0)
@@ -22,14 +23,14 @@ export const useAdminStore = defineStore('admin', () => {
 
   // --- API METRICS ---
   const lastApiLatency = ref(0) // ms
-  const totalTokensUsed = ref(Number(localStorage.getItem('admin_total_tokens') || 0))
+  const totalTokensUsed = ref(Storage.get(StorageKey.ADMIN_TOTAL_TOKENS, 0))
   const ttfr = ref(0) // Time to First Recommendation (ms)
   const avgDepth = ref(0)
   const depthStability = ref(100) // % consistency
   
   // --- LLM QUALITY METRICS ---
-  const totalResponses = ref(Number(localStorage.getItem('admin_total_responses') || 0))
-  const avgResponseLength = ref(Number(localStorage.getItem('admin_avg_len') || 0))
+  const totalResponses = ref(Storage.get(StorageKey.ADMIN_TOTAL_RESPONSES, 0))
+  const avgResponseLength = ref(Storage.get(StorageKey.ADMIN_AVG_LEN, 0))
   
   // --- BEHAVIORAL & WARDEN ---
   const suspicionPeak = ref(0)
@@ -44,8 +45,8 @@ export const useAdminStore = defineStore('admin', () => {
   
   // --- SESSION DYNAMICS ---
   const sessionStartTime = ref(Date.now())
-  const movesPlayed = ref(0)
-  const movesAnalyzed = ref(0)
+  const movesPlayed = ref(Storage.get(StorageKey.ADMIN_MOVES_PLAYED, 0))
+  const movesAnalyzed = ref(Storage.get(StorageKey.ADMIN_MOVES_ANALYZED, 0))
   
   // --- STATUS ---
   const isFetching = ref(false)
@@ -108,7 +109,8 @@ export const useAdminStore = defineStore('admin', () => {
   function recordCacheHit() {
     cacheHits.value++
     movesAnalyzed.value++
-    localStorage.setItem('admin_cache_hits', cacheHits.value.toString())
+    Storage.set(StorageKey.ADMIN_CACHE_HITS, cacheHits.value)
+    Storage.set(StorageKey.ADMIN_MOVES_ANALYZED, movesAnalyzed.value)
   }
 
   function recordCacheMiss(tokens = 0, latency = 0) {
@@ -122,10 +124,16 @@ export const useAdminStore = defineStore('admin', () => {
     const currentTotal = avgResponseLength.value * (totalResponses.value - 1)
     avgResponseLength.value = Math.round((currentTotal + tokens) / totalResponses.value)
     
-    localStorage.setItem('admin_cache_misses', cacheMisses.value.toString())
-    localStorage.setItem('admin_total_tokens', totalTokensUsed.value.toString())
-    localStorage.setItem('admin_total_responses', totalResponses.value.toString())
-    localStorage.setItem('admin_avg_len', avgResponseLength.value.toString())
+    Storage.set(StorageKey.ADMIN_CACHE_MISSES, cacheMisses.value)
+    Storage.set(StorageKey.ADMIN_TOTAL_TOKENS, totalTokensUsed.value)
+    Storage.set(StorageKey.ADMIN_TOTAL_RESPONSES, totalResponses.value)
+    Storage.set(StorageKey.ADMIN_AVG_LEN, avgResponseLength.value)
+    Storage.set(StorageKey.ADMIN_MOVES_ANALYZED, movesAnalyzed.value)
+  }
+
+  function recordMovePlayed() {
+    movesPlayed.value++
+    Storage.set(StorageKey.ADMIN_MOVES_PLAYED, movesPlayed.value)
   }
 
   function updateEngineMetrics(nps: number, memory = 0, depth = 0, ttfrMs = 0) {

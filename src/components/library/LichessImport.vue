@@ -56,15 +56,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useLibraryStore } from '../../stores/libraryStore'
+import { Storage, StorageKey } from '../../utils/storage'
 
 const libraryStore = useLibraryStore()
-const username = ref(localStorage.getItem('knightfall_lichess_username') || '')
+const username = ref(Storage.get(StorageKey.LICHESS_USERNAME, ''))
 const lastImportCount = ref(0)
 
 async function handleImport() {
   if (!username.value) return
   
-  localStorage.setItem('knightfall_lichess_username', username.value)
+  Storage.set(StorageKey.LICHESS_USERNAME, username.value)
   
   const beforeCount = libraryStore.games.length
   await libraryStore.importFromLichess(username.value, 15) // Limit to 15 for now

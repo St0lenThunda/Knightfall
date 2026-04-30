@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js'
-import type { LibraryGame, OpeningNode } from '../stores/libraryStore'
+import type { LibraryGame } from '../stores/libraryStore'
+import type { OpeningNode } from '../stores/library/types'
 
 /**
  * Builds a recursive Opening Tree (Trie) from a list of PGN games.

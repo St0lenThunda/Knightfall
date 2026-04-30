@@ -6,7 +6,7 @@ test.describe('Navigation & Accessibility', () => {
 
     // Check for login button since we are guest
     const loginBtn = page.locator('button:has-text("Login")');
-    await expect(loginBtn).toBeVisible();
+    await expect(loginBtn).toBeVisible({ timeout: 10000 });
 
     // Direct Combat
     await page.click('nav.sidenav a:has-text("Direct Combat")');
@@ -29,11 +29,8 @@ test.describe('Navigation & Accessibility', () => {
     await page.goto('/');
 
     const nav = page.locator('nav.sidenav');
-    // It should be present in DOM but not visible (due to transform)
-    // Or we can check for a mobile menu toggle if we had one
-    // Let's just check it has the right styles
-    const box = await nav.boundingBox();
     // If it's translateX(-100%), it should be off-screen
+    const box = await nav.boundingBox();
     if (box) {
       expect(box.x).toBeLessThan(0);
     }

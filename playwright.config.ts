@@ -45,7 +45,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'source ~/.nvm/nvm.sh && nvm use v24.15.0 && npm run dev',
+    command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

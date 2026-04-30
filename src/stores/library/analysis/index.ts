@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Chess } from 'chess.js'
-import type { LibraryGame } from '../../libraryStore'
+import type { LibraryGame } from '../types'
 // User store removed
 import { logger } from '../../../utils/logger'
 
@@ -452,6 +452,19 @@ export function useLibraryAnalysis(
     }
   }
 
+  /**
+   * Manual update for a single position's analysis cache.
+   * Used by the CoachPanel when an LLM insight is generated on-the-fly.
+   */
+  async function updateGameAnalysis(gameId: string, fen: string, explanation: string) {
+    const targetGame = games.value.find(g => g.id === gameId)
+    if (targetGame) {
+      if (!targetGame.analysisCache) targetGame.analysisCache = {}
+      targetGame.analysisCache[fen] = explanation
+      await persistGameUpdate(targetGame)
+    }
+  }
+
   onMounted(() => {
     window.addEventListener('knightfall-insight-complete', handleInsightComplete)
   })
@@ -465,6 +478,7 @@ export function useLibraryAnalysis(
     ...telemetry,
     startBulkAnalysis,
     stopBulkAnalysis,
+    updateGameAnalysis,
     isBulkAnalyzing,
     currentAnalyzingId
   }

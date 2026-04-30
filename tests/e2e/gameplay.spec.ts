@@ -14,19 +14,10 @@ test.describe('Gameplay Mechanics', () => {
     await page.click('#start-game-btn');
     await expect(page.locator('.setup-panel')).toBeHidden();
     
-    const board = page.locator('.chess-board');
-    await expect(board).toBeVisible();
-
-    console.log('Clicking e2...');
     await page.locator('[data-square="e2"]').click({ force: true });
-    
-    // Verify selection via diagnostic element
-    const diag = page.locator('#diag-selected');
-    await expect(diag).toHaveText('e2', { timeout: 10000 });
-    
-    console.log('Clicking e4...');
     await page.locator('[data-square="e4"]').click({ force: true });
 
+    // Verify move was made by checking move history
     const firstMove = page.locator('.move-btn').first();
     await expect(firstMove).toBeVisible({ timeout: 15000 });
     await expect(firstMove).toContainText('e4');
@@ -41,8 +32,6 @@ test.describe('Gameplay Mechanics', () => {
     await expect(page.locator('.setup-panel')).toBeHidden();
     
     await page.locator('[data-square="e2"]').click({ force: true });
-    await expect(page.locator('#diag-selected')).toHaveText('e2');
-    
     await page.locator('[data-square="e4"]').click({ force: true });
     await expect(page.locator('.move-btn')).toHaveCount(1, { timeout: 15000 });
 

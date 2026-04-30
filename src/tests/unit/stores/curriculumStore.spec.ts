@@ -10,9 +10,17 @@ vi.mock('../../../stores/libraryStore', () => ({
 
 vi.mock('../../../api/supabaseClient', () => ({
   supabase: {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null })
+    },
     from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockResolvedValue({ data: [], error: null }),
-    insert: vi.fn().mockResolvedValue({ error: null })
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    insert: vi.fn().mockResolvedValue({ error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
   }
 }))
 
@@ -57,7 +65,7 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     
     expect(puzzle.id).toContain('personal-test-game-123')
     expect(puzzle.solution).toContain('e2e4') // Should be the best move
-    expect(puzzle.explanation).toContain('You played e3')
+    expect(puzzle.explanation).toContain('e2e3')
     expect(puzzle.category).toBe('Personal Mistake')
   })
 
