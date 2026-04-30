@@ -1,6 +1,7 @@
 # ♞ Knightfall
 
 > A premium, full-stack chess training platform built with Vue 3, TypeScript, and Supabase.
+> **Current Version: v0.29.4 (Stable)**
 
 ---
 
@@ -24,16 +25,19 @@ Knightfall is a modern chess web application focused on **skill development thro
 - PGN import for analyzing games from external sources
 - Stockfish engine integration with best-move suggestions
 
-### ⚡ Puzzles
+### ⚡ Puzzles & Shadow Realm
 - Adaptive puzzle queue driven by your **Weakness DNA** category
+- **Shadow Realm (SRS)** — Hyper-personalized tactical training that harvests your actual blunders and serves them back as spaced-repetition drills
+- **DNA Clinic** — Instant tactical prescriptions based on recent gameplay patterns
 - Multi-step tactical puzzles with automated opponent responses
 - Progressive hint system: text hint → highlighted piece → directional arrow
 - Mate-in-X and move-count indicators per puzzle
 - Puzzle skip tracking records failed attempts to Supabase
 
-### 👤 Profile
+### 👤 Profile & Identity
 - User authentication via Supabase (email/password)
-- Real-time profile editor for username updates
+- **Cross-Platform Sync** — Import handles from Lichess and Chess.com to unify your "DNA"
+- Real-time profile editor for username and external handle updates
 - **Weakness DNA radar chart** — 6-axis spider chart blending puzzle failure themes and game loss patterns
 - Win/Loss/Draw donut chart with opening stats
 - Rating history line chart
@@ -41,7 +45,8 @@ Knightfall is a modern chess web application focused on **skill development thro
 - Recent games list
 - **Badge system** — tiered chess titles with milestone, DNA-mastery, streak, and ritual badges
 
-### 🔔 Global Toast Notifications
+### 🔔 Global UI & HUD
+- **Ghostly Terminal (HUD)** — Real-time telemetry for admins: AI cache hits, engine NPS, memory usage, and token costs
 - App-wide toast system replacing all browser `alert()` calls
 - Four variants: `success`, `error`, `warning`, `info`
 - Contextual toasts for: login/logout, puzzle results, profile saves, hint display, PGN errors
@@ -158,27 +163,23 @@ A progressive rank ladder replacing the static "PRO" badge:
 | Title | Symbol | Requirement |
 |-------|--------|-------------|
 | Pawn | ♟ | Default on signup |
-| Knight | ♞ | 10 games + 1200 puzzle rating |
-| Bishop | ♝ | 25 games + 1300 puzzle rating + 1 mastery badge |
-| Rook | ♜ | 50 games + 1400 rating + 3 mastery badges |
-| Queen | ♛ | 100 games + 1500 rating + 5 mastery badges |
-| King | ♚ | 200 games + 1700 rating + 8 mastery badges |
-| Grandmaster | ✦ | 500 games + 2000 rating + all streak badges |
+| Knight | ♞ | 10 games + 1200 puzzle rating + Level 2 |
+| Bishop | ♝ | 25 games + 1300 puzzle rating + 1 mastery badge + Level 3 |
+| Rook | ♜ | 50 games + 1400 rating + 1300 puzzle rating + 3 mastery badges + Level 5 |
+| Queen | ♛ | 100 games + 1500 rating + 1400 puzzle rating + 5 mastery badges + Level 10 |
+| King | ♚ | 200 games + 1700 rating + 1600 puzzle rating + 8 mastery badges + Level 20 |
+| Grandmaster | ✦ | 500 games + 2000 rating + 1800 puzzle rating + Level 50 |
 
 ---
 
 ## Future Roadmap
 
 - [ ] **Real-time Multiplayer** — Supabase Realtime Channels for live matchmaking and game streaming
-- [ ] **Narrative Event Badges** *(Concept 5)* — Story-driven badges awarded for specific in-game moments:
+- [ ] **Mortal Engine Validation** — Advanced Stockfish layer to ensure all harvested blunders are 100% winnable before serving as drills
+- [ ] **Narrative Event Badges** — Story-driven badges awarded for specific in-game moments:
   - 📖 *"The Comeback"* — Won after being down a queen's worth of material
   - 🗡️ *"Opening Theory Broke"* — Won with no recognized opening for 10+ moves
   - 🏆 *"Perfect Run"* — 5 consecutive puzzles: no hints, no mistakes, first attempt
-  - Requires PGN analysis via Supabase Edge Functions and material-tracking middleware
-- [ ] **The "Duolingo for Chess" SRS Engine** — A hyper-personalized Spaced Repetition puzzle system:
-  - 🔍 *Phase 1: Blunder Harvester* — Async background worker parsing `libraryStore` for massive eval swings to extract custom blunder FENs.
-  - 🧠 *Phase 2: SRS Algorithm* — Utilizing SM-2 forgetting curves to serve dynamically generated puzzles based strictly on a user's historical mistakes.
-  - 🎯 *Phase 3: Daily Drill UI* — A gamified "training loop" dashboard featuring progression streaks, XP bars, and instantaneous tactical pulse feedback.
 - [ ] **Opening Explorer** — Interactive tree of user's most-played openings with ECO codes
 - [ ] **Anti-Cheat Edge Functions** — Migrate client-side heuristics to server-side Supabase Edge Functions
 - [ ] **Mobile PWA** — Progressive Web App manifest + offline puzzle mode
