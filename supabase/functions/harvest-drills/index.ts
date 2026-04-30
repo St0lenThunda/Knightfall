@@ -1,6 +1,12 @@
-import { serve } from "http/server"
-import { createClient } from "supabase"
-import { Chess } from "chess.js"
+/* eslint-disable no-undef */
+/// <reference path="../deno-shim.d.ts" />
+declare const Deno: any;
+// @ts-ignore
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// @ts-ignore
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+// @ts-ignore
+import { Chess } from "https://esm.sh/chess.js@1.0.0-beta.7"
 
 /**
  * Knightfall Shadow Realm Edge Function

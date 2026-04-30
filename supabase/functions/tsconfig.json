@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "http/server": ["https://deno.land/std@0.168.0/http/server.ts"],
+      "supabase": ["https://esm.sh/@supabase/supabase-js@2"],
+      "chess.js": ["https://esm.sh/chess.js@1.0.0-beta.7"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

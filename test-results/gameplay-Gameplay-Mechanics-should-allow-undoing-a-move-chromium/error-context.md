@@ -14,185 +14,139 @@
 ```
 Error: expect(locator).toHaveText(expected) failed
 
-Locator:  locator('#diag-selected')
+Locator: locator('#diag-selected')
 Expected: "e2"
-Received: ""
-Timeout:  5000ms
+Timeout: 5000ms
+Error: element(s) not found
 
 Call log:
   - Expect "toHaveText" with timeout 5000ms
   - waiting for locator('#diag-selected')
-    8 × locator resolved to <div data-v-41886935="" id="diag-selected"></div>
-      - unexpected value ""
 
 ```
 
 # Page snapshot
 
 ```yaml
-- generic [active] [ref=e1]:
-  - generic [ref=e3]:
-    - navigation [ref=e4]:
-      - generic [ref=e5]:
-        - generic [ref=e6]: ♞
-        - generic [ref=e7]: Knightfall
-        - button "‹" [ref=e8] [cursor=pointer]
-      - generic [ref=e10]:
-        - button "Login" [ref=e11] [cursor=pointer]
-        - button "Sign Up" [ref=e12] [cursor=pointer]
-      - text: Login
-      - generic [ref=e13]:
-        - generic [ref=e14]:
-          - generic [ref=e15] [cursor=pointer]:
-            - generic [ref=e16]: The Grand Arena
-            - generic [ref=e17]: ⌄
-          - generic [ref=e18]:
-            - link "♟ Direct Combat LIVE" [ref=e19] [cursor=pointer]:
-              - /url: /play
-              - generic [ref=e20]: ♟
-              - generic [ref=e21]: Direct Combat
-              - generic [ref=e22]: LIVE
-            - link "⚡ Siege Trials NEW" [ref=e23] [cursor=pointer]:
-              - /url: /puzzles
-              - generic [ref=e24]: ⚡
-              - generic [ref=e25]: Siege Trials
-              - generic [ref=e26]: NEW
-        - generic [ref=e28] [cursor=pointer]:
-          - generic [ref=e29]: The Apothecary
-          - generic [ref=e30]: ⌄
-        - generic [ref=e31]:
-          - generic [ref=e32] [cursor=pointer]:
-            - generic [ref=e33]: The High Keep
-            - generic [ref=e34]: ⌄
-          - link "⚙️ Codex of Rites" [ref=e36] [cursor=pointer]:
-            - /url: /settings
-            - generic [ref=e37]: ⚙️
-            - generic [ref=e38]: Codex of Rites
-      - generic [ref=e40]: v0.16.0 prototype
-    - main [ref=e41]:
-      - generic [ref=e42]:
-        - generic [ref=e43]:
-          - generic [ref=e44]:
-            - heading "Direct Combat" [level=2] [ref=e45]
-            - paragraph [ref=e46]: Local · Pass & Play · 10m | 5s
-          - generic [ref=e47]:
-            - button "↩ Undo" [disabled] [ref=e48] [cursor=pointer]
-            - button "⇄ Flip" [ref=e49] [cursor=pointer]
-            - button "✕ Resign" [ref=e50] [cursor=pointer]
-        - generic [ref=e51]:
-          - generic:
-            - generic [ref=e52]:
-              - generic [ref=e54]: 👤
-              - generic [ref=e55]:
-                - generic [ref=e56]: Player 2
-                - generic [ref=e58]: "1500"
-              - generic [ref=e59]: 10:00
-            - generic [ref=e61]:
-              - generic [ref=e62]:
-                - generic [ref=e63]:
-                  - generic [ref=e64]: "8"
-                  - generic [ref=e65]: "7"
-                  - generic [ref=e66]: "6"
-                  - generic [ref=e67]: "5"
-                  - generic [ref=e68]: "4"
-                  - generic [ref=e69]: "3"
-                  - generic [ref=e70]: "2"
-                  - generic [ref=e71]: "1"
-                - generic [ref=e73]:
-                  - generic [ref=e74]:
-                    - generic [ref=e75] [cursor=pointer]:
-                      - generic: ♜
-                    - generic [ref=e76] [cursor=pointer]:
-                      - generic: ♞
-                    - generic [ref=e77] [cursor=pointer]:
-                      - generic: ♝
-                    - generic [ref=e78] [cursor=pointer]:
-                      - generic: ♛
-                    - generic [ref=e79] [cursor=pointer]:
-                      - generic: ♚
-                    - generic [ref=e80] [cursor=pointer]:
-                      - generic: ♝
-                    - generic [ref=e81] [cursor=pointer]:
-                      - generic: ♞
-                    - generic [ref=e82] [cursor=pointer]:
-                      - generic: ♜
-                  - generic [ref=e83]:
-                    - generic [ref=e84] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e85] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e86] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e87] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e88] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e89] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e90] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e91] [cursor=pointer]:
-                      - generic: ♟
-                  - generic [ref=e128]:
-                    - generic [ref=e129] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e130] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e131] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e132] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e133] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e134] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e135] [cursor=pointer]:
-                      - generic: ♟
-                    - generic [ref=e136] [cursor=pointer]:
-                      - generic: ♟
-                  - generic [ref=e137]:
-                    - generic [ref=e138] [cursor=pointer]:
-                      - generic: ♜
-                    - generic [ref=e139] [cursor=pointer]:
-                      - generic: ♞
-                    - generic [ref=e140] [cursor=pointer]:
-                      - generic: ♝
-                    - generic [ref=e141] [cursor=pointer]:
-                      - generic: ♛
-                    - generic [ref=e142] [cursor=pointer]:
-                      - generic: ♚
-                    - generic [ref=e143] [cursor=pointer]:
-                      - generic: ♝
-                    - generic [ref=e144] [cursor=pointer]:
-                      - generic: ♞
-                    - generic [ref=e145] [cursor=pointer]:
-                      - generic: ♜
-              - generic [ref=e146]:
-                - generic [ref=e147]: a
-                - generic [ref=e148]: b
-                - generic [ref=e149]: c
-                - generic [ref=e150]: d
-                - generic [ref=e151]: e
-                - generic [ref=e152]: f
-                - generic [ref=e153]: g
-                - generic [ref=e154]: h
-            - generic [ref=e155]:
-              - generic [ref=e157]: "?"
-              - generic [ref=e158]:
-                - generic [ref=e159]: Guest
-                - generic [ref=e161]: "1200"
-              - generic [ref=e162]: 9:55
-          - generic [ref=e164]:
-            - generic [ref=e165]:
-              - generic [ref=e166]: Move History
-              - generic [ref=e167]:
-                - button "⏮" [disabled] [ref=e168] [cursor=pointer]
-                - button "◀" [disabled] [ref=e169] [cursor=pointer]
-                - button "▶" [disabled] [ref=e170] [cursor=pointer]
-                - button "⏭" [disabled] [ref=e171] [cursor=pointer]
-            - generic [ref=e173]: No moves yet. Make your first move!
-    - button "Open Diagnostics" [ref=e175] [cursor=pointer]
-  - button "❤️ REFILL" [ref=e178] [cursor=pointer]
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: ♞
+      - generic [ref=e7]: Knightfall
+      - button "‹" [ref=e8] [cursor=pointer]
+    - generic [ref=e10]:
+      - button "Login" [ref=e11] [cursor=pointer]
+      - button "Sign Up" [ref=e12] [cursor=pointer]
+    - text: Login
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15] [cursor=pointer]:
+          - generic [ref=e16]: The Grand Arena
+          - generic [ref=e17]: ⌄
+        - generic [ref=e18]:
+          - link "♟ Direct Combat LIVE" [ref=e19] [cursor=pointer]:
+            - /url: /play
+            - generic [ref=e20]: ♟
+            - generic [ref=e21]: Direct Combat
+            - generic [ref=e22]: LIVE
+          - link "⚡ Siege Trials NEW" [ref=e23] [cursor=pointer]:
+            - /url: /puzzles
+            - generic [ref=e24]: ⚡
+            - generic [ref=e25]: Siege Trials
+            - generic [ref=e26]: NEW
+      - generic [ref=e28] [cursor=pointer]:
+        - generic [ref=e29]: The Apothecary
+        - generic [ref=e30]: ⌄
+      - generic [ref=e31]:
+        - generic [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: The High Keep
+          - generic [ref=e34]: ⌄
+        - link "⚙️ Codex of Rites" [ref=e36] [cursor=pointer]:
+          - /url: /settings
+          - generic [ref=e37]: ⚙️
+          - generic [ref=e38]: Codex of Rites
+    - generic [ref=e40]: v0.29.1 prototype
+  - main [ref=e41]:
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "Direct Combat" [level=2] [ref=e45]
+          - paragraph [ref=e46]: Local · Pass & Play · 10m | 5s
+        - generic [ref=e47]:
+          - button "📋 Show Intel" [ref=e48] [cursor=pointer]
+          - button "↩ Undo" [disabled] [ref=e49] [cursor=pointer]
+          - button "⇄ Flip" [ref=e50] [cursor=pointer]
+          - button "✕ Resign" [ref=e51] [cursor=pointer]
+      - generic [ref=e53]:
+        - generic [ref=e54]:
+          - generic [ref=e56]: 👤
+          - generic [ref=e57]:
+            - generic [ref=e58]: Player 2
+            - generic [ref=e60]: "1500"
+          - generic [ref=e61]: 10:00
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e67]: "8"
+              - generic [ref=e68]: "7"
+              - generic [ref=e69]: "6"
+              - generic [ref=e70]: "5"
+              - generic [ref=e71]: "4"
+              - generic [ref=e72]: "3"
+              - generic [ref=e73]: "2"
+              - generic [ref=e74]: "1"
+            - generic [ref=e76]:
+              - generic:
+                - img "r" [ref=e150]
+                - img "n" [ref=e152]
+                - img "b" [ref=e154]
+                - img "q" [ref=e156]
+                - img "k" [ref=e158]
+                - img "b" [ref=e160]
+                - img "n" [ref=e162]
+                - img "r" [ref=e164]
+                - img "p" [ref=e166]
+                - img "p" [ref=e168]
+                - img "p" [ref=e170]
+                - img "p" [ref=e172]
+                - img "p" [ref=e174]
+                - img "p" [ref=e176]
+                - img "p" [ref=e178]
+                - img "p" [ref=e180]
+                - img "p" [ref=e182]
+                - img "p" [ref=e184]
+                - img "p" [ref=e186]
+                - img "p" [ref=e188]
+                - img "p" [ref=e190]
+                - img "p" [ref=e192]
+                - img "p" [ref=e194]
+                - img "p" [ref=e196]
+                - img "r" [ref=e198]
+                - img "n" [ref=e200]
+                - img "b" [ref=e202]
+                - img "q" [ref=e204]
+                - img "k" [ref=e206]
+                - img "b" [ref=e208]
+                - img "n" [ref=e210]
+                - img "r" [ref=e212]
+              - img
+              - button "🛠️" [ref=e213] [cursor=pointer]:
+                - generic [ref=e214]: 🛠️
+          - generic [ref=e215]:
+            - generic [ref=e216]: a
+            - generic [ref=e217]: b
+            - generic [ref=e218]: c
+            - generic [ref=e219]: d
+            - generic [ref=e220]: e
+            - generic [ref=e221]: f
+            - generic [ref=e222]: g
+            - generic [ref=e223]: h
+        - generic [ref=e224]:
+          - generic [ref=e226]: "?"
+          - generic [ref=e227]:
+            - generic [ref=e228]: Guest
+            - generic [ref=e230]: "1200"
+          - generic [ref=e231]: 9:54
 ```
 
 # Test source
