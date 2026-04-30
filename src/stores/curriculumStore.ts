@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
 import { Chess } from 'chess.js'
+import { TaggingService } from '../services/taggingService'
+import { useUserStore } from './userStore'
+import { useUiStore } from './uiStore'
 import { useLibraryStore } from './libraryStore'
 import { logger } from '../utils/logger'
 
@@ -132,52 +135,111 @@ export const useCurriculumStore = defineStore('curriculum', () => {
   const isGenerating = ref(false)
 
   /**
+   * Removes a corrupt or invalid puzzle from the user's queue.
+   */
+  async function discardPuzzle(puzzleId: string) {
+    const userStore = useUserStore()
+    const uiStore = useUiStore()
+    const userId = userStore.profile?.id
+    if (!userId) return
+
+    try {
+      // 1. Remove from local state
+      personalPuzzles.value = personalPuzzles.value.filter(p => p.id !== puzzleId)
+      
+      // 2. Remove from Supabase queue
+      const { error } = await supabase
+        .from('puzzle_queue')
+        .delete()
+        .eq('user_id', userId)
+        .eq('puzzle_id', puzzleId)
+
+      if (error) throw error
+      
+      logger.info(`[Curriculum] Discarded corrupt drill: ${puzzleId}`)
+      uiStore.addToast('Drill discarded from Shadow Realm.', 'success')
+    } catch (err) {
+      logger.error(`[Curriculum] Failed to discard drill ${puzzleId}:`, err)
+      uiStore.addToast('Failed to discard drill.', 'error')
+    }
+  }
+
+  /**
    * THE INTELLIGENCE ENGINE (Dynamic Puzzle Generation)
    * Scans the user's analyzed games for significant mistakes and transforms
-   * them into personalized puzzles using the coaching_cache.
+   * them into personalized puzzles using the coaching_cache and TaggingService.
    */
   async function generatePersonalPuzzles() {
+    const { fetchPuzzleBatch } = await import('../api/puzzleApi')
     const library = useLibraryStore()
-    if (library.games.length === 0) return
-
+    
     isGenerating.value = true
     const newPuzzles: any[] = []
 
     try {
+      // 1. Try to fetch from Supabase (Production Path)
+      const dbPuzzles = await fetchPuzzleBatch('Personal Mistake', 20)
+      if (dbPuzzles.length > 0) {
+        personalPuzzles.value = dbPuzzles
+        logger.info(`[Curriculum] Fetched ${dbPuzzles.length} drills from Shadow Realm vault.`)
+        return
+      }
+
+      // 2. Fallback to In-Memory Generation (Legacy/Dev Path)
+      if (library.games.length === 0) return
+
       for (const game of library.games) {
         if (!game.evals || game.evals.length === 0) continue
 
-        // We use chess.js to parse the PGN and get the exact moves for comparison
         const chess = new Chess()
         chess.loadPgn(game.pgn)
         const moves = chess.history({ verbose: true })
         
         // Iterate through evals and find significant mistakes
-        game.evals.forEach((ev, i) => {
+        const evals = game.evals || []
+        evals.forEach((ev, i) => {
           if (!ev || !ev.bestMove || i >= moves.length) return
 
-          const playedMove = moves[i].lan // Long Algebraic Notation (e.g. e2e4)
-          const bestMove = ev.bestMove
-          
-          // If the engine's best move is different and we have an explanation cached
-          if (playedMove !== bestMove && game.analysisCache?.[moves[i].before]) {
+          const fenBefore = moves[i].before
+          const fenAfter = moves[i].after
+          const evalBefore = i > 0 ? (evals[i-1]?.score || 0.3) : 0.3
+          const evalAfter = ev.score || 0
+
+          // Use TaggingService for deterministic classification
+          const tag = TaggingService.identifyMistake(
+            fenBefore,
+            fenAfter,
+            evalBefore,
+            evalAfter,
+            moves[i].lan,
+            ev.bestMove
+          )
+
+          if (tag) {
             newPuzzles.push({
               id: `personal-${game.id}-${i}`,
-              title: `Mistake in ${game.event || 'Recent Game'}`,
+              title: tag.theme,
               rating: Math.round(Number(game.whiteElo || 1200)),
-              themes: ['Mistake Recovery', moves[i].piece],
-              fen: moves[i].before,
+              themes: [tag.category, tag.theme, moves[i].piece],
+              severity: tag.severity,
+              evalDrop: tag.evalDrop,
+              fen: fenBefore,
               lastMove: i > 0 ? moves[i-1].lan : '',
-              solution: [bestMove],
+              solution: [ev.bestMove],
               category: 'Personal Mistake',
-              explanation: game.analysisCache[moves[i].before]
+              explanation: tag.explanation || game.analysisCache?.[fenBefore] || 'Find the best continuation.'
             })
           }
         })
       }
 
-      personalPuzzles.value = newPuzzles.sort(() => Math.random() - 0.5).slice(0, 10)
-      logger.info(`[Curriculum] Generated ${personalPuzzles.value.length} personalized puzzles from vault.`)
+      // SRS Priority: Blunders first, then Mistakes, then Inaccuracies
+      const severityMap: Record<string, number> = { blunder: 3, mistake: 2, inaccuracy: 1 }
+      personalPuzzles.value = newPuzzles
+        .sort((a, b) => (severityMap[b.severity] || 0) - (severityMap[a.severity] || 0))
+        .slice(0, 15)
+
+      logger.info(`[Curriculum] Harvested ${personalPuzzles.value.length} high-priority drills from vault.`)
     } catch (err) {
       logger.error('[Curriculum] Failed to generate personal puzzles:', err)
     } finally {
@@ -235,6 +297,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     personalLessons,
     isGenerating,
     generatePersonalPuzzles,
-    generatePersonalLessons
+    generatePersonalLessons,
+    discardPuzzle
   }
 })

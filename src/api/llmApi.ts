@@ -36,7 +36,6 @@ function generateMockCoaching(req: CoachingRequest): string {
   const evalAbs = Math.abs(req.evalNumber)
   const evalStr = `${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(1)}`
   const isUser = req.isUserMove
-  const you = isUser ? 'you' : player
   const your = isUser ? 'your' : `${player}'s`
   const moveNum = req.moveNumber || 0
 
@@ -45,7 +44,6 @@ function generateMockCoaching(req: CoachingRequest): string {
   const isExcellent = isBestMove || evalAbs < 0.3
   const isGood = !isBestMove && evalAbs < 0.8
   const isInaccuracy = !isBestMove && evalAbs >= 0.8 && evalAbs < 2.0
-  const isBlunder = !isBestMove && evalAbs >= 2.0
 
   // Phase detection based on move number
   const phase = moveNum <= 10 ? 'opening' : moveNum <= 30 ? 'middlegame' : 'endgame'

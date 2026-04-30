@@ -203,12 +203,10 @@
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
-import { useLibraryStore } from '../stores/libraryStore'
 import { useCoachStore } from '../stores/coachStore'
 
 const router = useRouter()
 const userStore = useUserStore()
-const libraryStore = useLibraryStore()
 const coachStore = useCoachStore()
 
 /**

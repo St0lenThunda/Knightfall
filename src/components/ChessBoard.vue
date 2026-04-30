@@ -34,6 +34,7 @@
               :theme="pieceTheme"
               :isInteractive="isInteractive"
               :isThinking="isThinking"
+              :hintSquares="hintSquares"
               @dragstart="({ sq, event }) => handleDragStartPiece(sq, event)"
               @square-click="(sq) => store.selectSquare(sq)"
               @piece-drop="({ sq, event }) => handleDropOnPiece(sq, event)"
@@ -54,7 +55,7 @@
 
             <!-- Arrows Layer -->
             <ArrowLayer 
-              :arrows="arrows"
+              :arrows="allArrows"
               :flipped="flipped"
             />
 
@@ -78,6 +79,7 @@ import { computed, toRefs, ref, watch } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUiStore } from '../stores/uiStore'
+import { logger } from '../utils/logger'
 import type { Square } from 'chess.js'
 import type { MoveQuality } from '../utils/analysisUtils'
 
@@ -97,12 +99,18 @@ const props = withDefaults(defineProps<{
   moveQuality?: MoveQuality | null;
   arrows?: ArrowDef[];
   lastMove?: { from: string; to: string } | null;
+  hintSquares?: string[];
+  hintArrows?: ArrowDef[];
+  debugData?: Record<string, any>;
 }>(), {
   flipped: false,
   interactive: true,
   moveQuality: null,
   arrows: () => [],
-  lastMove: null
+  lastMove: null,
+  hintSquares: () => [],
+  hintArrows: () => [],
+  debugData: () => ({})
 })
 
 const emit = defineEmits(['square-click', 'drop', 'badge-click'])
@@ -145,28 +153,39 @@ function exportDebugInfo() {
     `Clock W: ${whiteTime}s | Clock B: ${blackTime}s`,
     `Suspicion: ${suspicion} | Blurs: ${blurs}`,
     `FEN: ${fen}`,
-    `PGN: ${pgn}`,
-    `--------------------------------------`
-  ].join('\n')
+    `PGN: ${pgn}`
+  ]
+
+  // Inject dynamic debug context (e.g. puzzle solution/step)
+  if (props.debugData && Object.keys(props.debugData).length > 0) {
+    metadata.push(`Context: ${JSON.stringify(props.debugData)}`)
+  }
+
+  metadata.push(`--------------------------------------`)
+  
+  const finalMetadata = metadata.join('\n')
   
   // 2. Console Payload (Deep Object for DevTools)
-  console.group('%c 🛠️ KNF System Snapshot ', 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 4px;')
-  console.log('Game ID:', gameId)
-  console.log('Game Store State:', { ...store.$state })
-  console.log('Board FEN:', fen)
-  console.log('Match PGN:', pgn)
-  console.groupEnd()
+  if (import.meta.env.DEV) {
+    console.group('%c 🛠️ KNF System Snapshot ', 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 4px;')
+    console.log('Game ID:', gameId)
+    console.log('Game Store State:', { ...store.$state })
+    console.log('Board FEN:', fen)
+    console.log('Match PGN:', pgn)
+    console.groupEnd()
+  }
   
   // 3. Execute Clipboard Copy
-  navigator.clipboard.writeText(metadata).then(() => {
+  navigator.clipboard.writeText(finalMetadata).then(() => {
     uiStore.addToast('Full system snapshot copied to clipboard!', 'success')
   }).catch(err => {
-    console.error('Failed to copy snapshot', err)
+    logger.error('Failed to copy snapshot', err)
     uiStore.addToast('Failed to capture state.', 'error')
   })
 }
 
 // Use prop lastMove if provided, else fallback to store's lastMove
+const allArrows = computed(() => [...(props.arrows || []), ...(props.hintArrows || [])])
 const resolvedLastMove = computed(() => props.lastMove || lastMove.value)
 
 const files = ['a','b','c','d','e','f','g','h']

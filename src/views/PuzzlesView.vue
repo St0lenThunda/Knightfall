@@ -76,9 +76,46 @@
           <!-- Real puzzle board -->
           <div class="puzzle-board-wrapper">
             <ChessBoard 
-              :flipped="puzzleColor === 'b'" 
-              :highlights="hintSquares"
-              :arrows="hintArrows"
+              :fen="store.fen" 
+              :lastMove="store.lastMove"
+              :playerColor="puzzleColor"
+              :flipped="puzzleColor === 'b'"
+              :turn="store.turn"
+              :interactive="!puzzleSolved"
+              :hintSquares="hintSquares"
+              :hintArrows="hintArrows"
+              :debugData="{ step: puzzleStep, solution: currentPuzzle?.solution }"
+            />
+
+            <PuzzleIntroOverlay
+              :visible="!!route.query.personal && !introDismissed"
+              :title="currentPuzzle?.title"
+              :category="currentPuzzle?.category"
+              :themes="currentPuzzle?.themes"
+              :severity="currentPuzzle?.severity"
+              @start="startTraining"
+            />
+
+            <PuzzleSuccessOverlay
+              :visible="showSuccessOverlay"
+              :solution-used="solutionUsed"
+              :xp-gained="xpGainedFinal"
+              :time-taken="timeTakenFinal"
+              :bonus-label="bonusLabelFinal"
+              :explanation="currentPuzzle?.explanation"
+              @next="loadNextPuzzle"
+              @close="showSuccessOverlay = false"
+            />
+
+            <ConfirmModal
+              v-if="showDiscardConfirm"
+              title="Discard Drill?"
+              message="Are you sure this drill is broken? This will remove it from your Shadow Realm vault forever."
+              icon="🗑️"
+              variant="danger"
+              confirmLabel="Discard Forever"
+              @confirm="confirmDiscard"
+              @cancel="showDiscardConfirm = false"
             />
           </div>
 
@@ -98,11 +135,11 @@
             <button class="btn btn-ghost btn-sm" @click="revealSolution" :disabled="puzzleSolved" title="Viewing the solution awards 0 XP">
               📝 Solution
             </button>
-            <button class="btn btn-ghost btn-sm" @click="loadNextPuzzle(true)">
-              Skip →
+            <button class="btn btn-ghost btn-sm" @click="loadNextPuzzle(false)">
+              {{ puzzleSolved ? 'Next Puzzle →' : 'Skip →' }}
             </button>
-            <button class="btn btn-primary btn-sm" @click="loadNextPuzzle(false)" v-if="puzzleSolved">
-              Next Puzzle →
+            <button class="btn btn-ghost btn-sm text-rose" @click="discardCorruptPuzzle" v-if="route.query.personal" title="Remove this broken drill from your training vault">
+              🗑 Discard
             </button>
           </div>
         </div>
@@ -141,7 +178,7 @@
         <div class="glass puzzle-queue">
           <div class="card-header"><h4>Up Next</h4></div>
           <div class="queue-list">
-            <div v-for="p in queuePuzzles" :key="p.id" class="queue-item">
+            <div v-for="p in queuePuzzles.slice(0, 5)" :key="p.id" class="queue-item">
               <div class="queue-board-thumb">
                 <span style="font-size: 1.5rem">♟</span>
               </div>
@@ -153,6 +190,12 @@
                 </div>
               </div>
             </div>
+          </div>
+          
+          <div v-if="queuePuzzles.length > 5" class="queue-footer">
+            <button class="btn btn-ghost btn-sm full-width" @click="router.push('/academy')">
+              +{{ queuePuzzles.length - 5 }} More in Sanctum →
+            </button>
           </div>
         </div>
 
@@ -172,45 +215,92 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { fetchDailyPuzzle } from '../api/lichessApi'
-import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
-import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
-import type { Puzzle } from '../api/puzzleApi'
+import ChessBoard from '../components/ChessBoard.vue'
+import PuzzleSuccessOverlay from '../components/PuzzleSuccessOverlay.vue'
+import PuzzleIntroOverlay from '../components/PuzzleIntroOverlay.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
-import ChessBoard from '../components/ChessBoard.vue'
+import { fetchDailyPuzzle } from '../api/lichessApi'
+import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
+import { fetchPuzzleBatch, fetchPuzzleById } from '../api/puzzleApi'
+import type { Puzzle } from '../api/puzzleApi'
 import type { Square, PieceSymbol } from 'chess.js'
+
+import { useRoute, useRouter } from 'vue-router'
 
 const store = useGameStore()
 const userStore = useUserStore()
 const coachStore = useCoachStore()
 const uiStore = useUiStore()
+const route = useRoute()
+const router = useRouter()
+
+const puzzleSolved = ref(false)
+const introDismissed = ref(false)
+const solutionUsed = ref(false)
+const hintLevel = ref(0)
+const maxHintLevel = ref(0)
+const attemptCount = ref(0)
+const puzzleStartTime = ref(Date.now())
+const timeTakenNow = ref(0) // Live timer
+const timeTakenFinal = ref(0) // Captured on solve
+const xpGainedFinal = ref(0)
+const bonusLabelFinal = ref('')
+const showDiscardConfirm = ref(false)
+const showSuccessOverlay = ref(false)
 
 const puzzleRating = computed(() => userStore.profile?.puzzle_rating ?? 1200)
 const streak = computed(() => userStore.currentStreak)
 const solvedToday = computed(() => userStore.solvedToday)
-const activeCat = ref(coachStore.archetypeReport.category || 'mixed')
-const hintLevel = ref(0)
-const puzzleSolved = ref(false)
-const solutionUsed = ref(false)
-
-// Attempt tracking
-const puzzleStartTime = ref(Date.now())
-const timeTakenNow = ref(0)
-const attemptCount = ref(0)
+const activeCat = ref(route.query.personal ? 'Personal Mistake' : (coachStore.archetypeReport.category || 'mixed'))
 
 // Timer interval
 let timerInterval: any = null
-onMounted(() => {
+onMounted(async () => {
+  const curriculumStore = useCurriculumStore()
+  
+  if (route.query.personal) {
+    const p = await fetchPuzzleById(route.query.personal as string)
+    if (p) {
+      currentPuzzle.value = p
+      store.loadPosition(p.fen, 'puzzle')
+      introDismissed.value = false // Explicitly show for personal
+      
+      // Populate queue with the REST of the personal puzzles
+      if (curriculumStore.personalPuzzles.length === 0) {
+        await curriculumStore.generatePersonalPuzzles()
+      }
+      
+      const pzList = curriculumStore.personalPuzzles
+      const currentIdx = pzList.findIndex(pz => pz.id === p.id)
+      if (currentIdx !== -1) {
+        queuePuzzles.value = pzList.slice(currentIdx + 1)
+      } else {
+        queuePuzzles.value = [...pzList]
+      }
+    } else {
+      loadNextPuzzle()
+    }
+  } else {
+    loadNextPuzzle()
+    introDismissed.value = true // Skip for standard puzzles
+  }
+
   timerInterval = setInterval(() => {
-    if (!puzzleSolved.value) {
+    if (!puzzleSolved.value && introDismissed.value) {
       timeTakenNow.value = Math.round((Date.now() - puzzleStartTime.value) / 1000)
     }
   }, 1000)
 })
+
+function startTraining() {
+  introDismissed.value = true
+  puzzleStartTime.value = Date.now()
+}
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval)
@@ -278,6 +368,11 @@ const hintArrows = computed(() => {
 })
 
 watch(() => store.moveHistory.length, (newLen, oldLen) => {
+  // Reset hints on ANY move attempt (next move)
+  if (newLen !== oldLen) {
+    hintLevel.value = 0
+  }
+  
   if (newLen > oldLen && currentPuzzle.value && !puzzleSolved.value && store.mode === 'puzzle') {
     const lastM = store.moveHistory[newLen - 1]
     const uci = lastM.from + lastM.to + (lastM.san.includes('=') ? 'q' : '') 
@@ -291,30 +386,34 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
         if (puzzleStep.value >= currentPuzzle.value.solution.length) {
           if (puzzleSolved.value) return // Guard against double submission
           puzzleSolved.value = true
+          // Reset visual hints immediately on solve
           hintLevel.value = 0
           
-          const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
-          const bonus = calculateTimeBonus(timeTaken)
+          timeTakenFinal.value = timeTakenNow.value
+          const bonus = calculateTimeBonus(timeTakenFinal.value)
           
           userStore.submitPuzzleAttempt(
             currentPuzzle.value.id,
             true,
             Math.max(1, attemptCount.value),
-            timeTaken,
-            hintLevel.value,
+            timeTakenFinal.value,
+            maxHintLevel.value,
             currentPuzzle.value.themes || []
           )
 
           // Award bonus XP only if solution was NOT used
           if (!solutionUsed.value) {
-            userStore.addXP(15) // Base XP
+            xpGainedFinal.value = 15 + bonus.amount
+            bonusLabelFinal.value = bonus.label
+            userStore.addXP(xpGainedFinal.value)
             if (bonus.amount > 0) userStore.addXP(bonus.amount)
-            uiStore.addToast(`Solved! +15 XP ${bonus.amount > 0 ? `+ ${bonus.amount} ${bonus.label}` : ''}`, 'success')
           } else {
-            uiStore.addToast(`Learned! (0 XP awarded for viewing solution)`, 'info')
+            xpGainedFinal.value = 0
+            bonusLabelFinal.value = ''
           }
           
           store.forceGameOver = true 
+          showSuccessOverlay.value = true
         } else {
           // If it's the opponent's turn to respond, play the move automatically
           if (puzzleStep.value % 2 !== 0) {
@@ -342,9 +441,16 @@ watch(() => store.moveHistory.length, (newLen, oldLen) => {
 
 function showHint() { 
   if (hintLevel.value >= 2 || puzzleSolved.value) return
+  
   hintLevel.value++
+  if (hintLevel.value > maxHintLevel.value) {
+    maxHintLevel.value = hintLevel.value
+  }
+
   if (hintLevel.value === 1) {
-    uiStore.addToast('💡 Hint: ' + puzzle.value.hint, 'warning', 6000)
+    uiStore.addToast('💡 Piece highlighted. Look closely...', 'warning', 3000)
+  } else if (hintLevel.value === 2) {
+    uiStore.addToast('💡 Path revealed.', 'warning', 3000)
   }
 }
 
@@ -425,10 +531,24 @@ async function nextPuzzle() {
   loadNextPuzzle()
 }
 
+async function discardCorruptPuzzle() {
+  if (!currentPuzzle.value) return
+  showDiscardConfirm.value = true
+}
+
+async function confirmDiscard() {
+  if (!currentPuzzle.value) return
+  const curriculumStore = useCurriculumStore()
+  showDiscardConfirm.value = false
+  await curriculumStore.discardPuzzle(currentPuzzle.value.id)
+  loadNextPuzzle(true)
+}
+
 async function loadNextPuzzle(skipped = false) {
   const curriculumStore = useCurriculumStore()
   
   // If skipping an incomplete puzzle, record the failed attempt
+  // Note: if puzzleSolved is true, we are NOT skipping, we are moving to next.
   if (skipped && currentPuzzle.value && !puzzleSolved.value) {
     const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
     userStore.submitPuzzleAttempt(
@@ -436,15 +556,20 @@ async function loadNextPuzzle(skipped = false) {
       false,
       Math.max(1, attemptCount.value),
       timeTaken,
-      hintLevel.value,
+      maxHintLevel.value,
       currentPuzzle.value.themes || []
     )
   }
 
   puzzleSolved.value = false
+  showSuccessOverlay.value = false
+  introDismissed.value = true
   solutionUsed.value = false
   hintLevel.value = 0
+  maxHintLevel.value = 0
   attemptCount.value = 0
+  timeTakenNow.value = 0
+  puzzleStartTime.value = Date.now()
   store.forceGameOver = false
   
   if (queuePuzzles.value.length === 0) {
@@ -453,7 +578,10 @@ async function loadNextPuzzle(skipped = false) {
       if (curriculumStore.personalPuzzles.length === 0) {
         await curriculumStore.generatePersonalPuzzles()
       }
-      queuePuzzles.value = [...curriculumStore.personalPuzzles]
+      // Only refill from the store if we don't have a specific sequence running
+      if (queuePuzzles.value.length === 0) {
+        queuePuzzles.value = [...curriculumStore.personalPuzzles]
+      }
     }
 
     // Check Spaced Repetition Queue next
@@ -509,8 +637,8 @@ onMounted(() => {
 
 .puzzles-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: var(--space-6);
+  grid-template-columns: 1fr 340px;
+  gap: var(--space-8);
   align-items: start;
 }
 @media (max-width: 900px) { .puzzles-layout { grid-template-columns: 1fr; } }
@@ -603,8 +731,8 @@ onMounted(() => {
 }
 
 /* Sidebar */
-.puzzle-sidebar { display: flex; flex-direction: column; gap: var(--space-4); }
-.progress-card, .puzzle-queue, .weakness-target { padding: var(--space-5); }
+.puzzle-sidebar { display: flex; flex-direction: column; gap: var(--space-6); }
+.progress-card, .puzzle-queue, .weakness-target { padding: var(--space-6); }
 .progress-row { display: flex; justify-content: space-between; align-items: center; }
 
 .queue-list { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-3); }
@@ -616,6 +744,16 @@ onMounted(() => {
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+}
+
+.queue-footer {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.full-width {
+  width: 100%;
 }
 
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.25s ease; }

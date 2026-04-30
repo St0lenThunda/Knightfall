@@ -153,7 +153,7 @@ export const useUserStore = defineStore('user', () => {
       themes,
       time_taken_seconds: timeTaken,
       attempts,
-      hint_level: hintLevel,
+      hints_used: hintLevel,
       created_at: new Date().toISOString()
     }).select().single()
 

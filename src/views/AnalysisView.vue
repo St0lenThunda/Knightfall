@@ -171,7 +171,6 @@
                     :moves="store.moveHistory"
                     :whitePlayer="resolvedPlayers.white"
                     :blackPlayer="resolvedPlayers.black"
-                    :gameSeed="gameSeed"
                   />
                   
                   <div class="review-tips mt-6 glass-xs p-4">
@@ -304,9 +303,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useGameStore, BOTS } from '../stores/gameStore'
-import { useLibraryStore } from '../stores/libraryStore'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useGameStore } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
 import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
@@ -314,7 +312,8 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { getMoveQuality } from '../utils/analysisUtils'
 import { usePositionalHealth } from '../composables/usePositionalHealth'
 import { renderMarkdown } from '../utils/markdown'
-import { logger } from '../utils/logger'
+import { useAnalysisSession } from '../composables/useAnalysisSession'
+import { useAnalysisPlayers } from '../composables/useAnalysisPlayers'
 import type { TaggedMistake } from '../services/taggingService'
 
 // Sub-components
@@ -329,20 +328,19 @@ import AnalysisSidebar from '../components/AnalysisSidebar.vue'
 import { type ArrowDef } from '../components/board/ArrowLayer.vue'
 
 const store = useGameStore()
-const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
 const userStore = useUserStore()
 const uiStore = useUiStore()
 const settings = useSettingsStore()
+
 const isLoading = ref(true)
 const showHealthLegend = ref(false)
 const isSidebarCollapsed = ref(false)
 
-// Extract Positional Health Heuristics to Composable
-const { metrics, diagnosis } = usePositionalHealth(
-  () => store.fen,
-  () => engineStore.evalNumber
-)
+// Composables
+const { metrics, diagnosis } = usePositionalHealth(() => store.fen, () => engineStore.evalNumber)
+const { resolvedPlayers, playerNames } = useAnalysisPlayers()
+const { isPlaying, pauseReason, togglePlayback, initializeSession } = useAnalysisSession()
 
 
 const showTagPopup = ref(false)
@@ -367,55 +365,30 @@ watch(() => store.viewIndex, () => {
 const renderedExplanation = computed(() => renderMarkdown(currentTag.value?.explanation || null))
 
 
-const gameSeed = computed(() => {
-    if (!store.loadedGameId) return 0
-    return store.loadedGameId.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
-})
+// Deterministic seed placeholder
+// const gameSeed = computed(() => ...)
 
 const engineArrows = computed<ArrowDef[]>(() => {
   const arrows: ArrowDef[] = []
-  
-  // 1. Suggested Best Move (Green) - Handles both live PV and final bestmove
   if (settings.showBestMoveArrow && engineStore.suggestedMove) {
     const sm = engineStore.suggestedMove
     if (sm && sm.length >= 4) {
-      arrows.push({
-        from: sm.slice(0, 2),
-        to: sm.slice(2, 4),
-        type: 'suggestion'
-      })
+      arrows.push({ from: sm.slice(0, 2), to: sm.slice(2, 4), type: 'suggestion' })
     }
   }
-
-  // 2. Alternative Lines (Faded Green)
   if (settings.showBestMoveArrow && engineStore.multiPvs.length > 1) {
     engineStore.multiPvs.slice(1, 3).forEach(alt => {
-      if (alt && alt.moves && alt.moves.length > 0) {
-        const uci = alt.moves[0]
-        if (uci && uci.length >= 4) {
-          arrows.push({
-            from: uci.slice(0, 2),
-            to: uci.slice(2, 4),
-            type: 'suggestion-alt'
-          })
-        }
+      if (alt?.moves?.[0]?.length >= 4) {
+        arrows.push({ from: alt.moves[0].slice(0, 2), to: alt.moves[0].slice(2, 4), type: 'suggestion-alt' })
       }
     })
   }
-
-  // 3. Threat Arrows (Red)
   if (settings.showThreatArrow && engineStore.pv.length > 1) {
-    // In some cases, Stockfish PV shows the opponent's best response
     const threatUci = engineStore.pv[1]
-    if (threatUci && threatUci.length >= 4) {
-      arrows.push({
-        from: threatUci.slice(0, 2),
-        to: threatUci.slice(2, 4),
-        type: 'threat'
-      })
+    if (threatUci?.length >= 4) {
+      arrows.push({ from: threatUci.slice(0, 2), to: threatUci.slice(2, 4), type: 'threat' })
     }
   }
-
   return arrows
 })
 
@@ -428,68 +401,11 @@ const currentViewedMove = computed(() => {
   return store.moveHistory[idx] || null
 })
 
-const resolvedPlayers = computed(() => {
-    const headers = store.chess.header()
-    const wHeader = headers.White
-    const bHeader = headers.Black
-    
-    // 1. Initial resolution from headers
-    let w = (wHeader && wHeader !== '?') ? wHeader : 'White'
-    let b = (bHeader && bHeader !== '?') ? bHeader : 'Black'
-
-    // 2. Prioritize Library Game metadata (from the Vault)
-    const libraryGame = store.loadedGameId ? libraryStore.gamesMap.get(store.loadedGameId) : null
-    if (libraryGame) {
-      if (w === 'White' || w === 'Unknown' || w === '?') w = libraryGame.white
-      if (b === 'Black' || b === 'Unknown' || b === '?') b = libraryGame.black
-    }
-
-    // 3. Resolve 'White'/'Black' to current user if authenticated
-    const myUsername = userStore.profile?.username || userStore.displayName
-    if ((w === 'White' || w === 'Unknown') && userStore.isAuthenticated) w = myUsername
-    if ((b === 'Black' || b === 'Unknown') && userStore.isAuthenticated) b = myUsername
-
-    // 4. Resolve Ratings & Bot Metadata
-    const findBot = (name: string) => BOTS.find(bot => bot.name === name)
-    const whiteBot = findBot(w)
-    const blackBot = findBot(b)
-
-    const getPlayerRating = (header: any, bot: any, isUser: boolean, libraryElo?: string) => {
-      if (isUser && userStore.profile?.rating) return userStore.profile.rating
-      if (header && header !== '?' && header !== '0') return header
-      if (libraryElo && libraryElo !== '?' && libraryElo !== '0') return libraryElo
-      return bot?.rating || '1200'
-    }
-
-    return {
-      white: {
-        name: w,
-        rating: getPlayerRating(headers.WhiteElo, whiteBot, w === userStore.profile?.username, libraryGame?.whiteElo),
-        avatar: whiteBot?.avatar || (w === userStore.profile?.username ? userStore.profile?.avatar_url : '/avatars/default.png')
-      },
-      black: {
-        name: b,
-        rating: getPlayerRating(headers.BlackElo, blackBot, b === userStore.profile?.username, libraryGame?.blackElo),
-        avatar: blackBot?.avatar || (b === userStore.profile?.username ? userStore.profile?.avatar_url : '/avatars/default.png')
-      }
-    }
-})
-
 const currentMoveQuality = computed(() => {
   const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
   const move = store.moveHistory[idx]
   if (!move) return null
-  return getMoveQuality(move, idx, gameSeed.value, store.moveHistory)
-})
-
-const playerNames = computed(() => {
-    const p = resolvedPlayers.value
-    return {
-        white: p.white.name,
-        black: p.black.name,
-        whiteElo: p.white.rating ? `(${p.white.rating})` : '',
-        blackElo: p.black.rating ? `(${p.black.rating})` : ''
-    }
+  return getMoveQuality(move, idx, store.moveHistory)
 })
 
 
@@ -511,76 +427,9 @@ const hasGame = computed(() => store.moveHistory.length > 0)
 const evalNum = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
-// Restart engine analysis whenever the position changes
-let analysisDebounce: any = null
-watch(() => store.fen, (newFen) => {
-  if (analysisDebounce) clearTimeout(analysisDebounce)
-  
-  analysisDebounce = setTimeout(() => {
-    engineStore.analyze(newFen, settings.analysisDepth)
-  }, 100)
-}, { immediate: true })
-
-watch(() => store.loadedGameId, (newId) => {
-  if (newId) {
-    // Intelligent Default: Always start analysis at the first move
-    nextTick(() => store.goToMove(0))
-  }
-})
-
-import { useRoute } from 'vue-router'
-const route = useRoute()
-
 onMounted(async () => {
-  // Let the page render before starting heavy engine work
-  await nextTick()
-  
-  // Ensure library is loaded before we try to find games by ID
-  if (libraryStore.games.length === 0) {
-    await libraryStore.loadGames()
-  }
-
-  engineStore.init()
+  await initializeSession()
   isLoading.value = false
-  
-  const queryId = route.query.id as string
-  let gameLoaded = false
-
-  // 1. Check for specific ID in query params (from Vault/Archives)
-  if (queryId) {
-    const targetGame = libraryStore.gamesMap.get(queryId)
-    if (targetGame) {
-      store.loadPgn(targetGame.pgn, 'analysis', targetGame.id)
-      logger.info(`[Analysis] Loaded requested game: ${queryId}`)
-      gameLoaded = true
-    } else {
-      logger.warn(`[Analysis] Could not find queryId ${queryId} in library map.`)
-    }
-  } 
-  
-  // 2. Persistent State: Check localStorage for last active session if no ID or ID not found
-  if (!gameLoaded && localStorage.getItem('kf_last_analysis_pgn')) {
-    const savedPgn = localStorage.getItem('kf_last_analysis_pgn')!
-    const savedId = localStorage.getItem('kf_last_analysis_id')
-    store.loadPgn(savedPgn, 'analysis', savedId || undefined)
-    logger.info(`[Analysis] Restored session from localStorage.`)
-    gameLoaded = true
-  }
-  
-  // 3. Fallback: If still empty, try latest from library
-  if (!gameLoaded && store.moveHistory.length === 0) {
-    const games = libraryStore.games
-    if (games.length > 0) {
-      const latest = games[games.length - 1]
-      store.loadPgn(latest.pgn, 'analysis', latest.id)
-      gameLoaded = true
-    }
-  }
-
-  // Final check: Start from move 0 if we just loaded something
-  if (gameLoaded && store.viewIndex === -1) {
-    store.goToMove(0)
-  }
 })
 
 
@@ -604,62 +453,6 @@ function importPgn() {
 
 function loadDemo() {
   importPgnStr('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6')
-}
-
-const isPlaying = ref(false)
-const pauseReason = ref<any>(null)
-let playTimeout: any = null
-
-function togglePlayback() {
-  if (isPlaying.value) {
-    isPlaying.value = false
-    if (playTimeout) clearTimeout(playTimeout)
-  } else {
-    isPlaying.value = true
-    pauseReason.value = null // Clear reason when resuming
-    runHighlightPace()
-  }
-}
-
-// Clear pause reason if user manually navigates
-watch(() => store.viewIndex, () => {
-  if (!isPlaying.value) pauseReason.value = null
-})
-
-function runHighlightPace() {
-  if (!isPlaying.value) return
-
-  const currentIdx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
-  const nextIdx = currentIdx + 1
-
-  if (nextIdx >= store.moveHistory.length) {
-    isPlaying.value = false
-    pauseReason.value = null
-    uiStore.addToast('End of game reached.', 'info')
-    return
-  }
-
-  const nextMove = store.moveHistory[nextIdx]
-  const quality = getMoveQuality(nextMove, nextIdx, gameSeed.value, store.moveHistory)
-  
-  store.goToMove(nextIdx)
-
-  // INTERACTIVE PAUSE:
-  // If we hit a major instructional moment, stop the reel so the user can study.
-  if (quality.label === 'blunder' || quality.label === 'mistake') {
-    isPlaying.value = false
-    pauseReason.value = quality // Store the reason for the UI
-    uiStore.addToast(`Oracle Intervention: Paused at ${quality.label.toUpperCase()}.`, 'warning')
-    return
-  }
-
-  // DYNAMIC TEMPO:
-  // Standard moves = 1500ms (Ample time to see the slide)
-  // Inaccuracies/Mistakes = 2500ms (Deep study time)
-  let delay = 1500
-  if (quality.label === 'inaccuracy' || quality.label === 'mistake') delay = 2500
-
-  playTimeout = setTimeout(runHighlightPace, delay)
 }
 
 

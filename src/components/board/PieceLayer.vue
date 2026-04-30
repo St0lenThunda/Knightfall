@@ -22,10 +22,12 @@ interface Props {
   isInteractive: boolean
   isThinking: boolean
   theme?: string
+  hintSquares?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  theme: 'classic'
+  theme: 'classic',
+  hintSquares: () => []
 })
 const emit = defineEmits(['dragstart', 'square-click', 'piece-drop'])
 const store = useGameStore()
@@ -72,7 +74,10 @@ function onDragStart(sq: string, event: DragEvent) {
           left: p.left + '%', 
           top: p.top + '%',
         }"
-        :class="{ 'no-interact': !isInteractive || isThinking }"
+        :class="{ 
+          'no-interact': !isInteractive || isThinking,
+          'is-hinted': hintSquares.includes(p.sq)
+        }"
         :draggable="isInteractive && !isThinking && p.color === turn && (mode !== 'vs-computer' || p.color === playerColor)"
         @dragstart="onDragStart(p.sq, $event)"
         @dragover.prevent
@@ -135,5 +140,27 @@ function onDragStart(sq: string, event: DragEvent) {
 .piece-move-leave-to {
   opacity: 0;
   transform: scale(0.8);
+}
+
+/* Hint Animation */
+.piece-wrapper.is-hinted {
+  z-index: 20;
+}
+
+.piece-wrapper.is-hinted .piece-img {
+  animation: hint-pulse 1.5s infinite ease-in-out;
+  filter: drop-shadow(0 0 12px var(--accent)) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+}
+
+@keyframes hint-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>

@@ -6,13 +6,13 @@ const userStore = useUserStore()
 const showMasteryModal = ref(false)
 
 const rankSymbol = computed(() => {
-  const title = userStore.nextTitle
-  if (title === 'Pawn') return '♟'
-  if (title === 'Knight') return '♞'
-  if (title === 'Bishop') return '♝'
-  if (title === 'Rook') return '♜'
-  if (title === 'Queen') return '♛'
-  if (title === 'King') return '♚'
+  const rank = userStore.currentRankBase
+  if (rank === 'pawn') return '♟'
+  if (rank === 'knight') return '♞'
+  if (rank === 'bishop') return '♝'
+  if (rank === 'rook') return '♜'
+  if (rank === 'queen') return '♛'
+  if (rank === 'king') return '♚'
   return '👑'
 })
 
@@ -71,7 +71,7 @@ const getNextUnlock = computed(() => {
             <header class="modal-header">
               <div class="title-group">
                 <h3>Mastery & Leveling</h3>
-                <p class="muted">Your journey from Initiate to Grandmaster</p>
+                <p class="muted">Your journey from Aspirant to Grandmaster</p>
               </div>
               <button class="btn-close" @click="showMasteryModal = false">✕</button>
             </header>
@@ -82,9 +82,9 @@ const getNextUnlock = computed(() => {
                   <h4>How do I Level Up?</h4>
                   <p>Earn XP by solving puzzles, analyzing your games, and winning matches. Knightfall levels follow a <strong>Quadratic Scaling</strong> model—meaning mastery requires increasing dedication.</p>
                   <div class="xp-table mt-4">
-                    <div class="xp-row"><span>Puzzle Solved</span><span class="text-green">+15 XP</span></div>
-                    <div class="xp-row"><span>Game Analyzed</span><span class="text-teal">+25 XP</span></div>
-                    <div class="xp-row"><span>Daily Goal Met</span><span class="text-gold">+50 XP</span></div>
+                    <div class="xp-row"><span>Tactical Drill Solved</span><span class="text-green">+15 XP</span></div>
+                    <div class="xp-row"><span>Daily Gauntlet Cleared</span><span class="text-teal">+25 XP</span></div>
+                    <div class="xp-row"><span>Academy Lesson Mastered</span><span class="text-gold">+50 XP</span></div>
                   </div>
                 </div>
 
@@ -93,31 +93,61 @@ const getNextUnlock = computed(() => {
                   <div class="milestone-list mt-4">
                     <div class="milestone-item">
                       <span class="lvl">LVL 1</span>
-                      <span class="reward">Initiate (Pawn Title)</span>
+                      <span class="reward">Aspirant (Pawn Tier)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 10</span>
-                      <span class="reward">Apprentice (Knight) + 'Echo' Theme</span>
+                      <span class="reward">Knight (+ 'Echo' Theme)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 20</span>
-                      <span class="reward">Scholar (Bishop) + 'Void' Border</span>
+                      <span class="reward">Bishop (+ 'Void' Border)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 30</span>
-                      <span class="reward">Expert (Rook) + 'Obsidian' Board</span>
+                      <span class="reward">Rook (+ 'Obsidian' Board)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 40</span>
-                      <span class="reward">Master (Queen) + 'Ethereal' Pieces</span>
+                      <span class="reward">Queen (+ 'Ethereal' Pieces)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 50</span>
-                      <span class="reward">Grandmaster (King) + Mastery Badge</span>
+                      <span class="reward">King (+ Mastery Badge)</span>
                     </div>
                     <div class="milestone-item">
                       <span class="lvl">LVL 60+</span>
                       <span class="reward">Legend + Spectral Halo Effect</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mastery-info-card glass full-row mt-6">
+                  <h4>Title Dictionary</h4>
+                  <p class="muted-xs mb-4">Every level within a rank unlocks a unique descriptor based on your legendary path.</p>
+                  <div class="title-dictionary-grid">
+                    <div class="dict-group">
+                      <span class="dict-label">Pawn Path</span>
+                      <div class="dict-tags"><span>Aspirant</span><span>Scout</span><span>Vanguard</span><span>Sentinel</span><span>Shield-Bearer</span><span>Veteran</span></div>
+                    </div>
+                    <div class="dict-group">
+                      <span class="dict-label">Knight Path</span>
+                      <div class="dict-tags"><span>Cavalier</span><span>Gallant</span><span>Paladin</span><span>Dragoon</span><span>Templar</span><span>Champion</span></div>
+                    </div>
+                    <div class="dict-group">
+                      <span class="dict-label">Bishop Path</span>
+                      <div class="dict-tags"><span>Acolyte</span><span>Deacon</span><span>Cleric</span><span>Mystic</span><span>Seer</span><span>Saint</span></div>
+                    </div>
+                    <div class="dict-group">
+                      <span class="dict-label">Rook Path</span>
+                      <div class="dict-tags"><span>Warden</span><span>Keeper</span><span>Castellan</span><span>Bastion</span><span>Fortress</span><span>Colossus</span></div>
+                    </div>
+                    <div class="dict-group">
+                      <span class="dict-label">Queen Path</span>
+                      <div class="dict-tags"><span>Consort</span><span>Sovereign</span><span>Empress</span><span>Overlord</span><span>Tyrant</span><span>Absolute</span></div>
+                    </div>
+                    <div class="dict-group">
+                      <span class="dict-label">King Path</span>
+                      <div class="dict-tags"><span>Monarch</span><span>Emperor</span><span>Conqueror</span><span>Immortal</span><span>Eternal</span><span>Ascended</span></div>
                     </div>
                   </div>
                 </div>
@@ -263,5 +293,24 @@ const getNextUnlock = computed(() => {
 .milestone-item .lvl { color: var(--accent); }
 .milestone-item .reward { flex: 1; margin-left: 12px; font-weight: 500; }
 
-@media (max-width: 600px) { .mastery-grid { grid-template-columns: 1fr; } }
+.full-row { grid-column: 1 / -1; }
+
+.title-dictionary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.dict-group { display: flex; flex-direction: column; gap: 6px; }
+.dict-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--accent); opacity: 0.8; }
+.dict-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.dict-tags span { font-size: 0.7rem; background: rgba(255,255,255,0.03); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
+
+@media (max-width: 600px) { 
+  .mastery-grid { grid-template-columns: 1fr; }
+  .title-dictionary-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 400px) {
+  .title-dictionary-grid { grid-template-columns: 1fr; }
+}
 </style>

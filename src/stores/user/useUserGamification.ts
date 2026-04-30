@@ -1,5 +1,6 @@
 import { ref, computed, type Ref } from 'vue'
 import { supabase } from '../../api/supabaseClient'
+import { Storage, StorageKey } from '../../utils/storage'
 import type { UserProfile } from '../userStore'
 
 /**
@@ -33,27 +34,69 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     return Math.min(100, Math.max(0, ((xp.value - start) / range) * 100))
   })
 
-  // --- Title System (Aligned with Piece Worth) ---
-  const nextTitle = computed(() => {
-    const lvl = currentLevel.value
-    if (lvl < 10) return "Pawn"
-    if (lvl < 20) return "Knight"
-    if (lvl < 30) return "Bishop"
-    if (lvl < 40) return "Rook"
-    if (lvl < 50) return "Queen"
-    if (lvl < 60) return "King"
-    return "Grandmaster"
-  })
+  /**
+   * THEMATIC RANK SYSTEM
+   * Maps levels to specific thematic titles.
+   * Every 10 levels represents a major "Piece Rank" (Pawn -> King).
+   * Within each rank, we provide unique sub-titles to make every level feel distinct.
+   */
+  const levelTitles: Record<string, string[]> = {
+    pawn: ["Aspirant", "Recruit", "Scout", "Vanguard", "Sentinel", "Shield-Bearer", "Man-at-Arms", "Sergeant", "Veteran", "Elite"],
+    knight: ["Knight", "Cavalier", "Gallant", "Paladin", "Dragoon", "Templar", "Banneret", "Commander", "Warlord", "Champion"],
+    bishop: ["Bishop", "Acolyte", "Deacon", "Cleric", "Mystic", "High Priest", "Oracle", "Seer", "Sage", "Saint"],
+    rook: ["Rook", "Warden", "Keeper", "Castellan", "Bastion", "Iron Wall", "Citadel", "Fortress", "Stronghold", "Colossus"],
+    queen: ["Queen", "Consort", "Sovereign", "Empress", "Matriarch", "Overlord", "Tyrant", "Goddess", "Supreme", "Absolute"],
+    king: ["King", "Monarch", "Emperor", "Conqueror", "Immortal", "Legend", "Mythic", "Eternal", "Divine", "Ascended"]
+  }
 
+  /**
+   * The primary display title for the user based on their exact level.
+   * Example: Level 12 -> "Gallant Knight"
+   */
   const currentLevelName = computed(() => {
     const lvl = currentLevel.value
-    if (lvl < 10) return "Initiate"
-    if (lvl < 20) return "Apprentice"
-    if (lvl < 30) return "Scholar"
-    if (lvl < 40) return "Expert"
-    if (lvl < 50) return "Master"
-    if (lvl < 60) return "Grandmaster"
-    return "Legend"
+    const index = lvl % 10 // Sub-level within the 10-level block
+    
+    // Determine the base rank category
+    let rank = "pawn"
+    if (lvl >= 60) return "Grandmaster"
+    if (lvl >= 50) rank = "king"
+    else if (lvl >= 40) rank = "queen"
+    else if (lvl >= 30) rank = "rook"
+    else if (lvl >= 20) rank = "bishop"
+    else if (lvl >= 10) rank = "knight"
+
+    const titles = levelTitles[rank]
+    const subTitle = titles[index] || titles[titles.length - 1]
+    
+    // For major milestones (Level 10, 20, etc.), just return the rank name
+    if (index === 0 && lvl > 1) return rank.charAt(0).toUpperCase() + rank.slice(1)
+    
+    // For intermediate levels, combine or return sub-title
+    return `${subTitle} ${rank.charAt(0).toUpperCase() + rank.slice(1)}`
+  })
+
+  const currentRankBase = computed(() => {
+    const lvl = currentLevel.value
+    if (lvl >= 50) return "king"
+    if (lvl >= 40) return "queen"
+    if (lvl >= 30) return "rook"
+    if (lvl >= 20) return "bishop"
+    if (lvl >= 10) return "knight"
+    return "pawn"
+  })
+
+  /**
+   * The target rank or "Next Big Thing" the user is chasing.
+   */
+  const nextTitle = computed(() => {
+    const lvl = currentLevel.value
+    if (lvl < 10) return "Knight"
+    if (lvl < 20) return "Bishop"
+    if (lvl < 30) return "Rook"
+    if (lvl < 40) return "Queen"
+    if (lvl < 50) return "King"
+    return "Grandmaster"
   })
 
   // --- Mutations ---
@@ -132,12 +175,12 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   }
 
   // --- Academy Achievements ---
-  const completedLessons = ref<string[]>(JSON.parse(localStorage.getItem('knightfall_completed_lessons') || '[]'))
+  const completedLessons = ref<string[]>(Storage.get(StorageKey.COMPLETED_LESSONS, [] as string[]))
 
   function markLessonComplete(lessonId: string) {
     if (!completedLessons.value.includes(lessonId)) {
       completedLessons.value.push(lessonId)
-      localStorage.setItem('knightfall_completed_lessons', JSON.stringify(completedLessons.value))
+      Storage.set(StorageKey.COMPLETED_LESSONS, completedLessons.value)
       addXP(50) // Reward XP
     }
   }
@@ -153,7 +196,7 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
 
   return {
     hearts, xp, streak, maxHearts,
-    currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName,
+    currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName, currentRankBase,
     completedLessons, badges,
     addXP, deductHeart, refillHearts, updateStreak, markLessonComplete
   }

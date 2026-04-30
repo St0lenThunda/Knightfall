@@ -1,24 +1,23 @@
-# Project Status: Knightfall v0.28.0
+# Project Status: Knightfall v0.29.4
 
-**Last Updated**: 2026-04-28 20:30
-**Current Version**: v0.28.0
+**Last Updated**: 2026-04-29 23:52
+**Current Version**: v0.29.4
 
 ## 🎯 Recent Accomplishments
-- **Scholar's Sanctum (Academy)**: Implemented a full learning hub with lesson progression tracking, gamified badges, and progress persistence.
-- **Intelligence Engine Overhaul**: Dismantled the "Cloud-First" bulk strategy to resolve 429 rate-limit errors. Migrated to a Local-First WASM Stockfish model for library synthesis.
-- **Deep Cloud Scan**: Integrated an on-demand Deep Cloud Scan feature for high-fidelity evaluation of specific positions without triggering bulk limits.
-- **Post-Game Fast Scan**: Automated a background Depth 10 evaluation sweep for live games, ensuring instant post-match analysis rendering.
-- **Build Quality Audit**: Resolved 6 critical TypeScript errors across components and stores to maintain a 100% stable build.
+- **Shadow Realm Harvesting (v0.29.4)**: Successfully migrated 389 personalized tactical drills and implemented a real-time **Supabase Edge Function** for automated harvesting.
+- **Atmospheric UI Polish**: Integrated a "void-pulse" CSS animation for the Shadow Realm academy card, enhancing the premium feel.
+- **Production Puzzle API**: Refactored `puzzleApi.ts` to seamlessly bridge local static puzzles with dynamic Supabase-hosted personal drills.
+- **Curriculum Automation**: Updated `curriculumStore.ts` to prioritize fetching live drills from the Shadow Realm database over in-memory generation.
+- **Schema Hardening**: Applied unique constraints to `puzzle_queue` and `coaching_cache` to ensure idempotent batch ingestion and RLS policy compliance.
 
 ## 🚧 In Progress / Next Priorities
-1. **Personalized Academy Drills**: Leverage the `analysisCache` to generate custom training lessons from the user's real-game blunders.
-2. **Modularize 'WarRoomPanel.vue'**: Continue breaking down the dashboard into sub-components (Donut, Chart, Stats).
-3. **Heart System Persistence**: Implement Supabase persistence for user "Lives" and lesson streaks.
+1. **Edge Function Automation**: Transition the manual `harvest_shadow_realm.js` script into a Supabase Edge Function triggered by new match record insertions.
+2. **100% Coverage Initiative**: Expanding unit tests to `libraryStore.ts` and its synchronization/filtering sub-composables.
+3. **Elo-Weighted Intelligence**: Implementing dynamic coaching thresholds that adapt to the player's skill level.
 
 ## ⚠️ Known Debt / Blockers
-- **E2E Test Execution**: Playwright integration is pending a dedicated CI workflow.
-- **Rate Limit Throttling**: While bulk analysis is fixed, the "Deep Scan" button still requires user discipline to avoid manual 429s.
+- **Manual Ingestion**: Drills currently require periodic batch uploads via administrative SQL; real-time harvesting is pending the Edge Function migration.
+- **Worker Environment Mocking**: Unit tests for Stockfish logic require robust global mocks for the Web Worker environment.
 
 ## 🧠 Brain Context (Handoff)
-The project is now at `v0.28.0`. The `gameStore.ts` now orchestrates silent background scans immediately after `saveMatchToLibrary`. The `AcademyView.vue` is the new entry point for learning, and progress is managed via `useUserGamification.ts`. All bulk analysis is now rate-limit immune.
-
+The "Shadow Realm" is now a live feature. The `AcademyView` and `PuzzlesView` correctly fetch personal blunders from Supabase using the `personal-GUID-INDEX` ID pattern. All ingestion errors related to RLS have been bypassed by using administrative SQL with `ON CONFLICT ON CONSTRAINT ... DO NOTHING` guards.

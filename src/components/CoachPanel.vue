@@ -43,7 +43,6 @@ const coachResponse = ref<string | null>(null)
 const deterministicTag = ref<TaggedMistake | null>(null)
 
 const renderedCoach = computed(() => renderMarkdown(coachResponse.value))
-const renderedExplanation = computed(() => renderMarkdown(deterministicTag.value?.explanation || null))
 
 const currentGame = computed(() => {
   if (!store.loadedGameId) return null

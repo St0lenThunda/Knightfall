@@ -37,9 +37,9 @@ export function useLibraryFilter(
     let result = games.value.filter(g => {
       // 1. Search Query
       const matchesSearch = !sq || 
-        g.white.toLowerCase().includes(sq) ||
-        g.black.toLowerCase().includes(sq) ||
-        g.event.toLowerCase().includes(sq)
+        (g.white?.toLowerCase().includes(sq)) ||
+        (g.black?.toLowerCase().includes(sq)) ||
+        (g.event?.toLowerCase().includes(sq))
       
       // 2. Result Filter
       const matchesResult = fr === 'all' || g.result.startsWith(fr)

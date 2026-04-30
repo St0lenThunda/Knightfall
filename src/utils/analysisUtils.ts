@@ -34,7 +34,7 @@ export const QUALITIES: MoveQuality[] = [
  * @param gameSeed - A seed for deterministic fallback (only used when no eval data exists)
  * @param allMoves - Optional: the full moveHistory array for comparing consecutive evals
  */
-export function getMoveQuality(move: any, idx: number, gameSeed: number, allMoves?: any[]): MoveQuality {
+export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQuality {
   // Priority 1: If the move already has an engine-calculated tag, use it
   if (move.tag) {
     const s = move.tag.severity

@@ -88,7 +88,6 @@ const props = defineProps<{
   moves: any[]
   whitePlayer: Player
   blackPlayer: Player
-  gameSeed: number
 }>()
 
 /**
@@ -104,7 +103,7 @@ const stats = computed(() => {
   })
 
   props.moves.forEach((move, idx) => {
-    const quality = getMoveQuality(move, idx, props.gameSeed, props.moves)
+    const quality = getMoveQuality(move, idx, props.moves)
     if (idx % 2 === 0) {
       white[quality.id]++
     } else {
@@ -120,7 +119,7 @@ const accuracies = computed(() => {
     if (playerMoves.length === 0) return 100
     let score = 0
     playerMoves.forEach((m, idx) => {
-      const q = getMoveQuality(m, idx, props.gameSeed, props.moves)
+      const q = getMoveQuality(m, idx, props.moves)
       if (['brilliant', 'great', 'best', 'book'].includes(q.id)) score += 100
       else if (q.id === 'excellent') score += 95
       else if (q.id === 'good') score += 85

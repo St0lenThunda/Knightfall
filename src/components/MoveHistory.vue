@@ -135,11 +135,8 @@ watch(() => store.moveHistory.length, async () => {
   }
 })
 
-// Deterministic seed based on game ID to ensure sync across components
-const gameSeed = computed(() => {
-  if (!store.loadedGameId) return 0
-  return store.loadedGameId.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)
-})
+// Deterministic seed placeholder for future use if needed
+// const gameSeed = computed(() => ...)
 
 function getMoveQuality(move: any, index: number) {
   // Priority 1: If the store already has a tag from real analysis, use it

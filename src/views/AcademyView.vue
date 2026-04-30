@@ -7,10 +7,22 @@
           <p class="view-subtitle text-muted">Master the art of chess from the basic foundations to advanced theory and practice.</p>
         </div>
         
-        <!-- Badges Display -->
-        <div class="badges-container" v-if="userStore.badges && userStore.badges.length > 0">
-          <div v-for="badge in userStore.badges" :key="badge.id" class="academy-badge" :style="{ borderColor: badge.color }" :title="badge.name">
-            <span class="badge-icon">{{ badge.icon }}</span>
+        <div style="display: flex; gap: var(--space-4); align-items: center;">
+          <!-- Refresh Drills Button -->
+          <button 
+            class="btn btn-secondary btn-sm" 
+            @click="curriculumStore.generatePersonalPuzzles"
+            :disabled="curriculumStore.isGenerating"
+          >
+            <span v-if="curriculumStore.isGenerating">🎛 Harvesting...</span>
+            <span v-else>🔄 Refresh Drills</span>
+          </button>
+
+          <!-- Badges Display -->
+          <div class="badges-container" v-if="userStore.badges && userStore.badges.length > 0">
+            <div v-for="badge in userStore.badges" :key="badge.id" class="academy-badge" :style="{ borderColor: badge.color }" :title="badge.name">
+              <span class="badge-icon">{{ badge.icon }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -18,6 +30,40 @@
 
     <div class="scroll-container neon-scroll">
       <div class="academy-content">
+        
+        <!-- THE SHADOW REALM: Personalized Drills -->
+        <div v-if="curriculumStore.personalPuzzles.length > 0" class="subject-card glass shadow-realm">
+          <div class="subject-header">
+            <div class="subject-icon shadow-icon">👤</div>
+            <div class="subject-info">
+              <h2 class="subject-title">Echoes of Your Past</h2>
+              <p class="subject-desc text-muted">Conquer your ghosts. These drills are generated directly from your recent blunders.</p>
+            </div>
+            
+            <div class="subject-progress">
+              <div class="progress-text">{{ curriculumStore.personalPuzzles.length }} Drills Ready</div>
+            </div>
+          </div>
+          
+          <div class="lessons-grid">
+            <div 
+              v-for="(puzzle, pIdx) in curriculumStore.personalPuzzles" 
+              :key="puzzle.id" 
+              class="lesson-item personal-drill" 
+              :class="[`severity-${puzzle.severity}`]"
+            >
+              <div class="lesson-number">#{{ pIdx + 1 }}</div>
+              <div class="lesson-details" @click="openPersonalPuzzle(puzzle.id)">
+                <div class="lesson-name">{{ puzzle.title }}</div>
+                <div class="lesson-status">
+                  {{ puzzle.severity ? puzzle.severity.toUpperCase() : 'DRILL' }} • {{ (puzzle.themes && puzzle.themes[2]) || 'Position' }}
+                </div>
+              </div>
+              <div class="drill-tag">{{ puzzle.severity === 'blunder' ? '🔥' : '⚡' }}</div>
+            </div>
+          </div>
+        </div>
+
         <div v-for="(subject, idx) in curriculum" :key="idx" class="subject-card glass">
           <div class="subject-header">
             <div class="subject-icon">{{ subject.icon }}</div>
@@ -66,11 +112,14 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useCurriculumStore } from '../stores/curriculumStore'
 
 const router = useRouter()
 const userStore = useUserStore()
+const curriculumStore = useCurriculumStore()
 
 const curriculum = [
   {
@@ -123,6 +172,16 @@ const curriculum = [
   }
 ]
 
+onMounted(async () => {
+  if (userStore.session?.user.id) {
+    await curriculumStore.fetchProgress(userStore.session.user.id)
+  }
+  // Auto-generate drills if empty
+  if (curriculumStore.personalPuzzles.length === 0) {
+    await curriculumStore.generatePersonalPuzzles()
+  }
+})
+
 function isCompleted(id: string) {
   return userStore.completedLessons.includes(id)
 }
@@ -139,6 +198,11 @@ function toggleComplete(id: string) {
 
 function openLesson(id: string) {
   router.push(`/lesson/${id}`)
+}
+
+function openPersonalPuzzle(id: string) {
+  // Logic to load the specific harvested blunder into the puzzle viewer
+  router.push(`/puzzles?personal=${id}`)
 }
 </script>
 
@@ -358,5 +422,40 @@ function openLesson(id: string) {
   .lessons-grid {
     grid-template-columns: 1fr;
   }
+}
+.subject-card.shadow-realm {
+  background: linear-gradient(135deg, rgba(88, 28, 135, 0.15), rgba(30, 27, 75, 0.2));
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+  animation: void-pulse 8s infinite ease-in-out;
+}
+
+@keyframes void-pulse {
+  0%, 100% { border-color: rgba(139, 92, 246, 0.3); box-shadow: 0 0 20px rgba(139, 92, 246, 0.1); }
+  50% { border-color: rgba(139, 92, 246, 0.6); box-shadow: 0 0 35px rgba(139, 92, 246, 0.2); }
+}
+
+.shadow-icon {
+  background: rgba(139, 92, 246, 0.2) !important;
+  color: var(--accent-bright);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.lesson-item.personal-drill {
+  position: relative;
+  overflow: hidden;
+}
+
+.severity-blunder { border-left: 3px solid var(--rose); }
+.severity-mistake { border-left: 3px solid var(--gold); }
+.severity-inaccuracy { border-left: 3px solid var(--teal); }
+
+.drill-tag {
+  font-size: 1.2rem;
+  opacity: 0.8;
+}
+
+.is-completed {
+  opacity: 0.7;
 }
 </style>

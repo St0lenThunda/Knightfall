@@ -74,6 +74,38 @@ const areaPath = computed(() => {
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
   return `${line} L${chartW},${chartH} L0,${chartH} Z`
 })
+
+// Interaction State
+const hoveredIndex = ref<number | null>(null)
+const mouseX = ref(0)
+
+/**
+ * Handles mouse movement over the chart to track the nearest data point.
+ */
+function handleMouseMove(e: MouseEvent) {
+  const svg = e.currentTarget as SVGSVGElement
+  const rect = svg.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const normalizedX = (x / rect.width) * chartW
+  
+  // Find nearest point index
+  const step = chartW / Math.max(1, ratingData.value.length - 1)
+  const index = Math.round(normalizedX / step)
+  
+  if (index >= 0 && index < ratingData.value.length) {
+    hoveredIndex.value = index
+    mouseX.value = chartPoints.value[index].x
+  }
+}
+
+const hoveredPoint = computed(() => {
+  if (hoveredIndex.value === null) return null
+  return {
+    ...chartPoints.value[hoveredIndex.value],
+    rating: ratingData.value[hoveredIndex.value],
+    date: filteredRatingHistory.value[hoveredIndex.value].date
+  }
+})
 </script>
 
 <template>
@@ -101,10 +133,44 @@ const areaPath = computed(() => {
         <span>{{ minR }}</span>
       </div>
       <div class="chart-main">
-        <svg :viewBox="`0 0 ${chartW} ${chartH}`" class="rating-svg-full" preserveAspectRatio="none">
+        <svg 
+          :viewBox="`0 0 ${chartW} ${chartH}`" 
+          class="rating-svg-full" 
+          preserveAspectRatio="none"
+          @mousemove="handleMouseMove"
+          @mouseleave="hoveredIndex = null"
+        >
           <path :d="areaPath" fill="rgba(139,92,246,0.1)"/>
           <path :d="linePath" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          
+          <!-- Interactive Guide Line -->
+          <line 
+            v-if="hoveredIndex !== null" 
+            :x1="mouseX" :y1="0" 
+            :x2="mouseX" :y2="chartH" 
+            stroke="rgba(255,255,255,0.15)" 
+            stroke-width="1" 
+            stroke-dasharray="4"
+          />
+          
+          <!-- Hover Point Highlight -->
+          <circle 
+            v-if="hoveredPoint" 
+            :cx="hoveredPoint.x" 
+            :cy="hoveredPoint.y" 
+            r="5" 
+            fill="var(--accent)"
+            stroke="white"
+            stroke-width="2"
+          />
         </svg>
+
+        <!-- Tooltip -->
+        <div v-if="hoveredPoint" class="chart-tooltip glass" :style="{ left: (hoveredPoint.x / chartW * 100) + '%' }">
+          <div class="tooltip-rating">{{ Math.round(hoveredPoint.rating) }} ELO</div>
+          <div class="tooltip-date">{{ new Date(hoveredPoint.date).toLocaleDateString() }}</div>
+        </div>
+
         <div class="x-axis" style="margin-top: var(--space-4);">
           <span>{{ chartFilter === 'ALL' ? 'Vault Start' : new Date(filteredRatingHistory[0]?.date || Date.now()).toLocaleDateString() }}</span>
           <span>Today</span>
@@ -133,4 +199,21 @@ const areaPath = computed(() => {
 
 .dot { width: 8px; height: 8px; border-radius: 50%; }
 .bg-accent { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+.chart-tooltip {
+  position: absolute;
+  top: -60px;
+  transform: translateX(-50%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  z-index: 100;
+  text-align: center;
+  min-width: 100px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.tooltip-rating { font-weight: 900; color: var(--accent); font-size: 0.9rem; line-height: 1; margin-bottom: 2px; }
+.tooltip-date { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
 </style>

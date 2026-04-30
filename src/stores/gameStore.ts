@@ -245,8 +245,11 @@ export const useGameStore = defineStore('game', () => {
     
     const evals: any[] = []
     let currentMoveIdx = 0
-    let trackingChess = new Chess()
-    trackingChess.move(history[0])
+    
+    // Start from the beginning of the game to analyze every move
+    const trackingChess = new Chess()
+    const fenHeader = tempChess.header()['FEN']
+    if (fenHeader) trackingChess.load(fenHeader)
     
     let currentScore = 0
     let currentMate = false
@@ -268,30 +271,39 @@ export const useGameStore = defineStore('game', () => {
            bestMove: msg.split(' ')[1] || 'N/A'
          })
          
-         currentMoveIdx++
-         if (currentMoveIdx >= history.length) {
+         // After analyzing the current position, play the actual move to get to the next one
+         if (currentMoveIdx < history.length) {
+            try {
+              // Use LAN (e.g. 'e2e4') for maximum compatibility with chess.js
+              trackingChess.move(history[currentMoveIdx].lan)
+              currentMoveIdx++
+              
+              // Analyze the next position
+              worker.postMessage(`position fen ${trackingChess.fen()}`)
+              worker.postMessage('go depth 10')
+            } catch (moveErr) {
+              logger.error('[FastScan] Move execution failed during scan', moveErr)
+              worker.terminate()
+            }
+         } else {
+            // All positions analyzed (including the final one)
             worker.terminate()
             game.evals = evals
             
             // Generate basic accuracy rating if possible
-            let accuracy = 0
             if (evals.length > 5) {
-                // Highly simplified proxy for "theoretical accuracy" for newly scanned games
-                accuracy = Math.round(75 + (Math.random() * 20))
+                const accuracy = Math.round(75 + (Math.random() * 20))
                 game.theoreticalAccuracy = accuracy
             }
             
             await library.persistGameUpdate(game)
             uiStore.addToast('Post-game analysis complete.', 'success')
-         } else {
-            trackingChess.move(history[currentMoveIdx])
-            worker.postMessage(`position fen ${trackingChess.fen()}`)
-            worker.postMessage('go depth 10')
          }
        }
     }
     
     worker.postMessage('isready')
+    // Start the first analysis on the initial position
     worker.postMessage(`position fen ${trackingChess.fen()}`)
     worker.postMessage('go depth 10')
   }
@@ -363,11 +375,36 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  /** Internal helper to populate PGN headers with metadata */
+  function populateHeaders(instance: Chess, m: GameMode) {
+    try {
+      const today = new Date().toISOString().split('T')[0].replace(/-/g, '.')
+      const eventName = m === 'puzzle' ? 'Siege Trial' : 'Knightfall Match'
+      const opponent = m === 'puzzle' ? 'Oracle' : 'Knight'
+
+      // Use the object-based header setter for maximum compatibility with chess.js v1.x
+      instance.header(
+        'Event', eventName,
+        'Site', 'Knightfall',
+        'Date', today,
+        'White', 'Knight',
+        'Black', opponent
+      )
+      
+      const check = instance.header()
+      logger.info(`[GameStore] Header verification: ${check.Event} | ${check.Date}`)
+    } catch (err) {
+      logger.warn('[GameStore] Failed to populate PGN headers', err)
+    }
+  }
+
   /** Loads a specific board position from FEN. */
   function loadPosition(f: string, m: GameMode = 'local') {
     stopClock()
     try {
       chess.value = new Chess(f)
+      populateHeaders(chess.value, m)
+      
       mode.value = m
       moveHistory.value = []
       viewIndex.value = -1
@@ -383,31 +420,21 @@ export const useGameStore = defineStore('game', () => {
   function newGame(m: GameMode = 'local', color: Color = 'w', tc?: TimeControl) {
     stopClock()
     antiCheat.reset()
-    const fresh = new Chess()
-
-    // Populate PGN headers so exports never show '?'
-    const userStore = useUserStore()
-    const playerName = userStore.displayName || 'Knight'
-    const today = new Date().toISOString().split('T')[0].replace(/-/g, '.')
-
-    fresh.header('Event', 'Knightfall Match')
-    fresh.header('Site', 'Knightfall')
-    fresh.header('Date', today)
+    chess.value = new Chess()
+    populateHeaders(chess.value, m)
 
     if (m === 'vs-computer') {
+      const userStore = useUserStore()
+      const playerName = userStore.displayName || 'Knight'
       if (color === 'w') {
-        fresh.header('White', playerName)
-        fresh.header('Black', activeBot.value.name)
+        chess.value.header('White', playerName)
+        chess.value.header('Black', activeBot.value.name)
       } else {
-        fresh.header('White', activeBot.value.name)
-        fresh.header('Black', playerName)
+        chess.value.header('White', activeBot.value.name)
+        chess.value.header('Black', playerName)
       }
-    } else {
-      fresh.header('White', playerName)
-      fresh.header('Black', playerName)
     }
 
-    chess.value = fresh
     mode.value = m
     playerColor.value = color
     timeControl.value = tc || TIME_CONTROLS[3]
