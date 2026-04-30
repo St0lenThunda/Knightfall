@@ -49,6 +49,7 @@ export const BOTS: Bot[] = [
  */
 export const useGameStore = defineStore('game', () => {
   const antiCheat = useAntiCheat()
+  const adminStore = useAdminStore()
 
   // --- INTERNAL STATE ---
   const chess = shallowRef(new Chess())

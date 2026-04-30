@@ -1,5 +1,6 @@
 export function initAudio() {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+  const ctx = new AudioContextClass()
   
   const playThud = (freq1: number, freq2: number, time1: number, time2: number) => {
     if (ctx.state === 'suspended') ctx.resume()

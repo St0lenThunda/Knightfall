@@ -65,7 +65,7 @@
         >
           <span class="icon">📂</span>
           <p>Drop PGN/ZIP</p>
-          <button class="btn btn-ghost btn-xs" @click="($refs.fileInput as HTMLInputElement).click()">Select</button>
+          <button class="btn btn-ghost btn-xs" @click="fileInput?.click()">Select</button>
           <input type="file" ref="fileInput" hidden @change="handleFileSelect" accept=".pgn,.zip" />
         </div>
       </div>
@@ -111,6 +111,7 @@ const libSearch = ref('')
 const isDragging = ref(false)
 const importUrl = ref('')
 const pgnText = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const tabs = [
   { id: 'library', icon: '🏆', label: 'Masters' },

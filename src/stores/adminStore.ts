@@ -201,6 +201,7 @@ export const useAdminStore = defineStore('admin', () => {
     sessionDuration,
     movesPlayed,
     movesAnalyzed,
-    analysisToPlayRatio
+    analysisToPlayRatio,
+    recordMovePlayed
   }
 })
