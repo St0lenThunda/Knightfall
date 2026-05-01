@@ -52,6 +52,10 @@ jobs:
     name: Behavioral Validation
     runs-on: ubuntu-latest
     needs: integrity
+    # Inject test environment variables at the job level for clearer context access
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
     # Playwright requires specific environment setup
     container:
       image: mcr.microsoft.com/playwright:v1.41.0-jammy
@@ -68,10 +72,6 @@ jobs:
 
       - name: Run Playwright Tests
         run: npx playwright test
-        env:
-          # Inject test environment variables (Supabase Mock keys, etc.)
-          VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
 
   # Gate 4: Production Readiness
   build:
