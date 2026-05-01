@@ -2,9 +2,9 @@ name: Warden's Shield (Regression Prevention)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, duolingo ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, duolingo ]
 
 jobs:
   # Gate 1: Static Integrity (Linter & Type Check)
