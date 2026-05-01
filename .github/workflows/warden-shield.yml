@@ -45,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Run Unit Tests
-        run: npm run test:unit -- --run
+        run: npm test -- --run
 
   # Gate 3: Behavioral Validation (E2E)
   e2e-tests:
