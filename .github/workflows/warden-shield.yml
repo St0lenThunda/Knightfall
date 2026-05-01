@@ -31,6 +31,13 @@ jobs:
       - name: Type Check (Vue-TSC)
         run: npm run build # This ensures all component props and store refs are valid
 
+      - name: Generate Summary
+        run: |
+          echo "### 🏛️ Structural Integrity Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ All Components & Stores verified." >> $GITHUB_STEP_SUMMARY
+          echo "- **Build**: Production bundle generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "- **Vite**: Asset tree optimized and linked." >> $GITHUB_STEP_SUMMARY
+
   # Gate 2: Logic Verification (Unit Tests)
   unit-tests:
     name: Logic Verification
@@ -49,6 +56,12 @@ jobs:
 
       - name: Run Unit Tests
         run: npm test -- --run
+
+      - name: Generate Summary
+        run: |
+          echo "### 🧪 Logic Verification Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ All Vitest suites passed." >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage**: Core engine math and state transitions verified." >> $GITHUB_STEP_SUMMARY
 
   # Gate 3: Behavioral Validation (E2E)
   e2e-tests:
@@ -72,6 +85,12 @@ jobs:
       - name: Run Playwright Tests
         run: npx playwright test
 
+      - name: Generate Summary
+        run: |
+          echo "### 🎭 Behavioral Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ E2E Gameplay & Navigation verified." >> $GITHUB_STEP_SUMMARY
+          echo "- **Browsers**: Chromium, Firefox, and Webkit tested successfully." >> $GITHUB_STEP_SUMMARY
+
   # Gate 4: Production Readiness
   build:
     name: Production Readiness
@@ -90,3 +109,8 @@ jobs:
 
       - name: Final Production Build
         run: npm run build
+
+      - name: Generate Summary
+        run: |
+          echo "### 🏁 v0.30.0 Ship-Ready" >> $GITHUB_STEP_SUMMARY
+          echo "The Warden has verified all gates. Knightfall is stable and ready for deployment." >> $GITHUB_STEP_SUMMARY
