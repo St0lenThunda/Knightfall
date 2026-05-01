@@ -12,6 +12,12 @@ export interface Toast {
 
 export const useUiStore = defineStore('ui', () => {
   const toasts = ref<Toast[]>([])
+  
+  // Confirmation Modal State
+  const isConfirmOpen = ref(false)
+  const confirmTitle = ref('')
+  const confirmMessage = ref('')
+  let confirmCallback: (() => void) | null = null
 
   function addToast(message: string, variant: ToastVariant = 'info', duration = 3000) {
     const id = Date.now().toString() + Math.random().toString(36).substring(2)
@@ -29,5 +35,31 @@ export const useUiStore = defineStore('ui', () => {
     if (index > -1) toasts.value.splice(index, 1)
   }
 
-  return { toasts, addToast, removeToast }
+  /**
+   * Triggers a styled confirmation modal.
+   */
+  function confirm(title: string, message: string, onConfirm: () => void) {
+    confirmTitle.value = title
+    confirmMessage.value = message
+    confirmCallback = onConfirm
+    isConfirmOpen.value = true
+  }
+
+  function handleConfirm() {
+    if (confirmCallback) confirmCallback()
+    isConfirmOpen.value = false
+  }
+
+  const isArchetypeModalOpen = ref(false)
+
+  function handleCancel() {
+    isConfirmOpen.value = false
+    isArchetypeModalOpen.value = false
+  }
+
+  return { 
+    toasts, addToast, removeToast, 
+    isConfirmOpen, confirmTitle, confirmMessage, confirm, handleConfirm, handleCancel,
+    isArchetypeModalOpen
+  }
 })

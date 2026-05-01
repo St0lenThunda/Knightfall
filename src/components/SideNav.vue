@@ -18,8 +18,8 @@
       <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
         <div class="user-rating" style="display: flex; gap: 6px; margin-top: 2px;">
-          <span class="badge badge-gold" title="Performance Rating">♔ {{ libraryStore.stats?.performanceRating || 1200 }}</span>
-          <span class="badge badge-primary" title="Experience Points">✨ {{ userStore.xp || 0 }} XP</span>
+          <span class="badge badge-gold" data-tooltip="Your overall performance rating.">♔ {{ libraryStore.stats?.performanceRating || 1200 }} <span style="margin-left: 4px; opacity: 0.7;">ⓘ</span></span>
+          <span class="badge badge-primary" data-tooltip="Your total scholar experience.">✨ {{ userStore.xp || 0 }} XP <span style="margin-left: 4px; opacity: 0.7;">ⓘ</span></span>
         </div>
       </div>
     </div>
@@ -53,7 +53,10 @@
           v-show="!collapsed && section.showTitle"
           @click="toggleSection(section.title)"
         >
-          <span class="section-title">{{ section.title }}</span>
+          <div class="section-titles">
+            <span class="section-title">{{ section.title }}</span>
+            <span class="section-subtitle" v-if="section.subtitle">{{ section.subtitle }}</span>
+          </div>
           <span class="section-chevron">{{ collapsedSections.has(section.title) ? '⌃' : '⌄' }}</span>
         </div>
         
@@ -241,31 +244,40 @@ const navSections = computed(() => {
 
   return [
     {
-      title: 'The Grand Arena',
+      title: 'Command & Identity',
+      subtitle: 'The High Keep',
       showTitle: true,
       items: [
-        { path: '/path',      icon: '🛣️',  label: "Knight's Path", badge: 'LEVEL 1', auth: true },
-        { path: '/academy',   icon: '🏛️',  label: 'The Scholar\'s Sanctum', badge: null, auth: true },
-        { path: '/play',      icon: '♟',  label: 'Direct Combat',   badge: 'LIVE', auth: false },
-        { path: '/puzzles',   icon: '⚡',  label: 'Siege Trials',    badge: 'NEW',  auth: false },
-        { path: '/gauntlet',  icon: '🔥',  label: 'The Great Gauntlet',   badge: null,   auth: true  },
+        { path: '/profile', icon: '⬡', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
+        { path: '/profile?tab=dna', icon: '🧬', label: 'Soul Mapping', badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true },
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'The Apothecary',
+      title: 'Training Grounds',
+      subtitle: 'The Academy',
       showTitle: true,
       items: [
-        { path: '/profile?tab=dna', icon: '🧬',  label: 'Soul Mapping',     badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true  },
-        { path: '/opening-lab', icon: '📖', label: 'Stratagem Forge',  badge: null,   auth: true  },
-        { path: '/analysis',  icon: '🔬', label: "Oracle's Review", badge: null,   auth: true  },
+        { path: '/academy', icon: '⚔️', label: "Knight's Path", badge: 'ACTIVE', auth: true },
+        { path: '/puzzles', icon: '⚡', label: 'Siege Trials', badge: 'NEW', auth: false },
+        { path: '/gauntlet', icon: '🔥', label: 'The Great Gauntlet', badge: null, auth: true },
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'The High Keep',
+      title: 'The Front Lines',
+      subtitle: 'The Grand Arena',
       showTitle: true,
       items: [
-        { path: '/profile',   icon: '⬡', label: 'War Room',   badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true  },
-        { path: '/settings',  icon: '⚙️',  label: 'Codex of Rites',     badge: null,   auth: false },
+        { path: '/play', icon: '♟', label: 'Direct Combat', badge: 'LIVE', auth: false },
+      ].filter(i => !i.auth || !!userStore.session)
+    },
+    {
+      title: 'Intelligence Lab',
+      subtitle: 'The Apothecary',
+      showTitle: true,
+      items: [
+        { path: '/analysis', icon: '🔬', label: "Oracle's Review", badge: null, auth: true },
+        { path: '/opening-lab', icon: '📖', label: 'Stratagem Forge', badge: null, auth: true },
+        { path: '/settings', icon: '⚙️', label: 'Codex of Rites', badge: null, auth: false },
       ].filter(i => !i.auth || !!userStore.session)
     }
   ]
@@ -392,14 +404,28 @@ const navSections = computed(() => {
 .section-header:hover .section-title { color: var(--text-primary); }
 .section-header:hover .section-chevron { color: var(--accent-bright); }
 
+.section-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: var(--space-3);
+}
+
 .section-title {
   font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  margin-left: var(--space-3);
   transition: color 0.2s;
+}
+
+.section-subtitle {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-style: italic;
+  letter-spacing: 0.05em;
 }
 .section-chevron {
   font-size: 0.8rem;

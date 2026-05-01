@@ -60,7 +60,7 @@
             />
 
             <!-- Dev Debug Tool (Inside Board) -->
-            <button class="dev-debug-btn" @click.stop="exportDebugInfo" title="Export Board State (FEN/PGN)">
+            <button v-if="isDev" class="dev-debug-btn" @click.stop="exportDebugInfo" title="Export Board State (FEN/PGN)">
               <span class="debug-icon">🛠️</span>
             </button>
           </div>
@@ -117,6 +117,7 @@ const emit = defineEmits(['square-click', 'drop', 'badge-click'])
 
 const isInteractive = computed(() => props.interactive)
 const uiStore = useUiStore()
+const isDev = import.meta.env.DEV
 
 /**
  * EXPORT DEBUG INFO
@@ -153,7 +154,9 @@ function exportDebugInfo() {
     `Clock W: ${whiteTime}s | Clock B: ${blackTime}s`,
     `Suspicion: ${suspicion} | Blurs: ${blurs}`,
     `FEN: ${fen}`,
-    `PGN: ${pgn}`
+    `PGN: ${pgn}`,
+    `Solution: ${JSON.stringify(store.currentDrill || [])}`,
+    `Step: ${store.drillIndex || 0}/${(store.currentDrill || []).length}`
   ]
 
   // Inject dynamic debug context (e.g. puzzle solution/step)

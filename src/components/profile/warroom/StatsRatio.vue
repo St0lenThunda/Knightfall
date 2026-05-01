@@ -11,7 +11,10 @@ const libraryStore = useLibraryStore()
 <template>
   <div class="glass card-v3 mb-6">
     <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-      <h4 style="margin: 0;">Performance Ratio</h4>
+      <h4 style="margin: 0; display: flex; align-items: center;">
+        Performance Ratio
+        <span class="stat-info-trigger" data-tooltip="Your overall combat efficiency. Measures how consistently you convert positions into results.">ⓘ</span>
+      </h4>
       <div class="wld-stats-summary" style="opacity: 0.6; font-size: 0.8rem;">
         Total DNA Games: {{ libraryStore.libraryWldStats.total }}
       </div>
@@ -38,19 +41,19 @@ const libraryStore = useLibraryStore()
       <div class="wld-breakdown-v2">
         <div class="breakdown-row">
           <div class="dot bg-green"></div>
-          <span class="label">Wins</span>
+          <span class="label">Wins <span class="stat-info-trigger" data-tooltip="Total matches won. These boost your Performance Rating significantly.">ⓘ</span></span>
           <span class="val">{{ libraryStore.libraryWldStats.win }}</span>
           <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.winPct) }}%</span>
         </div>
         <div class="breakdown-row">
           <div class="dot bg-rose"></div>
-          <span class="label">Losses</span>
+          <span class="label">Losses <span class="stat-info-trigger" data-tooltip="Total matches lost. These identify patterns for your 'Shadow Realm' drills.">ⓘ</span></span>
           <span class="val">{{ libraryStore.libraryWldStats.loss }}</span>
           <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.lossPct) }}%</span>
         </div>
         <div class="breakdown-row">
           <div class="dot bg-gold"></div>
-          <span class="label">Draws</span>
+          <span class="label">Draws <span class="stat-info-trigger" data-tooltip="Matches ending in a stalemate. At high levels, these indicate solid defensive DNA.">ⓘ</span></span>
           <span class="val">{{ libraryStore.libraryWldStats.draw }}</span>
           <span class="pct muted">{{ Math.round(libraryStore.libraryWldStats.drawPct) }}%</span>
         </div>

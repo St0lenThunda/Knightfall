@@ -138,20 +138,41 @@ export const useLibraryStore = defineStore('library', () => {
 
   /**
    * Initializes the library by loading the first chunk of games.
+   * Priority 1: Load all personal games (for live stats).
+   * Priority 2: Lazy load the rest of the vault in chunks.
    */
   async function loadGames() {
     totalVaultGames.value = await idb.getGameCount()
     
-    // If vault is manageable (< 2000), load everything for best UX
+    // 1. Gather all identities for priority fetch
+    const identities = [
+      userStore.profile?.username,
+      userStore.profile?.lichess_handle,
+      userStore.profile?.chesscom_handle
+    ].filter(Boolean) as string[]
+    
+    // 2. Load all personal games immediately to ensure stats are live
+    const personal = await idb.loadGamesByUser(identities)
+    games.value = personal
+    
+    logger.info(`[Library] Priority load complete. ${personal.length} personal games loaded for stats.`)
+
+    // 3. If vault is manageable (< 2000), load everything for best UX
     if (totalVaultGames.value < 2000) {
-      await idb.loadGames()
+      await idb.loadGames() // This will update games.value with everything
       vaultOffset.value = totalVaultGames.value
     } else {
-      // Otherwise, load first chunk
+      // Otherwise, load first chunk of the entire vault
+      // We'll deduplicate using the gamesMap/unique IDs
       const chunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0, sortBy.value, sortOrder.value as 'asc' | 'desc')
-      games.value = chunk
+      
+      // Merge unique entries only
+      const existingIds = new Set(games.value.map(g => g.id))
+      const uniqueChunk = chunk.filter(g => !existingIds.has(g.id))
+      
+      games.value = [...games.value, ...uniqueChunk]
       vaultOffset.value = VAULT_PAGE_SIZE
-      logger.info(`[Library] Lazy loading active. Loaded first ${VAULT_PAGE_SIZE} of ${totalVaultGames.value} games.`)
+      logger.info(`[Library] Lazy loading active. ${games.value.length} total games in memory.`)
     }
   }
 
@@ -164,7 +185,11 @@ export const useLibraryStore = defineStore('library', () => {
     isImporting.value = true // Reuse loading state
     const nextChunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, vaultOffset.value, sortBy.value, sortOrder.value as 'asc' | 'desc')
     
-    games.value = [...games.value, ...nextChunk]
+    // Deduplicate
+    const existingIds = new Set(games.value.map(g => g.id))
+    const uniqueChunk = nextChunk.filter(g => !existingIds.has(g.id))
+
+    games.value = [...games.value, ...uniqueChunk]
     vaultOffset.value += VAULT_PAGE_SIZE
     isImporting.value = false
   }
@@ -379,6 +404,7 @@ export const useLibraryStore = defineStore('library', () => {
     pushLocalGamesToCloud: cloud.pushLocalGamesToCloud,
     deleteCloudGame: cloud.deleteCloudGame,
     pushGameAnalysis: cloud.pushGameAnalysis,
+    analyzeLibraryWithCloud: cloud.analyzeLibraryWithCloud,
     
     generateOpeningTree: constellation.generateOpeningTree,
     changePerspectiveAndMap: constellation.changePerspectiveAndMap,
@@ -392,6 +418,7 @@ export const useLibraryStore = defineStore('library', () => {
     repairVaultMetadata,
     repairVaultIdentity,
     purgeDuplicates: idb.purgeDuplicates,
+    deduplicate: idb.purgeDuplicates, // Alias
 
     // Expose filtered list
     filteredGames: filter.filteredGames,
@@ -399,6 +426,7 @@ export const useLibraryStore = defineStore('library', () => {
     searchQuery,
     filterResult,
     selectedTag,
+    setFilter: (tag: string) => { selectedTag.value = tag }, // Alias
     allTags: filter.allTags,
     filterPerspective,
     sortBy,
@@ -416,7 +444,12 @@ export const useLibraryStore = defineStore('library', () => {
     constellation,
     intel,
 
-    // Legacy Helpers (to be moved if needed)
+    // Legacy Helpers
+    nukeVault: async (wipeCloud = false) => {
+      await idb.resetLibrary()
+      if (wipeCloud) await cloud.purgeCloudLibrary()
+    },
+    ecoStats: stats.openingStats, // Alias
     importFromUrl: async (url: string, name = 'Collection') => {
       isImporting.value = true
       const { importPgnFromUrl } = await import('../api/lichessApi')

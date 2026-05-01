@@ -1,10 +1,12 @@
 import puzzlesData from '../data/puzzles.json'
+import assessmentPuzzlesData from '../data/assessmentPuzzles.json'
 import { supabase } from './supabaseClient'
 import { logger } from '../utils/logger'
 import { Chess as ChessEngine } from 'chess.js'
 
 export interface Puzzle {
   id: string
+  stage?: string // For assessment puzzles
   title: string
   rating: number
   themes: string[]
@@ -18,6 +20,18 @@ export interface Puzzle {
 }
 
 const puzzles = puzzlesData as Puzzle[]
+const assessmentPuzzles = assessmentPuzzlesData as Puzzle[]
+
+export async function fetchAssessmentPuzzles(stage: string): Promise<Puzzle[]> {
+  logger.info(`[PuzzleAPI] Fetching assessment stage: ${stage}. Total pool size: ${assessmentPuzzles.length}`)
+  
+  // Safety filter: Ensure we only pick puzzles that have a stage property 
+  // and match the requested stage.
+  const filtered = assessmentPuzzles.filter(p => p.stage && p.stage === stage)
+  
+  logger.info(`[PuzzleAPI] Found ${filtered.length} puzzles for ${stage}`)
+  return filtered
+}
 
 export async function fetchRandomPuzzle(category?: string): Promise<Puzzle> {
   const batch = await fetchPuzzleBatch(category, 1)

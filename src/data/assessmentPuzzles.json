@@ -1,0 +1,68 @@
+[
+  {
+    "id": "assess-tac-1",
+    "stage": "tactics",
+    "title": "Tactical Floor: Back Rank Mate",
+    "rating": 600,
+    "fen": "6k1/5ppp/8/8/8/8/5PPP/1R4K1 w - - 0 1",
+    "lastMove": "h7h6",
+    "solution": ["b1b8"],
+    "category": "Tactics",
+    "themes": ["mate", "back-rank"]
+  },
+  {
+    "id": "assess-tac-2",
+    "stage": "tactics",
+    "title": "The Knight's Fork",
+    "rating": 1000,
+    "fen": "4k1r1/8/5N2/8/8/8/8/4K3 w - - 0 1",
+    "lastMove": "Ke8",
+    "solution": ["f6g8"],
+    "category": "Tactics",
+    "themes": ["fork"]
+  },
+  {
+    "id": "assess-calc-1",
+    "stage": "calculation",
+    "title": "Simple Calculation: Sacrifice",
+    "rating": 1200,
+    "fen": "r1bqk2r/pppp1ppp/2n5/2b1p3/2B1P1n1/P1N2N2/1PPP1PPP/R1BQK2R w KQkq - 1 6",
+    "lastMove": "Ng4",
+    "solution": ["c4f7", "e8f7", "f3e5"],
+    "category": "Tactics",
+    "themes": ["calculation", "sacrifice"]
+  },
+  {
+    "id": "assess-end-1",
+    "stage": "endgame",
+    "title": "Pawn Race: The Square Rule",
+    "rating": 1000,
+    "fen": "8/8/8/8/k7/8/1P6/K7 w - - 0 1",
+    "lastMove": "Ka4",
+    "solution": ["b2b4"],
+    "category": "Endgame",
+    "themes": ["pawn", "square-rule"]
+  },
+  {
+    "id": "assess-strat-1",
+    "stage": "strategy",
+    "title": "Strategy: King Safety",
+    "rating": 1100,
+    "fen": "rnbq1rk1/pp2ppbp/5np1/2pp4/2PP4/2N2NP1/PP2PPBP/R1BQK2R w KQ - 0 7",
+    "lastMove": "d5c4",
+    "solution": ["e1g1"],
+    "category": "Strategy",
+    "themes": ["castle", "positional"]
+  },
+  {
+    "id": "assess-speed-1",
+    "stage": "speed",
+    "title": "Speed Test: Instant Mate",
+    "rating": 800,
+    "fen": "7k/5R2/6K1/8/8/8/8/8 w - - 0 1",
+    "lastMove": "Kg8",
+    "solution": ["f7f8"],
+    "category": "Speed",
+    "themes": ["mate-in-1"]
+  }
+]

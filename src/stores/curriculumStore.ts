@@ -8,6 +8,9 @@ import { useUiStore } from './uiStore'
 import { useLibraryStore } from './libraryStore'
 import { logger } from '../utils/logger'
 
+// --- Specialized Composables (Pillar Architecture) ---
+import { useAssessmentEngine } from './curriculum/useAssessmentEngine'
+
 export interface SkillNode {
   id: string
   title: string
@@ -165,6 +168,48 @@ export const useCurriculumStore = defineStore('curriculum', () => {
   }
 
   /**
+   * APPROACH 1: Shadow Realm Harvesting
+   * Directly injects a discovered blunder into the user's personal training queue.
+   */
+  async function harvestBlunders(gameId: string, blunderData: any) {
+    const userStore = useUserStore()
+    const userId = userStore.profile?.id
+    if (!userId) return
+
+    logger.info(`[Curriculum] Harvesting blunder for Shadow Realm: ${gameId}`)
+
+    const { error } = await supabase.from('puzzle_queue').insert({
+      user_id: userId,
+      game_id: gameId,
+      fen: blunderData.fen,
+      move: blunderData.move,
+      ply: blunderData.ply,
+      drop: blunderData.drop,
+      category: 'Personal Mistake',
+      metadata: {
+        harvested_at: new Date().toISOString(),
+        source: 'Cloud Intel Pass'
+      }
+    })
+
+    if (error) {
+      logger.error('[Curriculum] Failed to harvest blunder:', error)
+    } else {
+      const uiStore = useUiStore()
+      uiStore.addToast(`Shadow Realm Updated: New tactical ghost captured from ${gameId}.`, 'success')
+      
+      // Local sync
+      personalPuzzles.value.unshift({
+        id: `harvested-${gameId}-${blunderData.ply}`,
+        fen: blunderData.fen,
+        solution: [blunderData.move], // This will be refined by the coaching pass
+        themes: ['Shadow Realm', 'Personal Mistake'],
+        category: 'Personal Mistake'
+      })
+    }
+  }
+
+  /**
    * THE INTELLIGENCE ENGINE (Dynamic Puzzle Generation)
    * Scans the user's analyzed games for significant mistakes and transforms
    * them into personalized puzzles using the coaching_cache and TaggingService.
@@ -284,7 +329,10 @@ export const useCurriculumStore = defineStore('curriculum', () => {
 
   const nextNodes = computed(() => nodes.value.filter(n => n.status === 'unlocked'))
 
+  const assessment = useAssessmentEngine()
+
   return {
+    ...assessment,
     nodes,
     completedNodeIds,
     fetchProgress,
@@ -298,6 +346,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     isGenerating,
     generatePersonalPuzzles,
     generatePersonalLessons,
-    discardPuzzle
+    discardPuzzle,
+    harvestBlunders
   }
 })

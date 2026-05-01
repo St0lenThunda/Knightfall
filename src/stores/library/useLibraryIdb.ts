@@ -92,6 +92,39 @@ export function useLibraryIdb(
   }
 
   /**
+   * Loads all games where the user is a participant.
+   * This is used for priority loading to ensure stats are live even with lazy loading.
+   */
+  async function loadGamesByUser(usernames: string[]): Promise<LibraryGame[]> {
+    const activeDb = await initDb()
+    const lowerUsernames = usernames.map(u => u.toLowerCase())
+    
+    return new Promise((resolve) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const request = store.openCursor()
+      const results: LibraryGame[] = []
+
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result
+        if (!cursor) {
+          resolve(results)
+          return
+        }
+
+        const game = cursor.value
+        const isMe = lowerUsernames.includes((game.white || '').toLowerCase()) || 
+                   lowerUsernames.includes((game.black || '').toLowerCase())
+        
+        if (isMe) {
+          results.push(game)
+        }
+        cursor.continue()
+      }
+    })
+  }
+
+  /**
    * Loads a slice of games from IndexedDB using cursors for maximum efficiency.
    * Optimized for large vaults where getAll() would block the main thread.
    */
@@ -245,6 +278,7 @@ export function useLibraryIdb(
   return {
     initDb, // Exported for sub-composables
     loadGames,
+    loadGamesByUser,
     getGameCount,
     loadGamesPaged,
     deleteGame,

@@ -64,9 +64,9 @@
     "title": "Absolute Skewer",
     "rating": 1300,
     "themes": ["endgame", "tactics", "skewer"],
-    "fen": "8/8/8/8/8/k7/2R5/K6r w - - 0 1",
-    "lastMove": "a3b3",
-    "solution": ["c2c3"],
+    "fen": "8/8/8/8/8/k1R5/8/K6r w - - 0 1",
+    "lastMove": "Rh1",
+    "solution": ["c3c1"],
     "category": "tactics"
   },
   {

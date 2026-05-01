@@ -4,6 +4,10 @@ import { supabase } from '../api/supabaseClient'
 import type { Session } from '@supabase/supabase-js'
 
 import { logger } from '../utils/logger'
+import { getLichessUserStats } from '../api/lichessApi'
+import { getChesscomUserStats } from '../api/chesscomApi'
+
+import { useUiStore } from './uiStore'
 
 // --- Specialized Composables (Pillar Architecture) ---
 import { useUserIdentity } from './user/useUserIdentity'
@@ -12,12 +16,30 @@ import { useUserGamification } from './user/useUserGamification'
 import { useRatingSystem } from '../composables/useRatingSystem'
 
 // --- Exported Interfaces ---
+export interface GlobalStats {
+  lichess?: {
+    blitz?: number
+    rapid?: number
+    bullet?: number
+    puzzle?: number
+    percentile?: number
+  }
+  chesscom?: {
+    blitz?: number
+    rapid?: number
+    bullet?: number
+    puzzle?: number
+    percentile?: number
+  }
+}
+
 export interface UserProfile {
   id: string
   username: string
   rating: number
   puzzle_rating?: number
   location?: string
+  archetype?: string
   avatar_url?: string
   chesscom_handle?: string
   lichess_handle?: string
@@ -26,6 +48,8 @@ export interface UserProfile {
   streak: number
   last_active_at?: string
   role?: string
+  global_stats?: GlobalStats
+  created_at?: string
 }
 
 export interface PastGame {
@@ -200,6 +224,54 @@ export const useUserStore = defineStore('user', () => {
     logger.info(`[UserStore] Gauntlet completed: ${date} in ${time}s. Bonus XP awarded.`)
   }
 
+  /**
+   * APPROACH 2: Omni-Rating
+   * Fetches and unifies stats from Lichess and Chess.com.
+   */
+  async function syncGlobalIntelligence() {
+    if (!profile.value) return
+    
+    const { lichess_handle, chesscom_handle } = profile.value
+    if (!lichess_handle && !chesscom_handle) return
+
+    logger.info('[UserStore] Synchronizing Global Intelligence...')
+
+    const [liStats, chStats] = await Promise.all([
+      lichess_handle ? getLichessUserStats(lichess_handle) : Promise.resolve(null),
+      chesscom_handle ? getChesscomUserStats(chesscom_handle) : Promise.resolve(null)
+    ])
+
+    const updatedStats: GlobalStats = {}
+
+    if (liStats && liStats.perfs) {
+      updatedStats.lichess = {
+        blitz: liStats.perfs.blitz?.rating || 0,
+        rapid: liStats.perfs.rapid?.rating || 0,
+        bullet: liStats.perfs.bullet?.rating || 0,
+        puzzle: liStats.perfs.puzzle?.rating || 0
+      }
+    }
+
+    if (chStats) {
+      updatedStats.chesscom = {
+        blitz: chStats.chess_blitz?.last?.rating || 0,
+        rapid: chStats.chess_rapid?.last?.rating || 0,
+        bullet: chStats.chess_bullet?.last?.rating || 0,
+        puzzle: chStats.tactics?.highest?.rating || chStats.tactics?.last?.rating || 0
+      }
+    }
+
+    // Update local profile and persist to Supabase if needed
+    profile.value = { ...profile.value, global_stats: updatedStats }
+    
+    // APPROACH 2: Notify the user about the external sync (Transparency)
+    if (updatedStats.lichess || updatedStats.chesscom) {
+      const uiStore = useUiStore()
+      const platforms = [updatedStats.lichess ? 'Lichess' : '', updatedStats.chesscom ? 'Chess.com' : ''].filter(Boolean).join(' & ')
+      uiStore.addToast(`Global Intelligence Updated: Synced with ${platforms}.`, 'success')
+    }
+  }
+
   // --- PUBLIC API ---
   return {
     // State
@@ -227,6 +299,7 @@ export const useUserStore = defineStore('user', () => {
     submitPuzzleAttempt,
     updateProfile,
     submitGauntletResult,
+    syncGlobalIntelligence,
     
     // Global Computed (Bridge between stats and identity)
     rating: ratingSystem.currentRating,

@@ -22,6 +22,8 @@ export const StorageKey = {
   VAULT_VIEW_MODE: 'vault_view_mode',
   VAULT_LIMIT: 'vault_limit',
   LICHESS_USERNAME: 'knightfall_lichess_username',
+  LICHESS_TOKEN: 'knightfall_lichess_token',
+  CHESSCOM_TOKEN: 'knightfall_chesscom_token',
   COMPLETED_LESSONS: 'knightfall_completed_lessons',
   ADMIN_CACHE_HITS: 'admin_cache_hits',
   ADMIN_CACHE_MISSES: 'admin_cache_misses',

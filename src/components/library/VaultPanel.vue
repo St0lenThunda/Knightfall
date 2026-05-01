@@ -104,6 +104,7 @@
         :game="game" 
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"
+        @delete="handleDelete(game)"
       />
     </div>
 
@@ -132,6 +133,7 @@
         :game="game"
         @click="selectedGame = game"
         @analyze="handleAnalyze(game)"
+        @delete="handleDelete(game)"
       />
     </div>
 

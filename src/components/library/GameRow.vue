@@ -47,6 +47,7 @@
     <!-- 7. Actions -->
     <div class="col-actions">
       <button class="row-btn" @click.stop="$emit('analyze')" title="Analyze">🔬</button>
+      <button class="row-btn delete-btn" @click.stop="$emit('delete')" title="Delete Game">🗑️</button>
     </div>
   </div>
 </template>
@@ -58,7 +59,7 @@ const props = defineProps<{
   game: any
 }>()
 
-defineEmits(['click', 'analyze'])
+defineEmits(['click', 'analyze', 'delete'])
 
 const resultClass = computed(() => {
     if (props.game.result === '1-0') return 'win'
@@ -165,6 +166,7 @@ const openingName = computed(() => {
 }
 .game-row:hover .row-btn { opacity: 1; }
 .row-btn:hover { transform: scale(1.2); }
+.delete-btn:hover { color: var(--rose); }
 
 @media (max-width: 900px) {
   .col-opening, .col-tags, .col-date { display: none; }

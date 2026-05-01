@@ -67,6 +67,7 @@ vi.mock('../../../stores/library/useLibraryIdb', () => ({
       return 1
     }),
     getGameCount: vi.fn(async () => 100),
+    loadGamesByUser: vi.fn(async () => []),
     loadGamesPaged: vi.fn(async (limit, offset) => {
       return Array(limit).fill(null).map((_, i) => ({
         id: `paged-${offset + i}`,

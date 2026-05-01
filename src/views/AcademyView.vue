@@ -3,27 +3,40 @@
     <div class="header-section">
       <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
-          <h1 class="view-title">The Scholar's Sanctum</h1>
-          <p class="view-subtitle text-muted">Master the art of chess from the basic foundations to advanced theory and practice.</p>
+          <h1 class="view-title">The Academy</h1>
+          <p class="view-subtitle text-muted">Your <span class="text-accent">Knight's Path</span> is curated by your gameplay DNA.</p>
         </div>
         
         <div style="display: flex; gap: var(--space-4); align-items: center;">
-          <!-- Refresh Drills Button -->
+          <!-- Badges Showcase -->
+          <div class="badges-showcase glass" v-if="userStore.badges && userStore.badges.length > 0">
+            <div v-for="badge in userStore.badges" :key="badge.id" class="academy-badge" :style="{ borderColor: badge.color }" :data-tooltip="badge.name">
+              <span class="badge-icon">{{ badge.icon }}</span>
+            </div>
+          </div>
+
+          <div class="dna-status-mini glass" @click="uiStore.isArchetypeModalOpen = true" style="cursor: pointer;">
+            <span class="label">DNA PROFILE</span>
+            <span class="val">{{ userStore.profile?.archetype || 'The Unwritten Page' }}</span>
+          </div>
+          
+          <button 
+            class="btn btn-primary btn-sm" 
+            @click="libraryStore.analyzeLibraryWithCloud(15)"
+            :disabled="libraryStore.isProcessingIntegrity"
+          >
+            <span v-if="libraryStore.isProcessingIntegrity">📡 Analyzing...</span>
+            <span v-else>🔍 Scan for Mistakes</span>
+          </button>
+
           <button 
             class="btn btn-secondary btn-sm" 
             @click="curriculumStore.generatePersonalPuzzles"
             :disabled="curriculumStore.isGenerating"
           >
-            <span v-if="curriculumStore.isGenerating">🎛 Harvesting...</span>
-            <span v-else>🔄 Refresh Drills</span>
+            <span v-if="curriculumStore.isGenerating">🎛 Sequencing...</span>
+            <span v-else>🔄 Recalibrate Path</span>
           </button>
-
-          <!-- Badges Display -->
-          <div class="badges-container" v-if="userStore.badges && userStore.badges.length > 0">
-            <div v-for="badge in userStore.badges" :key="badge.id" class="academy-badge" :style="{ borderColor: badge.color }" :title="badge.name">
-              <span class="badge-icon">{{ badge.icon }}</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -31,21 +44,41 @@
     <div class="scroll-container neon-scroll">
       <div class="academy-content">
         
+        <!-- THE KNIGHT'S PATH (Priority Section) -->
+        <div v-if="curriculumStore.personalPuzzles.length > 0" class="subject-card glass shadow-realm priority-path">
+          <div class="priority-tag">ACTIVE PATH</div>
+          <div class="subject-header">
+            <div class="subject-icon shadow-icon">⚔️</div>
+            <div class="subject-info">
+              <h2 class="subject-title">The Shadow Realm</h2>
+              <p class="subject-desc text-muted">Your active training priority. These drills target the specific patterns that caused your recent losses.</p>
+            </div>
+          </div>
+
+        </div>
+
         <!-- THE SHADOW REALM: Personalized Drills -->
-        <div v-if="curriculumStore.personalPuzzles.length > 0" class="subject-card glass shadow-realm">
+        <div class="subject-card glass shadow-realm" :class="{ 'empty-state': curriculumStore.personalPuzzles.length === 0 }">
           <div class="subject-header">
             <div class="subject-icon shadow-icon">👤</div>
             <div class="subject-info">
-              <h2 class="subject-title">Echoes of Your Past</h2>
-              <p class="subject-desc text-muted">Conquer your ghosts. These drills are generated directly from your recent blunders.</p>
+              <h2 class="subject-title">The Shadow Realm</h2>
+              <p class="subject-desc text-muted">
+                <template v-if="curriculumStore.personalPuzzles.length > 0">
+                  Conquer your ghosts. These drills are generated directly from your recent blunders.
+                </template>
+                <template v-else>
+                  Your personalized tactical sanctuary is currently empty. Analyze your games to harvest new drills.
+                </template>
+              </p>
             </div>
             
-            <div class="subject-progress">
+            <div class="subject-progress" v-if="curriculumStore.personalPuzzles.length > 0">
               <div class="progress-text">{{ curriculumStore.personalPuzzles.length }} Drills Ready</div>
             </div>
           </div>
           
-          <div class="lessons-grid">
+          <div v-if="curriculumStore.personalPuzzles.length > 0" class="lessons-grid">
             <div 
               v-for="(puzzle, pIdx) in curriculumStore.personalPuzzles" 
               :key="puzzle.id" 
@@ -61,6 +94,17 @@
               </div>
               <div class="drill-tag">{{ puzzle.severity === 'blunder' ? '🔥' : '⚡' }}</div>
             </div>
+          </div>
+
+          <div v-else class="empty-realm-cta">
+            <p class="text-muted small">No ghosts detected. Run a <strong>Cloud Intel Pass</strong> to populate this realm.</p>
+            <button 
+              class="btn btn-outline btn-sm" 
+              @click="libraryStore.analyzeLibraryWithCloud(15)"
+              :disabled="libraryStore.isProcessingIntegrity"
+            >
+              Scan for Mistakes
+            </button>
           </div>
         </div>
 
@@ -115,11 +159,15 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
+import { useLibraryStore } from '../stores/libraryStore'
 
 const router = useRouter()
 const userStore = useUserStore()
+const uiStore = useUiStore()
 const curriculumStore = useCurriculumStore()
+const libraryStore = useLibraryStore()
 
 const curriculum = [
   {
@@ -423,11 +471,94 @@ function openPersonalPuzzle(id: string) {
     grid-template-columns: 1fr;
   }
 }
+.badges-showcase {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  align-items: center;
+}
+
+.academy-badge {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.academy-badge:hover {
+  transform: translateY(-2px) scale(1.1);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.badge-icon {
+  font-size: 1.2rem;
+}
+
+.dna-status-mini {
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid var(--accent-dim);
+}
+.dna-status-mini .label { font-size: 0.6rem; font-weight: 800; color: var(--text-muted); }
+.dna-status-mini .val { font-size: 0.85rem; font-weight: 900; color: var(--accent-bright); }
+
+.text-accent { color: var(--accent-bright); }
+
 .subject-card.shadow-realm {
   background: linear-gradient(135deg, rgba(88, 28, 135, 0.15), rgba(30, 27, 75, 0.2));
-  border-color: rgba(139, 92, 246, 0.3);
+  border-color: var(--accent-dim);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
   animation: void-pulse 8s infinite ease-in-out;
+  position: relative;
+}
+
+.empty-realm-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  gap: var(--space-4);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.shadow-realm.empty-state {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.shadow-realm.empty-state:hover {
+  opacity: 1;
+}
+
+.priority-path {
+  border: 1px solid var(--accent) !important;
+}
+
+.priority-tag {
+  position: absolute;
+  top: -10px;
+  right: 20px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 2px 10px;
+  border-radius: 10px;
+  letter-spacing: 0.1em;
 }
 
 @keyframes void-pulse {

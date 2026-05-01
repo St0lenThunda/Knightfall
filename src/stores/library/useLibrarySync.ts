@@ -2,9 +2,11 @@ import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import { supabase } from '../../api/supabaseClient'
 import { useUserStore } from '../userStore'
+import { useCurriculumStore } from '../curriculumStore'
 import type { LibraryGame } from './types'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
+import { fetchCloudEval, fetchMasterMoves, isRateLimited } from '../../api/lichessApi'
 import { logger } from '../../utils/logger'
 import { useUiStore } from '../uiStore'
 
@@ -26,10 +28,7 @@ export function useLibrarySync(
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
-    logger.info('[Sync] Starting cloud synchronization...')
-    isProcessingIntegrity.value = true
-    integrityProgress.value = 0
-    integrityMessage.value = 'Connecting to cloud vault...'
+    logger.info('[Sync] Checking cloud vault for updates...')
     
     // PASS 1: Fetch only the UUIDs from the cloud to determine the delta
     const { data: cloudRefs, error } = await supabase
@@ -40,8 +39,7 @@ export function useLibrarySync(
     
     if (error || !cloudRefs) {
       logger.error('[Sync] Failed to fetch cloud references', error)
-      uiStore.addToast('Cloud sync failed.', 'error')
-      isProcessingIntegrity.value = false
+      // We don't toast here on auto-sync to avoid annoyance, just log
       return
     }
 
@@ -57,12 +55,12 @@ export function useLibrarySync(
     
     if (missingIds.length === 0) {
       logger.info('[Sync] Local vault is already 100% synchronized with the cloud.')
-      uiStore.addToast('Vault is completely up to date.', 'success')
-      isProcessingIntegrity.value = false
-      integrityProgress.value = 100
       return
     }
 
+    // NEW: Only trigger the loading overlay if we actually have work to do
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
     integrityMessage.value = `Downloading ${missingIds.length} new matches...`
 
     // PASS 2: Download only the missing PGN payloads in chunks (to prevent URI Too Long errors)
@@ -182,6 +180,11 @@ export function useLibrarySync(
 
     isProcessingIntegrity.value = false
     integrityProgress.value = 100
+
+    // APPROACH 4 & 1: Auto-trigger intelligence pass after sync
+    if (syncedGames.length > 0) {
+      analyzeLibraryWithCloud(15)
+    }
   }
 
   /**
@@ -340,11 +343,128 @@ export function useLibrarySync(
     }
   }
 
+  /**
+   * APPROACH 4 & 1: Cloud Intelligence Pass
+   * Analyzes games without analysis data using Lichess Cloud Evals.
+   * Also identifies blunders for the Shadow Realm (Approach 1).
+   */
+  async function analyzeLibraryWithCloud(limit = 10) {
+    const unanalyzed = games.value.filter(g => g.acpl === undefined).slice(0, limit)
+    if (unanalyzed.length === 0) return
+
+    logger.info(`[Intel Hub] Starting Cloud Pass for ${unanalyzed.length} games...`)
+    
+    const db = await initDb()
+    const chess = new Chess()
+    const curriculum = useCurriculumStore()
+
+    for (const game of unanalyzed) {
+      try {
+        safeLoadPgn(chess, game.pgn)
+        const moves = chess.history({ verbose: true })
+        
+        let totalCpl = 0
+        let blunders: any[] = []
+        let theoryMoves = 0
+        
+        // Intelligence pass on each move
+        for (let i = 0; i < Math.min(moves.length, 30); i++) {
+          const move = moves[i]
+          const fen = move.after
+          
+          // 1. Cloud Eval Check (TRY CACHE FIRST TO AVOID THROTTLE)
+          const cloudData = await fetchCloudEval(fen)
+          
+          if (!cloudData) {
+            // Throttling: Only wait if we actually need to hit the network
+            // Lichess public API is roughly 1 request per second
+            await new Promise(r => setTimeout(r, 1200))
+            const freshData = await fetchCloudEval(fen) // This will now hit network
+            
+            if (isRateLimited()) {
+              logger.warn('[Intel Hub] Lichess Rate Limit hit. Pausing analysis pass.')
+              return // Break the entire analysis pass
+            }
+            
+            if (freshData && freshData.pvs && freshData.pvs[0]) {
+              processCloudData(freshData, i)
+            }
+          } else if (cloudData.pvs && cloudData.pvs[0]) {
+            processCloudData(cloudData, i)
+          }
+
+          // Local helper to track performance and capture blunders
+          function processCloudData(data: any, index: number) {
+            const evalScore = data.pvs[0].cp ?? (data.pvs[0].mate * 100)
+            totalCpl += evalScore // REQUIRED for ACPL calculation
+            
+            // If it's a huge drop, harvest as a Shadow Realm candidate
+            if (index > 0) {
+              const prevEval = (game.evals || [])[index-1] || 0
+              const drop = Math.abs(evalScore - prevEval)
+              if (drop > 200) {
+                const b = { fen: move.before, drop, move: move.san, ply: index }
+                blunders.push(b)
+                curriculum.harvestBlunders(game.id, b)
+              }
+            }
+            
+            if (!game.evals) game.evals = []
+            game.evals[index] = evalScore
+          }
+
+          // 2. Theory DNA Check (First 12 moves)
+          if (i < 12) {
+            // fetchMasterMoves is also cached now!
+            const masters = await fetchMasterMoves(move.before)
+            if (masters && masters.moves) {
+              const isTheory = masters.moves.some((m: any) => m.san === move.san)
+              if (isTheory) theoryMoves++
+            }
+          }
+        }
+
+        // Aggregate Metrics
+        const analyzedMoves = Math.min(moves.length, 30)
+        game.theoreticalAccuracy = Math.round((theoryMoves / Math.min(moves.length, 12)) * 100)
+        game.acpl = analyzedMoves > 0 ? Math.round(totalCpl / analyzedMoves) : 0
+        game.missedWins = blunders.length
+        
+        // Add a tag for visual confirmation
+        if (!game.tags) game.tags = []
+        if (!game.tags.includes('Cloud Analysis')) game.tags.push('Cloud Analysis')
+
+        // Persist
+        const tx = db.transaction(['games'], 'readwrite')
+        tx.objectStore('games').put(JSON.parse(JSON.stringify(game)))
+        
+        if (blunders.length > 0) {
+          logger.info(`[Shadow Realm] Harvested ${blunders.length} tactical opportunities from ${game.id}`)
+        }
+
+        // Push back to cloud if linked
+        await pushGameAnalysis(game)
+        
+      } catch (e) {
+        logger.error(`[Intel Hub] Analysis failed for ${game.id}`, e)
+      }
+    }
+    
+    games.value = [...games.value] // Trigger reactivity
+    
+    // APPROACH 4: Notify completion of intelligence pass
+    if (unanalyzed.length > 0) {
+      const uiStore = useUiStore()
+      uiStore.addToast(`Intelligence Pass Complete: Enriched ${unanalyzed.length} games via Lichess Cloud.`, 'info')
+    }
+  }
+
   return {
     syncCloudGames,
     purgeCloudLibrary,
     deleteCloudGame,
     pushGameAnalysis,
-    pushLocalGamesToCloud
+    pushLocalGamesToCloud,
+    analyzeLibraryWithCloud
   }
 }

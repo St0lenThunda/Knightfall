@@ -231,9 +231,30 @@ export const useEngineStore = defineStore('engine', () => {
     pendingInfo = null
   }
 
-  // Trigger analysis for a given position
-  function analyze(fen: string, depth = 15) {
+  function setBotOptions(bot: any) {
     if (!worker) init()
+    
+    // Reset to defaults or apply bot specifics
+    worker!.postMessage(`setoption name Skill Level value ${bot.skillLevel ?? 20}`)
+    
+    if (bot.elo) {
+      worker!.postMessage('setoption name UCI_LimitStrength value true')
+      worker!.postMessage(`setoption name UCI_Elo value ${bot.elo}`)
+    } else {
+      worker!.postMessage('setoption name UCI_LimitStrength value false')
+    }
+    
+    worker!.postMessage(`setoption name Contempt value ${bot.contempt ?? 0}`)
+  }
+
+  // Trigger analysis for a given position
+  function analyze(fen: string, depth = 15, bot?: any) {
+    if (!worker) init()
+    
+    if (bot) {
+      setBotOptions(bot)
+      depth = bot.depth || depth
+    }
     
     logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     

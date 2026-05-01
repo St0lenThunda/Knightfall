@@ -5,6 +5,7 @@
  * Lichess is very developer-friendly and provides evals/clocks directly in PGN/JSON.
  */
 import { logger } from '../utils/logger'
+import { Storage, StorageKey } from '../utils/storage'
 
 export interface LichessGame {
   id: string
@@ -76,34 +77,125 @@ export async function getLichessUserStats(username: string): Promise<any> {
   if (!response.ok) return null
   return await response.json()
 }
+
 /**
- * Lichess Opening Explorer (Masters)
+ * Robust fetch wrapper with exponential backoff and rate-limit awareness.
+ */
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2, backoff = 1000): Promise<Response | null> {
+  // Check global rate limit "Sleep" state
+  if (Date.now() < rateLimitResetTime) return null
+
+  try {
+    const response = await fetch(url, options)
+    
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After')
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 60000
+      logger.error(`[LichessApi] Rate Limit Hit (429). Backing off for ${waitTime/1000}s.`)
+      rateLimitResetTime = Date.now() + waitTime
+      return null
+    }
+
+    if (!response.ok && retries > 0 && response.status >= 500) {
+      await new Promise(r => setTimeout(r, backoff))
+      return fetchWithRetry(url, options, retries - 1, backoff * 2)
+    }
+
+    return response
+  } catch (e) {
+    if (retries > 0) {
+      logger.warn(`[LichessApi] Network error, retrying... (${retries} left)`)
+      await new Promise(r => setTimeout(r, backoff))
+      return fetchWithRetry(url, options, retries - 1, backoff * 2)
+    }
+    logger.error(`[LichessApi] Fetch failed after retries: ${url}`, e)
+    return null
+  }
+}
+
+// --- Cache Layer (Persistent in session, survived by memory/HMR) ---
+const _global = (window as any)
+_global.__KNIGHTFALL_CLOUD_CACHE__ = _global.__KNIGHTFALL_CLOUD_CACHE__ || new Map<string, any>()
+_global.__KNIGHTFALL_MASTERS_CACHE__ = _global.__KNIGHTFALL_MASTERS_CACHE__ || new Map<string, any>()
+
+const cloudEvalCache: Map<string, any> = _global.__KNIGHTFALL_CLOUD_CACHE__
+const mastersCache: Map<string, any> = _global.__KNIGHTFALL_MASTERS_CACHE__
+
+/**
+ * Fetches cloud evaluation for a given FEN.
+ * Uses a persistent cache to prevent redundant requests for common positions.
+ */
+export async function fetchCloudEval(fen: string): Promise<any> {
+  // 1. Check local cache first
+  if (cloudEvalCache.has(fen)) return cloudEvalCache.get(fen)
+
+  const response = await fetchWithRetry(`https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}`)
+  
+  if (!response || !response.ok) return null
+  try {
+    const data = await response.json()
+    // 2. Cache successful results
+    if (data) cloudEvalCache.set(fen, data)
+    return data
+  } catch (e) {
+    return null
+  }
+}
+
+export function isRateLimited(): boolean {
+  return Date.now() < rateLimitResetTime
+}
+
+let isMastersTokenInvalid = false
+let rateLimitResetTime = 0
+
+/**
+ * Lichess Opening Explorer
  * Fetches frequency and success rates for top-tier moves.
+ * Uses a persistent cache to prevent redundant requests during bulk analysis.
  */
 export async function fetchMasterMoves(fen: string): Promise<any> {
-  const token = import.meta.env.VITE_LICHESS_TOKEN
+  // 1. Check local cache first
+  if (mastersCache.has(fen)) return mastersCache.get(fen)
+
+  const userToken = Storage.get(StorageKey.LICHESS_TOKEN, '')
+  const envToken = import.meta.env.VITE_LICHESS_TOKEN
+  const token = userToken || envToken
   
-  // We use the official .org endpoint. 
-  // Note: Lichess now requires a PAT (Personal Access Token) for API explorer access.
+  // Choose endpoint based on token status
+  const endpoint = (token && !isMastersTokenInvalid) ? 'masters' : 'lichess'
+  
   const headers: Record<string, string> = {
     'Accept': 'application/json'
   }
   
-  if (token) {
+  if (token && !isMastersTokenInvalid) {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`https://explorer.lichess.org/masters?fen=${encodeURIComponent(fen)}&topGames=5`, {
+  const response = await fetchWithRetry(`https://explorer.lichess.org/${endpoint}?fen=${encodeURIComponent(fen)}&topGames=5`, {
     headers
   })
   
+  if (!response) return null
+  
   if (!response.ok) {
-    if (response.status === 401) {
-      logger.warn('[LichessApi] Opening Explorer requires a valid PAT. Skipping theory DNA.')
+    if (response.status === 401 && endpoint === 'masters') {
+      logger.warn('[LichessApi] Masters Explorer unauthorized. Pivoting to Public Lichess DNA.')
+      isMastersTokenInvalid = true
+      return fetchMasterMoves(fen) // Recursive retry with fallback endpoint
     }
     return null
   }
-  return await response.json()
+  
+  try {
+    const data = await response.json()
+    // 2. Cache successful results
+    if (data) mastersCache.set(fen, data)
+    return data
+  } catch (e) {
+    return null
+  }
 }
 
 /**
@@ -118,23 +210,6 @@ export async function fetchDailyPuzzle(): Promise<any> {
   return await response.json()
 }
 
-/**
- * Lichess Cloud Evaluation
- * Fetches pre-calculated Stockfish evals for a specific FEN.
- * This is incredibly powerful for speeding up analysis on known positions.
- */
-export async function fetchCloudEval(fen: string): Promise<any> {
-  // Cloud evals are public and don't require a token, but we'll use the same 
-  // hardening just in case.
-  const response = await fetch(`https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}`, {
-    headers: {
-      'Accept': 'application/json'
-    }
-  })
-  
-  if (!response.ok) return null
-  return await response.json()
-}
 /**
  * Helper to fetch raw PGN from a Lichess URL.
  */

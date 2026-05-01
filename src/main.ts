@@ -35,6 +35,8 @@ const router = createRouter({
     { path: '/profile',  component: () => import('./views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/review',   component: () => import('./views/ReviewView.vue'),  meta: { requiresAuth: true } },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
+    { path: '/assessment', component: () => import('./views/AssessmentView.vue') },
+    { path: '/dna-reveal', component: () => import('./views/DnaRevealView.vue') },
   ],
 })
 

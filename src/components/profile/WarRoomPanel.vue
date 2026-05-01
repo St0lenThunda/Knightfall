@@ -3,6 +3,7 @@ import WarRoomHero from './warroom/WarRoomHero.vue'
 import WarRoomProgress from './warroom/WarRoomProgress.vue'
 import WarRoomActivity from './warroom/WarRoomActivity.vue'
 import WarRoomStats from './warroom/WarRoomStats.vue'
+import WarRoomAcademy from './warroom/WarRoomAcademy.vue'
 import WarRoomDNA from './warroom/WarRoomDNA.vue'
 import WarRoomIntegrity from './warroom/WarRoomIntegrity.vue'
 import WarRoomIntelligence from './warroom/WarRoomIntelligence.vue'
@@ -27,6 +28,9 @@ defineEmits(['showBadgeModal', 'showWipeConfirm', 'toggleIntel', 'deduplicateVau
       <div class="dash-col main-col">
         <!-- 3. Recent Activity Feed -->
         <WarRoomActivity @switchTab="$emit('switchTab', $event)" />
+
+        <!-- 3.5. Knight's Path & Sanctum Metrics -->
+        <WarRoomAcademy />
 
         <!-- 4. Performance Metrics (WLD & Rating Chart) -->
         <WarRoomStats />

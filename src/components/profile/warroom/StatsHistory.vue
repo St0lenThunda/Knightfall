@@ -111,7 +111,10 @@ const hoveredPoint = computed(() => {
 <template>
   <div class="glass card-v3 mb-6">
     <div class="card-header">
-      <h4>Performance History</h4>
+      <h4 style="display: flex; align-items: center;">
+        Performance History
+        <span class="stat-info-trigger" data-tooltip="Your Rating DNA over time. This trend is synthesized from all games in your vault.">ⓘ</span>
+      </h4>
       <div class="chart-filters-container">
         <div class="chart-legend-mini">
           <span class="dot bg-accent"></span>

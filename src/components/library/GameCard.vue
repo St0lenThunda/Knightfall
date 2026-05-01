@@ -66,7 +66,7 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
-defineEmits(['analyze'])
+defineEmits(['analyze', 'delete'])
 
 const resultClass = computed(() => {
     if (props.game.result === '1-0') return 'win-w'
@@ -149,6 +149,7 @@ const finalFen = computed(() => {
   align-items: center;
   justify-content: center;
   opacity: 0;
+  gap: var(--space-4);
   background: rgba(0,0,0,0.4);
   backdrop-filter: blur(2px);
   transition: opacity 0.2s;
@@ -163,10 +164,18 @@ const finalFen = computed(() => {
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
-  box-shadow: 0 0 20px var(--accent);
-  transition: transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.quick-btn:hover { transform: scale(1.1); background: var(--accent-bright); }
+.quick-btn:hover { transform: scale(1.1); filter: brightness(1.2); }
+.delete-btn { 
+  background: var(--rose);
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
+}
+.delete-btn:hover { background: #ff4d6d; box-shadow: 0 6px 16px rgba(244, 63, 94, 0.5); }
 
 .card-info {
   padding: var(--space-4);

@@ -1,7 +1,10 @@
 # 📌 Pinned Context
 
-> Last pinned: 2026-04-30 19:38
-> Session: Strategic Pivot + v0.29.4 Finalization
+> Last pinned: 2026-04-30 20:13
+> Session: Strategic Pivot + Assessment Engine Launch
+
+## 🔗 Links & Resources
+- **Production Preview:** [Live App](https://knightfall-d16dff7vb-st0lenthundas-projects.vercel.app/)
 
 ## 🎯 The Core Product Identity
 **Knightfall is a standalone chess training ecosystem focused on Momentum, Personalization, and Curiosity.**
@@ -19,9 +22,9 @@ Landing → Quick Win (1 Puzzle) → Live Assessment (5-7 min) → **DNA Reveal*
 - Updated README.md and Pin Workflow with priority management.
 
 ## ⚡ What's Next (Prioritized)
-- [ ] [P0] Verify Green Build on Vercel for commit `797fc86`.
-- [ ] [P0] Assessment Engine: Build the 5-7 minute live assessment logic (3 Tactics, 2 Calc, 1 Endgame).
-- [ ] [P1] DNA Reveal Screen: Create the "Magic Moment" animation for Archetype/Skill breakdown.
+- [x] [P0] Verify Green Build on Vercel for commit `797fc86`.
+- [x] [P0] Assessment Engine: Build the 5-7 minute live assessment logic.
+- [x] [P1] DNA Reveal Screen: Create the "Magic Moment" animation for Archetype/Skill breakdown.
 - [ ] [P1] Mortal Engine Validation: Integrate Stockfish layer to filter non-winning harvested blunders.
 - [ ] [P2] UI Alignment: Unify Activity Heatmap onto the main War Room dashboard (currently only in Constellation).
 - [ ] [P2] UI Alignment: Integrate "Top Opening" stats into the WLD Donut chart in StatsRatio.vue.

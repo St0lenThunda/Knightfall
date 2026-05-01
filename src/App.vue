@@ -5,6 +5,8 @@
       <RouterView />
     </main>
     <ToastProvider />
+    <ConfirmModal />
+    <ArchetypeModal />
     <AdminHud v-if="!isTesting" />
   </div>
 </template>
@@ -13,6 +15,8 @@
 import { RouterView } from 'vue-router'
 import SideNav from './components/SideNav.vue'
 import ToastProvider from './components/ToastProvider.vue'
+import ConfirmModal from './components/ConfirmModal.vue'
+import ArchetypeModal from './components/profile/modals/ArchetypeModal.vue'
 import AdminHud from './components/AdminHud.vue'
 import { useLibraryStore } from './stores/libraryStore'
 import { useUserStore } from './stores/userStore'

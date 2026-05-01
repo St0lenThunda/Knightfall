@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { useLibrarySync } from '../../../../stores/library/useLibrarySync'
 import { supabase } from '../../../../api/supabaseClient'
@@ -46,6 +47,12 @@ vi.mock('../../../../stores/userStore', () => ({
   })
 }))
 
+vi.mock('../../../../stores/curriculumStore', () => ({
+  useCurriculumStore: () => ({
+    generatePersonalPuzzles: vi.fn()
+  })
+}))
+
 describe('useLibrarySync', () => {
   let games: any
   let isProcessingIntegrity: any
@@ -61,6 +68,7 @@ describe('useLibrarySync', () => {
   })) as any
 
   beforeEach(() => {
+    setActivePinia(createPinia())
     games = ref([])
     isProcessingIntegrity = ref(false)
     integrityProgress = ref(0)

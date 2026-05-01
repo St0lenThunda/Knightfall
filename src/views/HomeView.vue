@@ -27,8 +27,8 @@
           <!-- Primary Path: The Scholar's Journey -->
           <section class="scholar-path-section glass">
             <div class="section-header">
-              <h3>📜 Your Scholar's Path</h3>
-              <RouterLink to="/academy" class="btn btn-ghost btn-sm">Enter Sanctum →</RouterLink>
+              <h3>🏛️ The Academy</h3>
+              <RouterLink to="/academy" class="btn btn-ghost btn-sm">Enter Academy →</RouterLink>
             </div>
             
             <div class="path-visualizer">
@@ -110,7 +110,7 @@
           <h1 class="hero-title">Chess, <span class="text-gradient">Deconstructed.</span></h1>
           <p class="hero-desc">The high-fidelity laboratory for players who seek genuine mastery. No flashy marketing, just pure intelligence.</p>
           <div class="hero-btns">
-            <button class="btn btn-primary btn-lg" @click="handleGetStarted">Join the Academy</button>
+            <button class="btn btn-primary btn-lg" @click="router.push('/assessment')">Start Free Assessment</button>
             <RouterLink to="/play" class="btn btn-ghost btn-lg">Enter as Guest</RouterLink>
           </div>
         </section>
@@ -191,7 +191,7 @@
         <!-- Final CTA -->
         <section class="final-cta">
           <h2>Ready to become a Scholar?</h2>
-          <button class="btn btn-primary" @click="handleGetStarted">Initialize My Journey</button>
+          <button class="btn btn-primary" @click="router.push('/assessment')">Start My Assessment</button>
         </section>
       </div>
     </template>
@@ -296,9 +296,7 @@ const weaknesses = computed(() => {
   ]
 })
 
-function handleGetStarted() {
-  document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
-}
+// Authentication is handled via the global 'open-auth' event
 </script>
 
 <style scoped>
