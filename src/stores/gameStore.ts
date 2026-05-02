@@ -252,6 +252,18 @@ export const useGameStore = defineStore('game', () => {
     isGameOver,
     saveGame,
     selectSquare,
+    undoMove() {
+      if (mode.value === 'vs-computer') {
+        // In bot matches, undo both the bot's response and the user's move
+        boardLogic.undoMove()
+        boardLogic.undoMove()
+      } else {
+        boardLogic.undoMove()
+      }
+      // Stop the bot if it was thinking
+      boardLogic.isThinking.value = false
+      engineStore.stop()
+    },
 
     // Drill Mode
     drillIndex: boardLogic.drillIndex,

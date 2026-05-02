@@ -1,27 +1,26 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
-import packageJson from './package.json'
+import path from 'path'
+import { readFileSync } from 'fs'
 
-// https://vite.dev/config/
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
+
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   define: {
     '__APP_VERSION__': JSON.stringify(packageJson.version),
   },
   server: {
-    host: '127.0.0.1',
     port: 5173,
     strictPort: true,
   },
   test: {
-    globals: true,
-    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
     environment: 'happy-dom',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/tests/']
-    }
-  }
+  },
 })
