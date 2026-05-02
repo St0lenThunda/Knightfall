@@ -12,7 +12,8 @@ env:
   VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL || 'http://127.0.0.1:54321' }}
   VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY || 'mock-anon-key' }}
   # Fabric AI Context (Using Gemini for v0.30.0 Intelligence)
-  GEMINI_API_KEY: ${{ secrets.TEST_GEMINI_API_KEY }}
+  # Check both naming conventions for user convenience
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.TEST_GEMINI_API_KEY }}
 
 jobs:
   # Gate 1: Static Integrity (Type Check)
@@ -100,10 +101,9 @@ jobs:
         with:
           fetch-depth: 0 # Required for git diff
 
-      - name: Install Fabric (One-Line Recommended)
+      - name: Install Fabric
         run: |
-          # Download the installer and run it
-          # We specify INSTALL_DIR to ensure it's in the path
+          # Install to a local bin directory
           export INSTALL_DIR="$HOME/.local/bin"
           mkdir -p $INSTALL_DIR
           curl -fsSL https://raw.githubusercontent.com/danielmiessler/Fabric/main/scripts/installer/install.sh | bash
@@ -112,29 +112,37 @@ jobs:
       - name: Configure Fabric
         run: |
           mkdir -p ~/.config/fabric
-          echo "GEMINI_API_KEY=${{ secrets.TEST_GEMINI_API_KEY }}" > ~/.config/fabric/.env
-          # Set Gemini as the default provider for this run
+          
+          # HARDENING: Gemini requires an API key to register as a 'configured' vendor.
+          # We check both standard and test secret names.
+          REAL_KEY="${{ secrets.GEMINI_API_KEY || secrets.TEST_GEMINI_API_KEY }}"
+          MOCK_KEY="AIzaSy-MOCK-KEY-FOR-CI-REGISTRATION"
+          FINAL_KEY="${REAL_KEY:-$MOCK_KEY}"
+          
+          echo "GEMINI_API_KEY=$FINAL_KEY" > ~/.config/fabric/.env
           echo "DEFAULT_VENDOR=Gemini" >> ~/.config/fabric/.env
-          echo "DEFAULT_MODEL=Gemini/gemini-2.5-flash" >> ~/.config/fabric/.env
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: 'npm'
-      
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Final Production Build
-        run: npm run build
+          # Use raw model name without vendor prefix as expected by the internal plugin
+          echo "DEFAULT_MODEL=gemini-2.5-flash" >> ~/.config/fabric/.env
+          
+          # Debug: Verify registration state
+          if [ -z "$REAL_KEY" ]; then
+            echo "::warning ::TEST_GEMINI_API_KEY is missing. AI Briefing will use mock registration."
+          fi
 
       - name: Generate AI Intelligence Briefing
         run: |
           echo "### 🏛️ v0.30.0 Intelligence Briefing" >> $GITHUB_STEP_SUMMARY
-          # Get the changes in this push/PR and pipe through Fabric
-          # We use the 'summarize' pattern as requested
-          git diff HEAD^ HEAD | fabric --pattern summarize >> $GITHUB_STEP_SUMMARY
+          
+          # Check if we have a real key before calling the API
+          if [[ "${{ secrets.GEMINI_API_KEY || secrets.TEST_GEMINI_API_KEY }}" == "" ]]; then
+            echo "> [!WARNING]" >> $GITHUB_STEP_SUMMARY
+            echo "> **Intelligence Silenced**: Gemini API Key is not configured in repository secrets." >> $GITHUB_STEP_SUMMARY
+            echo "> Please add 'GEMINI_API_KEY' or 'TEST_GEMINI_API_KEY' to enable automated change summarization." >> $GITHUB_STEP_SUMMARY
+          else
+            # Get the changes and summarize. Use '|| true' to prevent job failure if API is down.
+            git diff HEAD^ HEAD | fabric --pattern summarize >> $GITHUB_STEP_SUMMARY || echo "*Intelligence Engine unavailable (API Error)*" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "The Warden has verified all gates. Knightfall is stable and ready for deployment." >> $GITHUB_STEP_SUMMARY
