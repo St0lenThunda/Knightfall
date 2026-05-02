@@ -1,7 +1,14 @@
 <template>
-  <div class="app-layout">
-    <SideNav />
-    <main class="main-content">
+  <div class="app-layout" :class="{ 'mobile-nav-open': mobileOpen }">
+    <SideNav :mobile-open="mobileOpen" @close="mobileOpen = false" />
+    
+    <!-- Mobile Hamburger -->
+    <button class="mobile-nav-toggle btn btn-icon glass-sm" @click="mobileOpen = !mobileOpen">
+      <span v-if="!mobileOpen">☰</span>
+      <span v-else>✕</span>
+    </button>
+
+    <main class="main-content" @click="mobileOpen = false">
       <RouterView />
     </main>
     <ToastProvider />
@@ -25,6 +32,7 @@ import { ref, onMounted } from 'vue'
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const isTesting = ref(false)
+const mobileOpen = ref(false)
 
 onMounted(() => {
   isTesting.value = !!(window as any).Playwright || navigator.userAgent.includes('Playwright')

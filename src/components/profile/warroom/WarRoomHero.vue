@@ -21,21 +21,21 @@ onMounted(() => {
 
 <template>
   <div class="profile-header">
-    <div class="profile-hero glass">
-      <div class="profile-avatar">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
+    <div class="profile-hero glass-floating fade-in">
+      <div class="profile-avatar shadow-accent">{{ userStore.profile?.username?.charAt(0).toUpperCase() || 'P' }}</div>
       <div class="profile-info">
-        <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2);">
-          <h2 style="margin: 0;">{{ userStore.profile?.username || 'Player' }}</h2>
+        <div class="info-header">
+          <h2>{{ userStore.profile?.username || 'Player' }}</h2>
           <span class="title-badge" :style="{ color: coachStore.achievements.title.color, borderColor: coachStore.achievements.title.color }">
             {{ coachStore.achievements.title.symbol }}
           </span>
           <button class="btn-edit-inline" @click="router.push('/settings?tab=identity')" title="Laboratory Settings">⚙️ Settings</button>
         </div>
-        <p class="muted" style="font-size: 0.9rem; margin-bottom: var(--space-3);">
+        <p class="muted subtitle">
           Joined {{ joinedDate }}<span v-if="userStore.profile?.location"> · {{ userStore.profile.location }}</span>
         </p>
         
-        <div class="identity-connections mt-4">
+        <div class="identity-connections">
           <div v-if="userStore.profile?.chesscom_handle" class="connection-pill chess-com" :data-tooltip="`Chess.com: ${userStore.profile.global_stats?.chesscom?.blitz || '?'} Blitz | ${userStore.profile.global_stats?.chesscom?.puzzle || '?'} Puzzles`">
             <span class="icon">♟</span>
             <span class="name">{{ userStore.profile.chesscom_handle }}</span>
@@ -46,7 +46,7 @@ onMounted(() => {
             <span class="name">{{ userStore.profile.lichess_handle }}</span>
             <span class="platform">Lichess</span>
           </div>
-          <div v-if="!userStore.profile?.chesscom_handle && !userStore.profile?.lichess_handle" class="muted-xs" style="margin-top: var(--space-2);">
+          <div v-if="!userStore.profile?.chesscom_handle && !userStore.profile?.lichess_handle" class="muted-xs empty-dna">
             No external DNA sources linked.
           </div>
         </div>
@@ -58,7 +58,7 @@ onMounted(() => {
             Global IQ
             <span class="stat-info-trigger" data-tooltip="Consolidated cross-platform tactical and competitive proficiency.">ⓘ</span>
           </div>
-          <div class="rating-num" style="color: var(--accent-bright);">🧠 {{ Math.max(userStore.profile?.global_stats?.lichess?.puzzle || 0, userStore.profile?.global_stats?.chesscom?.puzzle || 0, userStore.profile?.puzzle_rating || 0) || 1200 }}</div>
+          <div class="rating-num iq-color">🧠 {{ Math.max(userStore.profile?.global_stats?.lichess?.puzzle || 0, userStore.profile?.global_stats?.chesscom?.puzzle || 0, userStore.profile?.puzzle_rating || 0) || 1200 }}</div>
         </div>
         <div class="rating-big">
           <div class="label">
@@ -72,20 +72,14 @@ onMounted(() => {
             Rapid Rating
             <span class="stat-info-trigger" data-tooltip="Your live Rapid rating synchronized from external platforms.">ⓘ</span>
           </div>
-          <div class="rating-num" style="color: var(--teal);">{{ userStore.profile?.global_stats?.lichess?.rapid || userStore.profile?.global_stats?.chesscom?.rapid || userStore.profile?.rating || 1200 }}</div>
+          <div class="rating-num teal-color">{{ userStore.profile?.global_stats?.lichess?.rapid || userStore.profile?.global_stats?.chesscom?.rapid || userStore.profile?.rating || 1200 }}</div>
         </div>
         <div class="rating-big">
           <div class="label">
             Total XP
-            <span
-              class="stat-info-trigger"
-              data-tooltip="Total experience points earned through training and matches."
-            >ⓘ</span>
+            <span class="stat-info-trigger" data-tooltip="Total experience points earned through training and matches.">ⓘ</span>
           </div>
-          <div
-            class="rating-num"
-            style="color: var(--accent);"
-          >✨ {{ userStore.xp }}</div>
+          <div class="rating-num xp-color">✨ {{ userStore.xp }}</div>
         </div>
       </div>
     </div>
@@ -94,12 +88,33 @@ onMounted(() => {
 
 <style scoped>
 .profile-header { position: relative; z-index: 100; }
-.profile-hero { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6); margin-bottom: var(--space-6); border-radius: var(--radius-xl); position: relative; }
-.profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; box-shadow: 0 0 32px rgba(139,92,246,0.3); z-index: 2; }
+.profile-hero { 
+  display: flex; 
+  align-items: center; 
+  gap: var(--space-6); 
+  padding: var(--space-6); 
+  margin-bottom: var(--space-6); 
+  position: relative; 
+  overflow: hidden;
+}
+.info-header { display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.info-header h2 { margin: 0; }
+.subtitle { font-size: 0.9rem; margin-bottom: var(--space-3); }
+
+.profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; z-index: 2; transition: transform 0.3s var(--ease); }
+.profile-avatar:hover { transform: scale(1.05) rotate(5deg); }
+
 .profile-rating-showcase { display: flex; gap: var(--space-8); margin-left: auto; z-index: 2; }
 .rating-big { text-align: center; }
-.rating-num { font-size: 2rem; font-weight: 800; }
+.rating-num { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+.iq-color { color: var(--accent-bright); text-shadow: var(--glow-accent); }
+.teal-color { color: var(--teal); text-shadow: var(--glow-teal); }
+.xp-color { color: var(--accent); text-shadow: var(--glow-accent); }
+
 .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; position: relative; }
+
+.identity-connections { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4); }
+.empty-dna { margin-top: var(--space-2); }
 
 /* Tooltip System - Global Persistence */
 [data-tooltip] {

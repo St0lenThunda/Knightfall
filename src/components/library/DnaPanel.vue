@@ -128,7 +128,7 @@ const { phaseVulnerability } = useDnaStats()
 <style scoped>
 .dna-panel-v4 {
   padding: var(--space-4);
-  animation: fadeIn 0.4s ease;
+  animation: fadeIn 0.4s var(--ease);
 }
 
 .dna-hero-grid {
@@ -155,7 +155,9 @@ const { phaseVulnerability } = useDnaStats()
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-xl);
   padding: var(--space-8);
+  transition: all 0.3s var(--ease);
 }
+.glass:hover { border-color: rgba(139, 92, 246, 0.2); transform: translateY(-2px); }
 
 .card-header-dna {
   display: flex;
@@ -166,11 +168,12 @@ const { phaseVulnerability } = useDnaStats()
 
 .card-header-dna h4 {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  text-shadow: 0 0 10px rgba(255,255,255,0.1);
 }
 
 /* Playstyle Hero */
@@ -181,43 +184,56 @@ const { phaseVulnerability } = useDnaStats()
 }
 
 .dna-avatar-glow {
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   background: var(--accent-gradient);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+  font-size: 2.8rem;
+  box-shadow: var(--glow-accent);
   flex-shrink: 0;
+  position: relative;
+}
+.dna-avatar-glow::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-bright);
+  opacity: 0.3;
+  animation: pulse-energy 2s infinite ease-in-out;
 }
 
 .dna-title-block h2 {
-  margin: 0 0 8px 0;
-  font-size: 2rem;
+  margin: 0 0 4px 0;
+  font-size: 2.2rem;
   font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .dna-insight-box {
   padding: var(--space-6);
-  background: rgba(139, 92, 246, 0.05);
-  border-left: 4px solid var(--accent);
+  background: rgba(139, 92, 246, 0.03);
+  border-left: 4px solid var(--accent-bright);
   border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: inset 10px 0 20px -10px rgba(139,92,246,0.1);
 }
 
 .insight-badge {
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 0.7rem;
+  font-weight: 900;
   color: var(--accent-bright);
   letter-spacing: 0.1em;
   margin-bottom: 8px;
+  text-shadow: var(--glow-accent);
 }
 
 /* Trait Indicators Grid */
 .dna-traits-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-4);
 }
 
@@ -242,38 +258,57 @@ const { phaseVulnerability } = useDnaStats()
 }
 
 .phase-name { 
-  font-weight: 700; 
-  font-size: 0.95rem; 
+  font-weight: 800; 
+  font-size: 1rem; 
+  color: var(--text-primary);
 }
 
 .phase-pct { 
   font-family: var(--font-mono); 
   font-weight: 800; 
-  color: var(--text-muted); 
+  color: var(--accent-bright);
+  text-shadow: var(--glow-accent);
 }
 
 .phase-bar-bg { 
-  height: 12px; 
+  height: 10px; 
   background: rgba(255, 255, 255, 0.03); 
-  border-radius: 6px; 
+  border-radius: 5px; 
   overflow: hidden; 
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .phase-bar-fill { 
   height: 100%; 
-  border-radius: 6px; 
-  transition: width 1.2s ease; 
+  border-radius: 5px; 
+  transition: width 1.5s var(--ease); 
+  position: relative;
+  overflow: hidden;
+}
+.phase-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shine 3s infinite;
 }
 
 .muted-xs { 
-  font-size: 0.6rem; 
+  font-size: 0.65rem; 
   font-weight: 800; 
   color: var(--text-muted); 
   text-transform: uppercase; 
+  letter-spacing: 0.1em;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
 }
 </style>

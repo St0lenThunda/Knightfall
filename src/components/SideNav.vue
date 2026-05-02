@@ -1,5 +1,5 @@
 <template>
-  <nav class="sidenav" :class="{ collapsed }">
+  <nav class="sidenav" :class="{ collapsed, open: mobileOpen }">
     <!-- Logo -->
     <div class="sidenav-logo">
       <div class="logo-icon">♞</div>
@@ -15,11 +15,11 @@
         <span>{{ userStore.profile?.username?.charAt(0).toUpperCase() || '?' }}</span>
         <div class="online-dot"></div>
       </div>
-      <div class="user-info" style="cursor: pointer;" @click="handleLogout" data-tooltip="Click to sign out">
+      <div class="user-info" @click="handleLogout" data-tooltip="Click to sign out">
         <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
-        <div class="user-rating" style="display: flex; gap: 6px; margin-top: 2px;">
-          <span class="badge badge-gold" data-tooltip="Your overall performance rating.">♔ {{ libraryStore.stats?.performanceRating || 1200 }} <span style="margin-left: 4px; opacity: 0.7;">ⓘ</span></span>
-          <span class="badge badge-primary" data-tooltip="Your total scholar experience.">✨ {{ userStore.xp || 0 }} XP <span style="margin-left: 4px; opacity: 0.7;">ⓘ</span></span>
+        <div class="user-rating">
+          <span class="badge badge-gold" data-tooltip="Your overall performance rating.">♔ {{ libraryStore.stats?.performanceRating || 1200 }} <span class="info-icon">ⓘ</span></span>
+          <span class="badge badge-primary" data-tooltip="Your total scholar experience.">✨ {{ userStore.xp || 0 }} XP <span class="info-icon">ⓘ</span></span>
         </div>
       </div>
     </div>
@@ -66,6 +66,7 @@
             class="nav-link"
             :class="{ active: isLinkActive(item.path) }"
             :data-tooltip="collapsed ? item.label : undefined"
+            @click="$emit('close')"
           >
             <span class="nav-icon">{{ item.icon }}</span>
             <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
@@ -138,6 +139,12 @@ import AuthModal from './AuthModal.vue'
 import LogoutModal from './LogoutModal.vue'
 import TelemetryModal from './TelemetryModal.vue'
 
+const props = defineProps<{
+  mobileOpen?: boolean
+}>()
+
+const emit = defineEmits(['toggle', 'close'])
+
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const coachStore = useCoachStore()
@@ -177,7 +184,6 @@ onUnmounted(() => {
 const route = useRoute()
 const version = __APP_VERSION__
 const isDev = import.meta.env.DEV
-const emit = defineEmits(['toggle'])
 const collapsed = ref(false)
 
 /**
@@ -525,10 +531,19 @@ const navSections = computed(() => {
 @media (max-width: 900px) {
   .sidenav {
     transform: translateX(-100%);
-    width: 240px;
+    width: 280px;
+    box-shadow: 20px 0 60px rgba(0,0,0,0.8);
+    background: rgba(10, 10, 15, 0.95);
+    backdrop-filter: blur(20px);
   }
   .sidenav.open {
     transform: translateX(0);
   }
+  .sidenav.collapsed { width: 280px; } /* Don't allow collapse on mobile */
+  .collapse-btn { display: none; }
 }
+
+.user-info { cursor: pointer; }
+.user-rating { display: flex; gap: var(--space-2); margin-top: 2px; }
+.info-icon { margin-left: 4px; opacity: 0.7; }
 </style>

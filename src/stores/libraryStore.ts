@@ -36,6 +36,15 @@ export const useLibraryStore = defineStore('library', () => {
   const isProcessingIntegrity = ref(false)
   const integrityProgress = ref(0)
   const integrityMessage = ref('')
+
+  // WARDEN INTELLIGENCE (Fabric Bridge)
+  const wardenReport = ref<{
+    version?: string;
+    timestamp: string;
+    status: string;
+    briefing: string;
+    metrics: { files_scanned: number; integrity_score: number };
+  } | null>(null)
   
   const totalVaultGames = ref(0)
   const vaultOffset = ref(0)
@@ -344,6 +353,20 @@ export const useLibraryStore = defineStore('library', () => {
     await idb.persistGameUpdate(game)
   }
 
+  /**
+   * Fetches the latest intelligence briefing from the Warden's Shield (Fabric Bridge).
+   */
+  async function fetchWardenReport() {
+    try {
+      const response = await fetch('/data/warden_report.json')
+      if (response.ok) {
+        wardenReport.value = await response.json()
+      }
+    } catch (e) {
+      logger.error('[Library] Failed to fetch Warden report.', e)
+    }
+  }
+
   return {
     // State
     games,
@@ -352,6 +375,8 @@ export const useLibraryStore = defineStore('library', () => {
     isProcessingIntegrity,
     integrityProgress,
     integrityMessage,
+    wardenReport,
+    fetchWardenReport,
     
     personalGames,
     gamesMap,

@@ -17,6 +17,9 @@ export const useUiStore = defineStore('ui', () => {
   const isConfirmOpen = ref(false)
   const confirmTitle = ref('')
   const confirmMessage = ref('')
+  const confirmIcon = ref('❓')
+  const confirmVariant = ref<'primary' | 'danger'>('primary')
+  const confirmLabel = ref('Confirm')
   let confirmCallback: (() => void) | null = null
 
   function addToast(message: string, variant: ToastVariant = 'info', duration = 3000) {
@@ -38,9 +41,17 @@ export const useUiStore = defineStore('ui', () => {
   /**
    * Triggers a styled confirmation modal.
    */
-  function confirm(title: string, message: string, onConfirm: () => void) {
+  function confirm(
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    options: { icon?: string, variant?: 'primary' | 'danger', label?: string } = {}
+  ) {
     confirmTitle.value = title
     confirmMessage.value = message
+    confirmIcon.value = options.icon || '❓'
+    confirmVariant.value = options.variant || 'primary'
+    confirmLabel.value = options.label || 'Confirm'
     confirmCallback = onConfirm
     isConfirmOpen.value = true
   }
@@ -59,7 +70,8 @@ export const useUiStore = defineStore('ui', () => {
 
   return { 
     toasts, addToast, removeToast, 
-    isConfirmOpen, confirmTitle, confirmMessage, confirm, handleConfirm, handleCancel,
+    isConfirmOpen, confirmTitle, confirmMessage, confirmIcon, confirmVariant, confirmLabel,
+    confirm, handleConfirm, handleCancel,
     isArchetypeModalOpen
   }
 })

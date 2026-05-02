@@ -71,17 +71,6 @@
           @delete="handleDelete(selectedGame)"
         />
       </Transition>
-
-      <ConfirmModal
-        v-if="gameToDelete"
-        title="Delete Game?"
-        message="This will permanently remove the match from your Vault and Cloud. This action cannot be undone."
-        icon="🗑️"
-        variant="danger"
-        confirmLabel="Yes, Delete"
-        @confirm="confirmDelete"
-        @cancel="gameToDelete = null"
-      />
     </Teleport>
   </div>
 </template>
@@ -90,11 +79,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLibraryStore, type LibraryGame } from '../../stores/libraryStore'
+import { useUiStore } from '../../stores/uiStore'
 
 // Pillar Components
 import GameCard from './GameCard.vue'
 import GameDetailsModal from './GameDetailsModal.vue'
-import ConfirmModal from '../ConfirmModal.vue'
 import VaultControls from './VaultControls.vue'
 import VaultList from './VaultList.vue'
 import VaultPagination from './VaultPagination.vue'
@@ -105,6 +94,7 @@ import { useVaultPagination } from '../../composables/library/useVaultPagination
 
 const router = useRouter()
 const libraryStore = useLibraryStore()
+const uiStore = useUiStore()
 
 // Initialize Pillar Logic
 const { viewMode, limit, toggleSortOrder, setSort } = useVaultFilters()
@@ -112,7 +102,6 @@ const { currentPage, totalPages, displayedGames, visiblePages, nextPage, prevPag
 
 // UI State
 const selectedGame = ref<LibraryGame | null>(null)
-const gameToDelete = ref<LibraryGame | null>(null)
 
 /**
  * Game Actions
@@ -121,16 +110,19 @@ function handleAnalyze(game: LibraryGame) {
   router.push(`/analysis?id=${game.id}`)
 }
 
-async function handleDelete(game: LibraryGame) {
-  gameToDelete.value = game
-}
-
-async function confirmDelete() {
-  if (gameToDelete.value) {
-    await libraryStore.deleteGame(gameToDelete.value.id)
-    selectedGame.value = null
-    gameToDelete.value = null
-  }
+/**
+ * Triggers the deletion flow via the global UI store.
+ */
+function handleDelete(game: LibraryGame) {
+  uiStore.confirm(
+    'Delete Game?',
+    'This will permanently remove the match from your Vault and Cloud. This action cannot be undone.',
+    async () => {
+      await libraryStore.deleteGame(game.id)
+      selectedGame.value = null
+    },
+    { icon: '🗑️', variant: 'danger', label: 'Yes, Delete' }
+  )
 }
 </script>
 

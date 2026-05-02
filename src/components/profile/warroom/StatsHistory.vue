@@ -111,16 +111,13 @@ const hoveredPoint = computed(() => {
 <template>
   <div class="glass card-v3 mb-6">
     <div class="card-header">
-      <h4 style="display: flex; align-items: center;">
-        Performance History
-        <span class="stat-info-trigger" data-tooltip="Your Rating DNA over time. This trend is synthesized from all games in your vault.">ⓘ</span>
-      </h4>
+      <h4 class="text-glow">Performance History</h4>
       <div class="chart-filters-container">
         <div class="chart-legend-mini">
-          <span class="dot bg-accent"></span>
+          <span class="dot glow-accent"></span>
           <span class="muted">Rating DNA</span>
         </div>
-        <div class="chart-filters">
+        <div class="chart-filters glass-sm">
           <button v-for="f in ['1M', '3M', '1Y', 'ALL']" :key="f" 
                   @click="chartFilter = f" 
                   class="btn-filter" :class="{ active: chartFilter === f }">
@@ -132,7 +129,7 @@ const hoveredPoint = computed(() => {
     <div class="perf-history-container mt-4">
       <div class="y-axis">
         <span>{{ maxR }}</span>
-        <span>{{ Math.round((maxR + minR) / 2) }}</span>
+        <span class="muted">{{ Math.round((maxR + minR) / 2) }}</span>
         <span>{{ minR }}</span>
       </div>
       <div class="chart-main">
@@ -143,15 +140,28 @@ const hoveredPoint = computed(() => {
           @mousemove="handleMouseMove"
           @mouseleave="hoveredIndex = null"
         >
-          <path :d="areaPath" fill="rgba(139,92,246,0.1)"/>
-          <path :d="linePath" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.2" />
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <path :d="areaPath" fill="url(#areaGradient)"/>
+          <path :d="linePath" fill="none" stroke="var(--accent-bright)" stroke-width="3" stroke-linecap="round" filter="url(#glow)" />
           
           <!-- Interactive Guide Line -->
           <line 
             v-if="hoveredIndex !== null" 
             :x1="mouseX" :y1="0" 
             :x2="mouseX" :y2="chartH" 
-            stroke="rgba(255,255,255,0.15)" 
+            stroke="rgba(255,255,255,0.1)" 
             stroke-width="1" 
             stroke-dasharray="4"
           />
@@ -161,22 +171,23 @@ const hoveredPoint = computed(() => {
             v-if="hoveredPoint" 
             :cx="hoveredPoint.x" 
             :cy="hoveredPoint.y" 
-            r="5" 
-            fill="var(--accent)"
+            r="6" 
+            fill="var(--accent-bright)"
             stroke="white"
             stroke-width="2"
+            filter="url(#glow)"
           />
         </svg>
 
         <!-- Tooltip -->
-        <div v-if="hoveredPoint" class="chart-tooltip glass" :style="{ left: (hoveredPoint.x / chartW * 100) + '%' }">
+        <div v-if="hoveredPoint" class="chart-tooltip glass-floating" :style="{ left: (hoveredPoint.x / chartW * 100) + '%' }">
           <div class="tooltip-rating">{{ Math.round(hoveredPoint.rating) }} ELO</div>
           <div class="tooltip-date">{{ new Date(hoveredPoint.date).toLocaleDateString() }}</div>
         </div>
 
-        <div class="x-axis" style="margin-top: var(--space-4);">
-          <span>{{ chartFilter === 'ALL' ? 'Vault Start' : new Date(filteredRatingHistory[0]?.date || Date.now()).toLocaleDateString() }}</span>
-          <span>Today</span>
+        <div class="x-axis mt-4">
+          <span>{{ chartFilter === 'ALL' ? 'Vault Origin' : new Date(filteredRatingHistory[0]?.date || Date.now()).toLocaleDateString() }}</span>
+          <span class="active-dot">Today</span>
         </div>
       </div>
     </div>
@@ -184,39 +195,46 @@ const hoveredPoint = computed(() => {
 </template>
 
 <style scoped>
-.card-v3 { padding: var(--space-6); border-radius: var(--radius-xl); }
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+.card-v3 { padding: var(--space-6); border-radius: var(--radius-xl); transition: border-color 0.3s; }
+.card-v3:hover { border-color: rgba(139, 92, 246, 0.2); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); flex-wrap: wrap; gap: var(--space-4); }
+.card-header h4 { margin: 0; font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .chart-filters-container { display: flex; align-items: center; gap: var(--space-6); }
-.chart-legend-mini { display: flex; align-items: center; gap: var(--space-2); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.chart-filters { display: flex; gap: 4px; background: rgba(255,255,255,0.03); padding: 2px; border-radius: var(--radius-md); }
-.btn-filter { padding: 4px 10px; font-size: 0.65rem; font-weight: 800; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s; }
-.btn-filter.active { background: var(--accent); color: white; box-shadow: 0 0 8px var(--accent); }
-.btn-filter:hover:not(.active) { background: rgba(255,255,255,0.05); }
+.chart-legend-mini { display: flex; align-items: center; gap: var(--space-2); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+.chart-filters { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-md); background: rgba(0,0,0,0.2); }
+.btn-filter { padding: 4px 12px; font-size: 0.65rem; font-weight: 900; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+.btn-filter.active { background: var(--accent); color: white; box-shadow: var(--glow-accent); }
+.btn-filter:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text-primary); }
 
-.perf-history-container { display: flex; gap: var(--space-4); height: 140px; margin-bottom: var(--space-8); padding: 0 var(--space-4); }
-.y-axis { display: flex; flex-direction: column; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; font-family: var(--font-mono); padding: 4px 0; }
+.perf-history-container { display: flex; gap: var(--space-6); height: 160px; margin-bottom: var(--space-6); }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; font-family: var(--font-mono); font-weight: 700; padding: 4px 0; border-right: 1px solid rgba(255,255,255,0.03); padding-right: var(--space-4); }
 .chart-main { flex: 1; position: relative; display: flex; flex-direction: column; }
 .rating-svg-full { flex: 1; width: 100%; overflow: visible; }
-.x-axis { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.65rem; margin-top: var(--space-4); }
+
+.x-axis { display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.active-dot { color: var(--accent-bright); display: flex; align-items: center; gap: 6px; }
+.active-dot::before { content: ''; width: 6px; height: 6px; background: var(--accent-bright); border-radius: 50%; box-shadow: var(--glow-accent); }
 
 .dot { width: 8px; height: 8px; border-radius: 50%; }
-.bg-accent { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.glow-accent { background: var(--accent); box-shadow: var(--glow-accent); }
 
 .chart-tooltip {
   position: absolute;
-  top: -60px;
+  top: -70px;
   transform: translateX(-50%);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
   pointer-events: none;
   z-index: 100;
   text-align: center;
-  min-width: 100px;
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  min-width: 120px;
 }
 
-.tooltip-rating { font-weight: 900; color: var(--accent); font-size: 0.9rem; line-height: 1; margin-bottom: 2px; }
-.tooltip-date { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+.tooltip-rating { font-weight: 900; color: var(--accent-bright); font-size: 1rem; line-height: 1; margin-bottom: 2px; text-shadow: var(--glow-accent); }
+.tooltip-date { font-size: 0.6rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+
+@media (max-width: 600px) {
+  .chart-legend-mini { display: none; }
+  .perf-history-container { height: 120px; }
+}
 </style>
