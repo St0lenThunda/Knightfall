@@ -13,7 +13,7 @@ test.describe('Navigation & Accessibility', () => {
     await expect(page).toHaveURL(/.*play/);
     await expect(page.locator('h2')).toContainText('Direct Combat');
 
-    // Siege Trials
+    // Siege Trials (Puzzles)
     await page.click('nav.sidenav a:has-text("Siege Trials")');
     await expect(page).toHaveURL(/.*puzzles/);
     await expect(page.locator('h2')).toContainText('Siege Trials');

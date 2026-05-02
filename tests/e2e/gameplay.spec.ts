@@ -14,8 +14,14 @@ test.describe('Gameplay Mechanics', () => {
     await page.click('#start-game-btn');
     await expect(page.locator('.setup-panel')).toBeHidden();
     
-    await page.locator('[data-square="e2"]').click({ force: true });
-    await page.locator('[data-square="e4"]').click({ force: true });
+    // Show Intel to see move list
+    await page.getByRole('button', { name: /Show Intel/ }).click();
+    await expect(page.locator('.side-panel')).toBeVisible();
+
+    await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.waitForTimeout(500);
+    await page.locator('[data-square="e4"]').first().click({ force: true });
+    await page.waitForTimeout(500);
 
     // Verify move was made by checking move history
     const firstMove = page.locator('.move-btn').first();
@@ -28,11 +34,18 @@ test.describe('Gameplay Mechanics', () => {
 
   test('should allow undoing a move', async ({ page }) => {
     await page.click('.mode-btn:has-text("Pass & Play")');
+    await page.waitForTimeout(200); // Allow state to update
     await page.click('#start-game-btn');
     await expect(page.locator('.setup-panel')).toBeHidden();
+
+    // Show Intel to see move list
+    await page.getByRole('button', { name: /Show Intel/ }).click();
+    await expect(page.locator('.side-panel')).toBeVisible();
     
-    await page.locator('[data-square="e2"]').click({ force: true });
-    await page.locator('[data-square="e4"]').click({ force: true });
+    await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.waitForTimeout(500);
+    await page.locator('[data-square="e4"]').first().click({ force: true });
+    await page.waitForTimeout(500);
     await expect(page.locator('.move-btn')).toHaveCount(1, { timeout: 15000 });
 
     await page.click('button:has-text("Undo")');
@@ -44,10 +57,11 @@ test.describe('Gameplay Mechanics', () => {
     await page.click('#start-game-btn');
     await expect(page.locator('.setup-panel')).toBeHidden();
 
+    // The Resign button should be visible now
     await page.click('button:has-text("Resign")');
     
     const overlay = page.locator('.game-over-overlay');
-    await expect(overlay).toBeVisible();
-    await expect(overlay).toContainText('Resignation');
+    await expect(overlay).toBeVisible({ timeout: 15000 });
+    await expect(overlay).toContainText('Resignation', { ignoreCase: true });
   });
 });

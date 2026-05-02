@@ -37,6 +37,7 @@ const router = createRouter({
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
     { path: '/assessment', component: () => import('./views/AssessmentView.vue') },
     { path: '/dna-reveal', component: () => import('./views/DnaRevealView.vue') },
+    { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue') },
   ],
 })
 

@@ -79,6 +79,7 @@ function onDragStart(sq: string, event: DragEvent) {
           'is-hinted': hintSquares.includes(p.sq)
         }"
         :draggable="isInteractive && !isThinking && p.color === turn && (mode !== 'vs-computer' || p.color === playerColor)"
+        :data-square="p.sq"
         @dragstart="onDragStart(p.sq, $event)"
         @dragover.prevent
         @drop="onDrop(p.sq, $event)"

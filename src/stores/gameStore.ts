@@ -48,13 +48,15 @@ export const useGameStore = defineStore('game', () => {
     return true
   })
 
+  const isGameOver = computed(() => boardLogic.isGameOver.value || forceGameOver.value)
+
   const gameResult = computed(() => {
     if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0 (Resignation)' : '0-1 (Resignation)'
     if (clock.timeOutWinner.value) return clock.timeOutWinner.value === 'w' ? '1-0 (Timeout)' : '0-1 (Timeout)'
-    if (!boardLogic.isGameOver.value && !forceGameOver.value) return null
+    if (!isGameOver.value) return null
     if (boardLogic.chess.value.isCheckmate()) return boardLogic.turn.value === 'w' ? '0-1 (Checkmate)' : '1-0 (Checkmate)'
     if (boardLogic.chess.value.isDraw() || boardLogic.chess.value.isStalemate()) return '½-½ (Draw)'
-    return null
+    return 'Game over'
   })
 
   // --- ACTIONS ---
@@ -102,6 +104,18 @@ export const useGameStore = defineStore('game', () => {
     
     if (mode.value === 'vs-computer' && boardLogic.playerColor.value === 'b') {
       triggerBotMove()
+    }
+  }
+
+  /**
+   * Orchestrates square selection and move execution.
+   * If a square is already selected and the new square is a legal move, execute it.
+   */
+  function selectSquare(sq: any) {
+    if (boardLogic.selectedSquare.value && boardLogic.legalMoveSquares.value.includes(sq)) {
+      makeMove(boardLogic.selectedSquare.value, sq)
+    } else {
+      boardLogic.selectSquare(sq)
     }
   }
 
@@ -232,7 +246,9 @@ export const useGameStore = defineStore('game', () => {
     handleMove,
     handleFlag,
     resign,
+    isGameOver,
     saveGame,
+    selectSquare,
 
     // Drill Mode
     drillIndex: boardLogic.drillIndex,

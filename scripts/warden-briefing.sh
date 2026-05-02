@@ -31,7 +31,13 @@ FABRIC_BIN=$(command -v fabric || echo "/Users/thunda/.local/bin/fabric")
 
 if [ -f "$FABRIC_BIN" ]; then
     echo "Piping context into Fabric (Pattern: knightfall_warden)..."
-    echo "$CONTEXT" | "$FABRIC_BIN" --pattern "$GLOBAL_PATTERNS/knightfall_warden" > "$TEMP_REPORT"
+    # If the pattern is a directory, we use the system.md directly to avoid "is a directory" errors
+    PATTERN_PATH="$GLOBAL_PATTERNS/knightfall_warden"
+    if [ -d "$PATTERN_PATH" ]; then
+        echo "$CONTEXT" | "$FABRIC_BIN" --system "$(cat $PATTERN_PATH/system.md)" > "$TEMP_REPORT"
+    else
+        echo "$CONTEXT" | "$FABRIC_BIN" --pattern "knightfall_warden" > "$TEMP_REPORT"
+    fi
 else
     echo "⚠️ Fabric not found in PATH. Using fallback generator..."
     echo "Intelligence engine offline. Please install Fabric to enable high-fidelity briefings." > "$TEMP_REPORT"
