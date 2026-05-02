@@ -19,6 +19,7 @@ Landing → Quick Win (1 Puzzle) → Live Assessment (5-7 min) → **DNA Reveal*
 - **Unified Bot Registry**: All 9 silicon opponents now exhibit humanized, probabilistic blunder behaviors.
 - **Architectural Mastery**: Leveraged the **Pillar Architecture** to cleanly separate persistence, orchestration, and behavioral logic.
 
+- [ ] [P0] Full Testing of Gameplay and Puzzle Verification
 - [ ] [P0] **Mortal UX**: Build the "Mortal Probability" graph for the analysis board to visualize human move likelihood.
 - [ ] [P1] **DNA Struggle Tracking**: Implement logic to identify which Mortal archetypes (e.g., Aggressors) the user struggles against most.
 - [ ] [P1] **Mortal Engine Validation**: Finalize drill validation for the training queue using the new personality layer.

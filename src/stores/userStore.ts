@@ -130,11 +130,11 @@ export const useUserStore = defineStore('user', () => {
 
     // Execute Profile and Games in parallel
     const [profileRes, matchesRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', s.user.id).single(),
+      supabase.from('profiles').select('*').eq('id', session.value.user.id).single(),
       supabase
         .from('matches')
         .select('*')
-        .or(`white_id.eq.${s.user.id},black_id.eq.${s.user.id}`)
+        .or(`white_id.eq.${session.value.user.id},black_id.eq.${session.value.user.id}`)
         .order('created_at', { ascending: false })
         .limit(100)
     ])
@@ -143,16 +143,16 @@ export const useUserStore = defineStore('user', () => {
       profile.value = profileRes.data
       
       // Self-Healing: If profile exists but username is missing, try to recover from metadata
-      if (profile.value && !profile.value.username && s.user.user_metadata?.username) {
+      if (profile.value && !profile.value.username && session.value.user.user_metadata?.username) {
         logger.info('[UserStore] Repairing profile: Username missing, recovering from metadata...')
-        await updateProfile({ username: s.user.user_metadata.username })
+        await updateProfile({ username: session.value.user.user_metadata.username })
       }
-    } else if (s.user.user_metadata?.username) {
+    } else if (session.value.user.user_metadata?.username) {
       // If profile is missing entirely but we have metadata, create it now
       logger.info('[UserStore] Profile missing: Creating from metadata...')
       const { data: newProfile } = await supabase.from('profiles').insert({
-        id: s.user.id,
-        username: s.user.user_metadata.username,
+        id: session.value.user.id,
+        username: session.value.user.user_metadata.username,
         rating: 1200,
         hearts: 5,
         xp: 0
@@ -185,7 +185,7 @@ export const useUserStore = defineStore('user', () => {
     const { data: az } = await supabase
       .from('puzzle_attempts')
       .select('*')
-      .eq('user_id', s.user.id)
+      .eq('user_id', session.value.user.id)
       .order('created_at', { ascending: false })
     
     if (az) puzzleAttempts.value = az
