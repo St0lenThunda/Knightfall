@@ -115,7 +115,7 @@ jobs:
           echo "GEMINI_API_KEY=${{ secrets.TEST_GEMINI_API_KEY }}" > ~/.config/fabric/.env
           # Set Gemini as the default provider for this run
           echo "DEFAULT_VENDOR=Gemini" >> ~/.config/fabric/.env
-          echo "DEFAULT_MODEL=gemini-1.5-pro" >> ~/.config/fabric/.env
+          echo "DEFAULT_MODEL=Gemini/gemini-1.5-pro" >> ~/.config/fabric/.env
 
       - name: Setup Node
         uses: actions/setup-node@v4
