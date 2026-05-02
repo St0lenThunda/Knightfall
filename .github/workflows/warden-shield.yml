@@ -106,7 +106,7 @@ jobs:
           # We specify INSTALL_DIR to ensure it's in the path
           export INSTALL_DIR="$HOME/.local/bin"
           mkdir -p $INSTALL_DIR
-          curl -L https://raw.githubusercontent.com/danielmiessler/fabric/main/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/danielmiessler/fabric/main/scripts/installer/install.sh | bash
           echo "$INSTALL_DIR" >> $GITHUB_PATH
 
       - name: Setup Node
