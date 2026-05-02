@@ -64,6 +64,7 @@ export const useLibraryStore = defineStore('library', () => {
   const sortBy = ref('date')
   const sortOrder = ref('desc')
   const vaultOffset = ref(0)
+  const totalVaultGames = ref(0)
 
   const filter = useLibraryFilter(
     games, 
@@ -118,18 +119,38 @@ export const useLibraryStore = defineStore('library', () => {
   // --- ACTIONS ---
 
   /**
-   * Loads the library from local storage and triggers initial statistics.
+   * Loads the library using a Hybrid Strategy:
+   * 1. If vault is small (< 2000), load everything for full-context stats.
+   * 2. If vault is large, load in chunks (VAULT_PAGE_SIZE) to keep UI responsive.
    */
   async function loadGames() {
-    games.value = await idb.loadGames()
+    totalVaultGames.value = await idb.getGameCount()
+    
+    // Large vault threshold: 2000 games
+    if (totalVaultGames.value < 2000) {
+      games.value = await idb.loadGames()
+      vaultOffset.value = games.value.length
+    } else {
+      // Lazy load the first chunk
+      games.value = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0)
+      vaultOffset.value = VAULT_PAGE_SIZE
+    }
   }
 
   /**
-   * Placeholder for future infinite scroll implementation.
+   * Fetches the next chunk of games and appends them to the vault.
+   * Typically triggered by infinite scroll components.
    */
   async function loadMoreGames() {
-    // Current implementation loads everything, but we keep this for API consistency.
-    return []
+    if (games.value.length >= totalVaultGames.value) return []
+
+    const chunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, vaultOffset.value)
+    if (chunk.length > 0) {
+      // Append while preserving shallow reactivity
+      games.value = [...games.value, ...chunk]
+      vaultOffset.value += chunk.length
+    }
+    return chunk
   }
 
   /**
@@ -366,11 +387,11 @@ export const useLibraryStore = defineStore('library', () => {
     filterPerspective,
     sortBy,
     sortOrder,
-    totalVaultGames: computed(() => games.value.length), // Placeholder until pagination is fully implemented
+    totalVaultGames,
     vaultOffset,
     allTags: filter.allTags,
     setFilter: (tag: string) => { selectedTag.value = tag },
-    hasMoreGames: computed(() => false), // Placeholder
+    hasMoreGames: computed(() => games.value.length < totalVaultGames.value),
 
     // Raw Pillar Access (for advanced debugging)
     idb, stats, filter, cloud, constellation, intel

@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-02T08:42:42Z",
+  "timestamp": "2026-05-02T09:16:12Z",
   "status": "VALIDATED",
   "briefing": "",
   "metrics": {
-    "files_scanned":      326,
+    "files_scanned":      330,
     "integrity_score": 98
   }
 }

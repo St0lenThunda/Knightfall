@@ -2,22 +2,10 @@
   <div class="vault-panel animated-fade-in">
     <VaultControls 
       v-model:viewMode="viewMode"
-      v-model:limit="limit"
       :selectedCount="selectedIds.size"
       @toggleSortOrder="toggleSortOrder"
       @bulkDelete="handleBulkDelete"
       @clearSelection="clearSelection"
-    />
-
-    <!-- Top Pagination -->
-    <VaultPagination 
-      :currentPage="currentPage"
-      :totalPages="totalPages"
-      :visiblePages="visiblePages"
-      mini
-      @prev="currentPage--"
-      @next="currentPage++"
-      @update:page="currentPage = $event"
     />
 
     <div v-if="libraryStore.isImporting && libraryStore.games.length === 0" class="vault-loading">
@@ -33,7 +21,7 @@
 
     <VaultList 
       v-else
-      :games="displayedGames"
+      :games="libraryStore.filteredGames"
       :selectedIds="selectedIds"
       @select="handleSelect"
       @analyze="handleAnalyze"
@@ -42,16 +30,15 @@
       @setSort="setSort"
     />
 
-    <!-- Bottom Pagination -->
-    <VaultPagination 
-      v-if="libraryStore.totalVaultGames > limit"
-      :currentPage="currentPage"
-      :totalPages="totalPages"
-      :visiblePages="visiblePages"
-      @prev="currentPage--"
-      @next="currentPage++"
-      @update:page="currentPage = $event"
-    />
+    <!-- Infinite Scroll Trigger -->
+    <div v-if="libraryStore.hasMoreGames" ref="loadMoreTrigger" class="load-more">
+      <div class="mini-loader"></div>
+      <span>Synthesizing more records...</span>
+    </div>
+
+    <div v-else-if="libraryStore.games.length > 0" class="vault-end">
+      <span>End of Intelligence Vault</span>
+    </div>
 
     <!-- Game Details Modal -->
     <GameDetailsModal 
@@ -64,12 +51,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useLibraryStore, type LibraryGame } from '../../stores/libraryStore'
 import { useUiStore } from '../../stores/uiStore'
 import VaultControls from './VaultControls.vue'
 import VaultList from './VaultList.vue'
-import VaultPagination from './VaultPagination.vue'
 import GameDetailsModal from './GameDetailsModal.vue'
 
 const libraryStore = useLibraryStore()
@@ -77,8 +63,8 @@ const uiStore = useUiStore()
 
 // View State
 const viewMode = ref<'grid' | 'list'>('list')
-const limit = ref(25)
-const currentPage = ref(1)
+const loadMoreTrigger = ref<HTMLElement | null>(null)
+const isFetchingMore = ref(false)
 
 // UI State
 const selectedGame = ref<LibraryGame | null>(null)
@@ -104,22 +90,6 @@ function toggleSelection(id: string) {
 function clearSelection() {
   selectedIds.value = new Set()
 }
-
-/**
- * Pagination Calculations
- */
-const totalPages = computed(() => {
-  return Math.ceil(libraryStore.filteredGames.length / limit.value) || 1
-})
-
-const visiblePages = computed(() => {
-  const range = 2
-  const pages = []
-  for (let i = Math.max(1, currentPage.value - range); i <= Math.min(totalPages.value, currentPage.value + range); i++) {
-    pages.push(i)
-  }
-  return pages
-})
 
 /**
  * Game Actions
@@ -174,15 +144,32 @@ function toggleSortOrder() {
   libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'
 }
 
-const displayedGames = computed(() => {
-  const start = (currentPage.value - 1) * limit.value
-  return libraryStore.filteredGames.slice(start, start + limit.value)
-})
+/**
+ * Infinite Scroll Logic
+ */
+let observer: IntersectionObserver | null = null
+
+function setupObserver() {
+  if (observer) observer.disconnect()
+  
+  observer = new IntersectionObserver(async ([entry]) => {
+    if (entry.isIntersecting && libraryStore.hasMoreGames && !isFetchingMore.value) {
+      isFetchingMore.value = true
+      await libraryStore.loadMoreGames()
+      isFetchingMore.value = false
+    }
+  }, { threshold: 0.1 })
+
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value)
+  }
+}
 
 onMounted(async () => {
   if (libraryStore.games.length === 0) {
     await libraryStore.loadGames()
   }
+  setupObserver()
 })
 </script>
 
@@ -218,7 +205,26 @@ onMounted(async () => {
   margin-bottom: var(--space-4);
 }
 
-.empty-icon { font-size: 3rem; margin-bottom: var(--space-4); opacity: 0.5; }
+.load-more, .vault-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mini-loader {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent-dim);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
 @keyframes spin {
   to { transform: rotate(360deg); }

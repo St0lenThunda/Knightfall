@@ -132,15 +132,13 @@ describe('LibraryStore (Orchestrator)', () => {
     vi.clearAllMocks()
   })
 
-  /* describe('Lazy Loading Strategy', () => {
+  describe('Lazy Loading Strategy', () => {
     it('loads everything if vault is small (< 2000)', async () => {
       const libraryStore = useLibraryStore()
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(1500)
       // @ts-ignore
-      libraryStore.idb.loadGames.mockImplementation(async () => {
-        libraryStore.games = Array(1500).fill({}) as any
-      })
+      libraryStore.idb.loadGames.mockResolvedValue(Array(1500).fill({}))
 
       await libraryStore.loadGames()
 
@@ -152,6 +150,8 @@ describe('LibraryStore (Orchestrator)', () => {
       const libraryStore = useLibraryStore()
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(5000)
+      // @ts-ignore
+      libraryStore.idb.loadGamesPaged.mockResolvedValue(Array(500).fill({}))
       
       await libraryStore.loadGames()
 
@@ -164,6 +164,8 @@ describe('LibraryStore (Orchestrator)', () => {
       const libraryStore = useLibraryStore()
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(5000)
+      // @ts-ignore
+      libraryStore.idb.loadGamesPaged.mockResolvedValue(Array(500).fill({}))
       
       await libraryStore.loadGames()
       const initialCount = libraryStore.games.length
@@ -173,7 +175,7 @@ describe('LibraryStore (Orchestrator)', () => {
       expect(libraryStore.games.length).toBe(initialCount + 500)
       expect(libraryStore.vaultOffset).toBe(1000)
     })
-  }) */
+  })
 
   describe('Identity Filtering (Personal DNA)', () => {
     it('correctly identifies personal games via username', () => {

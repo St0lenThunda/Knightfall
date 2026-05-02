@@ -8,7 +8,6 @@ import { useLibraryStore } from '../../stores/libraryStore'
 
 const emit = defineEmits([
   'update:viewMode', 
-  'update:limit', 
   'toggleSortOrder',
   'bulkDelete',
   'clearSelection'
@@ -16,7 +15,6 @@ const emit = defineEmits([
 
 defineProps<{
   viewMode: 'grid' | 'list'
-  limit: number
   selectedCount: number
 }>()
 
@@ -90,20 +88,6 @@ const libraryStore = useLibraryStore()
           <button class="dir-btn glass-xs" @click="emit('toggleSortOrder')" :title="libraryStore.sortOrder === 'asc' ? 'Ascending' : 'Descending'">
             {{ libraryStore.sortOrder === 'asc' ? '↑' : '↓' }}
           </button>
-        </div>
-        
-        <div class="limit-controls">
-          <span class="label muted">Limit:</span>
-          <select 
-            :value="limit" 
-            @change="emit('update:limit', Number(($event.target as HTMLSelectElement).value))"
-            class="sort-select glass-xs"
-          >
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-            <option :value="500">500</option>
-          </select>
         </div>
       </div>
       
@@ -215,8 +199,8 @@ const libraryStore = useLibraryStore()
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
-.sort-controls, .limit-controls { display: flex; align-items: center; gap: var(--space-2); }
-.sort-controls .label, .limit-controls .label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.sort-controls { display: flex; align-items: center; gap: var(--space-2); }
+.sort-controls .label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .sort-select {
   background: rgba(255, 255, 255, 0.05);

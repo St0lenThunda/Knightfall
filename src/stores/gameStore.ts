@@ -169,6 +169,9 @@ export const useGameStore = defineStore('game', () => {
     
     logger.info(`[Bot] ${activeBot.name} is thinking (Depth: ${activeBot.depth})...`)
     
+    // Synchronize Mortal Archetype with the active bot
+    engineStore.setMortalArchetype(activeBot.mortalArchetype || null)
+    
     // Trigger analysis with bot-specific personality
     engineStore.analyze(boardLogic.fen.value, activeBot.depth, activeBot)
   }

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
+import { useMortalLogic } from './engine/useMortalLogic'
 
 export interface MultiPV {
   id: number
@@ -38,6 +39,10 @@ export const useEngineStore = defineStore('engine', () => {
   let rebootCount = 0
   let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
   let activeTurn: 'w' | 'b' = 'w'
+
+  // Mortal Pillar
+  const mortal = useMortalLogic()
+  const activeArchetype = ref<string | null>(null)
 
   function init() {
     if (worker) return
@@ -76,7 +81,21 @@ export const useEngineStore = defineStore('engine', () => {
         throttledParseInfo(msg)
       } else if (msg.startsWith('bestmove')) {
         const parts = msg.split(' ')
-        if (parts[1]) bestMove.value = parts[1]
+        if (parts[1]) {
+          // If in Mortal Mode, we might override the bestmove with a practical one
+          if (activeArchetype.value && multiPvs.value.length > 1 && mortal.shouldBlunder(activeArchetype.value)) {
+            // Pick a move from the MultiPV list that isn't the absolute best
+            const practicalMove = multiPvs.value[1]?.moves[0]
+            if (practicalMove) {
+              logger.info(`[Mortal] Intentionally blundering: ${parts[1]} -> ${practicalMove}`)
+              bestMove.value = practicalMove
+            } else {
+              bestMove.value = parts[1]
+            }
+          } else {
+            bestMove.value = parts[1]
+          }
+        }
         isAnalyzing.value = false
         if (pendingInfo) {
           applyInfo(pendingInfo)
@@ -259,6 +278,19 @@ export const useEngineStore = defineStore('engine', () => {
     worker!.postMessage(`setoption name Contempt value ${bot.contempt ?? 0}`)
   }
 
+  /**
+   * Configures the engine to use a specific Mortal personality.
+   */
+  function setMortalArchetype(archetypeId: string | null) {
+    activeArchetype.value = archetypeId
+    if (archetypeId && worker) {
+      const commands = mortal.getUciCommands(archetypeId)
+      commands.forEach(cmd => worker!.postMessage(cmd))
+      // Always use MultiPV 3 for Mortal mode to allow for blunder selection
+      worker!.postMessage('setoption name MultiPV value 3')
+    }
+  }
+
   // Trigger analysis for a given position
   function analyze(fen: string, depth = 15, bot?: any) {
     if (!worker) init()
@@ -326,6 +358,8 @@ export const useEngineStore = defineStore('engine', () => {
   return {
     isReady, isAnalyzing, evalScoreCp, evalMate, bestMove, suggestedMove, currentDepth, pv, multiPvs,
     evalNumber, evalPercent,
-    init, analyze, stop
+    init, analyze, stop,
+    setMortalArchetype,
+    activeArchetype
   }
 })

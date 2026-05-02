@@ -46,6 +46,66 @@ export function useLibraryIdb(
     })
   }
 
+  /**
+   * Returns the total number of records in the vault.
+   * Essential for calculating pagination metadata.
+   */
+  async function getGameCount(): Promise<number> {
+    const activeDb = await initDb()
+    return new Promise((resolve, reject) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const request = store.count()
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Fetches a specific chunk of games from the database.
+   * We use a cursor to efficiently skip to the offset without loading 
+   * the entire dataset into memory.
+   * 
+   * @param limit - Max number of games to return
+   * @param offset - Number of games to skip
+   */
+  async function loadGamesPaged(limit: number, offset: number): Promise<LibraryGame[]> {
+    const activeDb = await initDb()
+    return new Promise((resolve, reject) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const results: LibraryGame[] = []
+      let hasSkipped = false
+
+      const request = store.openCursor(null, 'prev') // Load newest first
+
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result
+        if (!cursor) {
+          resolve(results)
+          return
+        }
+
+        // Skip to the starting offset
+        if (offset > 0 && !hasSkipped) {
+          hasSkipped = true
+          cursor.advance(offset)
+          return
+        }
+
+        // Collect results up to the limit
+        results.push(cursor.value)
+        if (results.length < limit) {
+          cursor.continue()
+        } else {
+          resolve(results)
+        }
+      }
+
+      request.onerror = () => reject(request.error)
+    })
+  }
+
   async function deleteGame(id: string) {
     const activeDb = await initDb()
     const transaction = activeDb.transaction(['games'], 'readwrite')
@@ -139,6 +199,8 @@ export function useLibraryIdb(
   return {
     initDb,
     loadGames,
+    getGameCount,
+    loadGamesPaged,
     deleteGame,
     deleteGames,
     persistGameUpdate,
