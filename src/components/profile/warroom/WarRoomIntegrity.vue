@@ -17,35 +17,42 @@
     <div class="integrity-grid mt-8">
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.syncCloudGames(), 'Cloud synchronization complete.')">🔄 Refresh Cloud DNA</button>
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.syncCloudGames(), 'SYNCING_FROM_CLOUD', 'Cloud synchronization complete.')">🔄 Refresh Cloud DNA</button>
           <p class="muted">Sync local library with cloud. Use if played on another device.</p>
         </div>
       </div>
       
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.pushLocalGamesToCloud(), 'Vault successfully pushed to cloud.')">☁️ Push Vault to Cloud</button>
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.pushLocalGamesToCloud(), 'BACKING_UP_TO_CLOUD', 'Vault successfully pushed to cloud.')">☁️ Push Vault to Cloud</button>
           <p class="muted">Back up local collection. Use after large PGN imports.</p>
         </div>
       </div>
 
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.repairVaultMetadata(), 'Metadata sanitization complete.')">🛡️ Sanitize Metadata</button>
+          <button class="btn btn-action" @click="handleSanitize">🧹 Sanitize Test Data</button>
+          <p class="muted">Purge 1-move games and Playwright pollution from local & cloud.</p>
+        </div>
+      </div>
+
+      <div class="integrity-item glass-sm">
+        <div class="item-content">
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.repairVaultMetadata(), 'SANITIZING_METADATA', 'Metadata sanitization complete.')">🛡️ Sanitize Metadata</button>
           <p class="muted">Validate PGN headers. Fixes missing Elo or unknown openings.</p>
         </div>
       </div>
 
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.repairVaultIdentity(), 'Identity repair complete. Tags updated.')">🧬 Repair Identity</button>
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.repairVaultIdentity(), 'REPAIRING_IDENTITY', 'Identity repair complete. Tags updated.')">🧬 Repair Identity</button>
           <p class="muted">Recalculates 'My Games' tags based on your active profile.</p>
         </div>
       </div>
 
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="$emit('deduplicateVault')">🧹 Clean Duplicates</button>
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.purgeDuplicates(), 'DEDUPLICATING_VAULT', 'Deduplication complete. Redundant games purged.')">🧹 Clean Duplicates</button>
           <p class="muted">Scan vault for redundant entries from merged collections.</p>
         </div>
       </div>
@@ -92,27 +99,62 @@
  * WarRoomIntegrity: Manages the maintenance and synchronization of the library.
  * Employs high-fidelity overlays and rhythmic energy animations during processing.
  */
+import { storeToRefs } from 'pinia'
 import { useLibraryStore } from '../../../stores/libraryStore'
 import { useUiStore } from '../../../stores/uiStore'
 
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 
+// We use storeToRefs to ensure explicit .value access in the script setup,
+// which prevents IDE confusion and maintains clear reactivity boundaries.
+const { isProcessingIntegrity, integrityProgress, integrityMessage } = storeToRefs(libraryStore)
+
 defineEmits(['showWipeConfirm', 'deduplicateVault'])
 
 /**
  * Wraps integrity actions with consistent toast feedback and state management.
+ * Now triggers the high-fidelity immersive overlay for all maintenance tasks.
  * 
  * @param action - The store action to execute
+ * @param label - The status message for the immersive overlay
  * @param successMsg - Message to display upon successful completion
  */
-async function handleIntegrityAction(action: () => Promise<void>, successMsg: string) {
+async function handleIntegrityAction(action: () => Promise<any>, label: string, successMsg: string) {
+  // Activate the immersive progress state
+  isProcessingIntegrity.value = true
+  integrityMessage.value = label
+  integrityProgress.value = 0
+  
   try {
-    await action()
-    uiStore.addToast(successMsg, 'success')
+    const result = await action()
+    
+    // If the action returned a count (like purge), include it in the message
+    const finalMsg = (typeof result === 'number' && result > 0) 
+      ? `${successMsg} (${result} records affected)` 
+      : successMsg
+      
+    integrityProgress.value = 100
+    uiStore.addToast(finalMsg, 'success')
   } catch (e: any) {
     uiStore.addToast(`Integrity failure: ${e.message || 'Unknown error'}`, 'error')
+  } finally {
+    // Keep overlay visible briefly for "completion" feel
+    setTimeout(() => {
+      isProcessingIntegrity.value = false
+    }, 1200)
   }
+}
+
+/**
+ * Special handler for test data sanitization with unique visual feedback.
+ */
+async function handleSanitize() {
+  await handleIntegrityAction(
+    () => libraryStore.purgeTestPollution(),
+    'PURGING_TEST_POLLUTION',
+    'Neural vault sanitized of ghost games.'
+  )
 }
 </script>
 

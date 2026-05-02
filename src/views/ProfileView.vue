@@ -58,17 +58,19 @@
     />
 
     <Teleport to="body">
-      <div v-if="showLabModal" class="modal-overlay" @click.self="showLabModal = false">
-        <div class="glass-lg lab-modal">
-          <header class="modal-header">
-            <h3>Intelligence Lab</h3>
-            <button class="btn-close" @click="showLabModal = false">✕</button>
-          </header>
-          <div class="modal-body">
-            <LibraryLab />
+      <Transition name="fade">
+        <div v-if="showLabModal" class="modal-overlay">
+          <div class="lab-modal glass-lg">
+            <div class="modal-header">
+              <h3>Vault Lab</h3>
+              <button @click="showLabModal = false">Close</button>
+            </div>
+            <div class="modal-body">
+              <LibraryLab />
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </Teleport>
 
     <!-- Initialization Overlay -->
@@ -141,7 +143,11 @@ onMounted(async () => {
  * Legacy Actions (To be refactored into useProfileActions in next phase)
  */
 function toggleIntel() {
-  // Logic for toggling global intelligence overlays
+  if (libraryStore.isBulkAnalyzing) {
+    libraryStore.stopBulkAnalysis()
+  } else {
+    libraryStore.startBulkAnalysis()
+  }
 }
 
 function deduplicateVault() {
@@ -154,6 +160,31 @@ function deduplicateVault() {
 .profile-nav-tabs { display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-full); margin-bottom: var(--space-8); width: fit-content; }
 .profile-tab { padding: var(--space-3) var(--space-6); border-radius: var(--radius-full); border: none; background: transparent; color: var(--text-secondary); font-weight: 700; cursor: pointer; transition: all 0.2s; }
 .profile-tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+
+.tele-item .label, .sum-item .label { font-size: 0.5rem; font-weight: 900; opacity: 0.5; letter-spacing: 0.1em; }
+.tele-item .val, .sum-item .val { font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; }
+
+/* Idle State */
+.idle-grid {
+  display: flex;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255,255,255,0.05);
+  flex: 1;
+}
+
+.idle-copy { flex: 1; }
+.idle-copy p { font-size: 0.8rem; line-height: 1.5; color: var(--text-muted); margin-top: 4px; }
+.idle-copy .label { font-size: 0.5rem; font-weight: 900; opacity: 0.5; letter-spacing: 0.1em; }
+
+.idle-stats { display: flex; align-items: center; border-left: 1px solid rgba(255,255,255,0.05); padding-left: var(--space-8); }
+.mini-stat { display: flex; flex-direction: column; align-items: center; }
+.mini-stat .label { font-size: 0.5rem; font-weight: 900; opacity: 0.5; letter-spacing: 0.1em; }
+.mini-stat .val { font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: var(--accent-bright); }
+
+/* Controls */
+.deck-controls.is-analyzing { border-color: rgba(139, 92, 246, 0.3); }
 
 .lab-modal { width: 90vw; max-width: 1000px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); }
 .modal-header { padding: var(--space-6); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }

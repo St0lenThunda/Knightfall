@@ -98,14 +98,47 @@ export const useGameStore = defineStore('game', () => {
     forceGameOver.value = false
     resignationWinner.value = null
     clock.resetTimes()
+    antiCheat.reset()
+    
     if (mode.value === 'vs-computer' && boardLogic.playerColor.value === 'b') {
       triggerBotMove()
     }
   }
 
+  /**
+   * High-level move execution. 
+   * Orchestrates the move, clock updates, and Anti-Cheat tracking.
+   */
+  function makeMove(fromOrUci: any, to?: any, promotion?: any) {
+    // Only allow moves if the game is active
+    if (!gameActive.value) return null
+
+    const move = boardLogic.makeMove(fromOrUci, to, promotion)
+    if (move && typeof move === 'object') {
+      // 1. Record move timing for rhythm analysis
+      antiCheat.recordMoveTime()
+
+      // 2. Correlation Check: Did the player match the engine's recommendation?
+      // We only check this during computer matches to avoid self-correlation.
+      if (mode.value === 'vs-computer' && boardLogic.turn.value !== boardLogic.playerColor.value) {
+        const uci = move.from + move.to + (move.promotion || '')
+        const recommended = engineStore.suggestedMove
+        if (recommended) {
+          antiCheat.recordEngineMatch(uci === recommended)
+        }
+      }
+
+      // 3. Trigger downstream effects (clocks, bot responses)
+      handleMove(move)
+    }
+    return move
+  }
+
   function handleMove(move: any) {
-    if (move && mode.value === 'vs-computer' && !boardLogic.isGameOver.value) {
+    if (move && typeof move === 'object' && mode.value === 'vs-computer' && !boardLogic.isGameOver.value) {
       clock.applyIncrement(move.color)
+      
+      // If it's now the bot's turn, trigger it
       if (boardLogic.turn.value !== boardLogic.playerColor.value) {
         triggerBotMove()
       }
@@ -195,6 +228,7 @@ export const useGameStore = defineStore('game', () => {
     resumeClock,
     computerMove,
     startMatch,
+    makeMove,
     handleMove,
     handleFlag,
     resign,

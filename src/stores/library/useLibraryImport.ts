@@ -214,10 +214,29 @@ export function useLibraryImport(
     }
   }
 
+  /**
+   * Fetches a PGN from a URL and imports it.
+   */
+  async function importFromUrl(url: string, name: string = 'Web Import') {
+    isImporting.value = true
+    importProgress.value = 0
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Network response was not ok')
+      const pgn = await response.text()
+      await importPgn(pgn, true, [name, 'Web Import'])
+    } catch (e) {
+      logger.error('[Import] Failed to fetch PGN from URL', e)
+    } finally {
+      isImporting.value = false
+    }
+  }
+
   return {
     importPgn,
     importPgnZip,
     saveGameToLibrary,
+    importFromUrl,
     importFromLichess: async (username: string, limit = 20) => {
       const { fetchRecentLichessGames } = await import('../../api/lichessApi')
       isImporting.value = true

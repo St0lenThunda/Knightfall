@@ -1,5 +1,12 @@
 <template>
-  <div class="game-row glass-sm" @click="$emit('click')">
+  <div class="game-row glass-sm" :class="{ 'is-selected': selected }" @click="$emit('click')">
+    <!-- 0. Selection Checkbox -->
+    <div class="col-select" @click.stop="emit('toggleSelect')">
+      <div class="selection-box" :class="{ active: selected }">
+        <span v-if="selected">✓</span>
+      </div>
+    </div>
+
     <!-- 1. Result Indicator -->
     <div class="col-result">
       <div class="result-dot" :class="resultClass"></div>
@@ -57,9 +64,10 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   game: any
+  selected?: boolean
 }>()
 
-defineEmits(['click', 'analyze', 'delete'])
+const emit = defineEmits(['click', 'analyze', 'delete', 'toggleSelect'])
 
 const resultClass = computed(() => {
     if (props.game.result === '1-0') return 'win'
@@ -84,6 +92,42 @@ const openingName = computed(() => {
   transition: all 0.3s var(--ease);
   border: 1px solid transparent;
   min-height: 72px;
+  position: relative;
+}
+
+.game-row.is-selected {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Selection Column */
+.col-select {
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: white;
+  transition: all 0.2s;
+}
+
+.selection-box.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.game-row:hover .selection-box {
+  border-color: var(--accent);
 }
 
 .game-row:hover {

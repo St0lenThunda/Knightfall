@@ -6,18 +6,21 @@
  */
 import { useLibraryStore } from '../../stores/libraryStore'
 
-const libraryStore = useLibraryStore()
+const emit = defineEmits([
+  'update:viewMode', 
+  'update:limit', 
+  'toggleSortOrder',
+  'bulkDelete',
+  'clearSelection'
+])
 
 defineProps<{
   viewMode: 'grid' | 'list'
   limit: number
+  selectedCount: number
 }>()
 
-const emit = defineEmits([
-  'update:viewMode', 
-  'update:limit', 
-  'toggleSortOrder'
-])
+const libraryStore = useLibraryStore()
 </script>
 
 <template>
@@ -105,8 +108,15 @@ const emit = defineEmits([
       </div>
       
       <div class="vault-meta">
-        <span class="badge" v-if="libraryStore.games.length === 0" style="background: var(--rose-dim);">RAW VAULT EMPTY</span>
-        <span class="muted">{{ libraryStore.filteredGames.length }} games found ({{ libraryStore.games.length }} total)</span>
+        <div v-if="selectedCount > 0" class="bulk-actions animated-slide-in">
+          <span class="count-badge">{{ selectedCount }} selected</span>
+          <button class="btn btn-rose btn-xs" @click="emit('bulkDelete')">🗑️ Delete Selected</button>
+          <button class="btn btn-ghost btn-xs" @click="emit('clearSelection')">Cancel</button>
+        </div>
+        <div v-else class="stats-meta">
+          <span class="badge" v-if="libraryStore.games.length === 0" style="background: var(--rose-dim);">RAW VAULT EMPTY</span>
+          <span class="muted">{{ libraryStore.filteredGames.length }} games found ({{ libraryStore.games.length }} total)</span>
+        </div>
       </div>
     </div>
   </div>
@@ -235,5 +245,24 @@ const emit = defineEmits([
 }
 
 .vault-meta { font-size: 0.85rem; }
+.stats-meta { display: flex; align-items: center; gap: var(--space-4); }
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 12px;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  border-radius: var(--radius-full);
+}
+
+.count-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+
 .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; color: white; }
 </style>

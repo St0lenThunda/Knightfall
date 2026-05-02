@@ -1,118 +1,134 @@
 <template>
   <div class="vault-panel animated-fade-in">
-    <!-- Main Controls & Filters -->
     <VaultControls 
       v-model:viewMode="viewMode"
       v-model:limit="limit"
+      :selectedCount="selectedIds.size"
       @toggleSortOrder="toggleSortOrder"
+      @bulkDelete="handleBulkDelete"
+      @clearSelection="clearSelection"
     />
 
     <!-- Top Pagination -->
     <VaultPagination 
-      mini
       :currentPage="currentPage"
       :totalPages="totalPages"
       :visiblePages="visiblePages"
-      @prev="prevPage"
-      @next="nextPage"
+      mini
+      @prev="currentPage--"
+      @next="currentPage++"
       @update:page="currentPage = $event"
     />
 
-    <!-- Main Content -->
-    <div v-if="viewMode === 'grid'" class="vault-grid">
-      <GameCard 
-        v-for="(game, index) in displayedGames" 
-        :key="game.id + '-' + index" 
-        v-memo="[game.id, game.tags?.length]"
-        :game="game" 
-        @click="selectedGame = game"
-        @analyze="handleAnalyze(game)"
-        @delete="handleDelete(game)"
-      />
+    <div v-if="libraryStore.isImporting && libraryStore.games.length === 0" class="vault-loading">
+      <div class="loader"></div>
+      <p>Synchronizing Neural Vault...</p>
+    </div>
+
+    <div v-else-if="libraryStore.filteredGames.length === 0" class="vault-empty">
+      <div class="empty-icon">📭</div>
+      <h3>No Intelligence Records Found</h3>
+      <p class="muted">Try adjusting your filters or import new PGN data.</p>
     </div>
 
     <VaultList 
       v-else
       :games="displayedGames"
-      @select="selectedGame = $event"
+      :selectedIds="selectedIds"
+      @select="handleSelect"
       @analyze="handleAnalyze"
       @delete="handleDelete"
+      @toggleSelection="toggleSelection"
       @setSort="setSort"
     />
 
     <!-- Bottom Pagination -->
     <VaultPagination 
+      v-if="libraryStore.totalVaultGames > limit"
       :currentPage="currentPage"
       :totalPages="totalPages"
       :visiblePages="visiblePages"
-      @prev="prevPage"
-      @next="nextPage"
+      @prev="currentPage--"
+      @next="currentPage++"
       @update:page="currentPage = $event"
     />
 
-    <!-- Lazy Loading (Vault Overflow) -->
-    <div v-if="libraryStore.hasMoreGames" class="vault-overflow glass-sm">
-      <div class="overflow-text">
-        <span class="muted">Showing {{ libraryStore.games.length }} of {{ libraryStore.totalVaultGames }} games in your vault.</span>
-      </div>
-      <button class="btn btn-primary btn-sm" :disabled="libraryStore.isImporting" @click="libraryStore.loadMoreGames">
-        {{ libraryStore.isImporting ? 'Syncing...' : 'Load 500 More' }}
-      </button>
-    </div>
-
-    <!-- Modals -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <GameDetailsModal 
-          v-if="selectedGame" 
-          :game="selectedGame" 
-          @close="selectedGame = null"
-          @analyze="handleAnalyze(selectedGame)"
-          @delete="handleDelete(selectedGame)"
-        />
-      </Transition>
-    </Teleport>
+    <!-- Game Details Modal -->
+    <GameDetailsModal 
+      v-if="selectedGame" 
+      :game="selectedGame" 
+      @close="selectedGame = null"
+      @delete="handleDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
 import { useLibraryStore, type LibraryGame } from '../../stores/libraryStore'
 import { useUiStore } from '../../stores/uiStore'
-
-// Pillar Components
-import GameCard from './GameCard.vue'
-import GameDetailsModal from './GameDetailsModal.vue'
 import VaultControls from './VaultControls.vue'
 import VaultList from './VaultList.vue'
 import VaultPagination from './VaultPagination.vue'
+import GameDetailsModal from './GameDetailsModal.vue'
 
-// Pillar Composables
-import { useVaultFilters } from '../../composables/library/useVaultFilters'
-import { useVaultPagination } from '../../composables/library/useVaultPagination'
-
-const router = useRouter()
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 
-// Initialize Pillar Logic
-const { viewMode, limit, toggleSortOrder, setSort } = useVaultFilters()
-const { currentPage, totalPages, displayedGames, visiblePages, nextPage, prevPage } = useVaultPagination(limit)
+// View State
+const viewMode = ref<'grid' | 'list'>('list')
+const limit = ref(25)
+const currentPage = ref(1)
 
 // UI State
 const selectedGame = ref<LibraryGame | null>(null)
+const selectedIds = ref(new Set<string>())
+
+/**
+ * Selection Logic
+ */
+function handleSelect(game: LibraryGame) {
+  selectedGame.value = game
+}
+
+function toggleSelection(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  // Force reactivity
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function clearSelection() {
+  selectedIds.value = new Set()
+}
+
+/**
+ * Pagination Calculations
+ */
+const totalPages = computed(() => {
+  return Math.ceil(libraryStore.filteredGames.length / limit.value) || 1
+})
+
+const visiblePages = computed(() => {
+  const range = 2
+  const pages = []
+  for (let i = Math.max(1, currentPage.value - range); i <= Math.min(totalPages.value, currentPage.value + range); i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 /**
  * Game Actions
  */
 function handleAnalyze(game: LibraryGame) {
-  router.push(`/analysis?id=${game.id}`)
+  // Logic to open analysis view or start background analysis
+  console.log('Analyze game:', game.id)
 }
 
-/**
- * Triggers the deletion flow via the global UI store.
- */
 function handleDelete(game: LibraryGame) {
   uiStore.confirm(
     'Delete Game?',
@@ -120,38 +136,91 @@ function handleDelete(game: LibraryGame) {
     async () => {
       await libraryStore.deleteGame(game.id)
       selectedGame.value = null
+      selectedIds.value.delete(game.id)
+      selectedIds.value = new Set(selectedIds.value)
     },
     { icon: '🗑️', variant: 'danger', label: 'Yes, Delete' }
   )
 }
+
+/**
+ * Bulk Actions
+ */
+function handleBulkDelete() {
+  const count = selectedIds.value.size
+  if (count === 0) return
+
+  uiStore.confirm(
+    `Delete ${count} Games?`,
+    `You are about to permanently remove ${count} games from your vault. This action is irreversible.`,
+    async () => {
+      await libraryStore.deleteGames(Array.from(selectedIds.value))
+      clearSelection()
+    },
+    { icon: '🗑️', variant: 'danger', label: `Delete ${count} Items` }
+  )
+}
+
+function setSort(field: string) {
+  if (libraryStore.sortBy === field) {
+    libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'
+  } else {
+    libraryStore.sortBy = field
+    libraryStore.sortOrder = 'desc'
+  }
+}
+
+function toggleSortOrder() {
+  libraryStore.sortOrder = libraryStore.sortOrder === 'asc' ? 'desc' : 'asc'
+}
+
+const displayedGames = computed(() => {
+  const start = (currentPage.value - 1) * limit.value
+  return libraryStore.filteredGames.slice(start, start + limit.value)
+})
+
+onMounted(async () => {
+  if (libraryStore.games.length === 0) {
+    await libraryStore.loadGames()
+  }
+})
 </script>
 
 <style scoped>
 .vault-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
+  padding: var(--space-4);
+  min-height: 600px;
 }
 
-.vault-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--space-4);
-}
-
-.vault-overflow {
+.vault-loading, .vault-empty {
+  flex: 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: var(--space-4) var(--space-6);
+  justify-content: center;
+  padding: var(--space-12);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: var(--radius-lg);
-  margin-top: var(--space-4);
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px dashed rgba(139, 92, 246, 0.2);
+  border: 1px dashed var(--border);
+  text-align: center;
 }
 
-.overflow-text { font-size: 0.85rem; font-weight: 500; }
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--accent-dim);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-4);
+}
 
-.modal-enter-active, .modal-leave-active { transition: all 0.3s ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
+.empty-icon { font-size: 3rem; margin-bottom: var(--space-4); opacity: 0.5; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>

@@ -12,9 +12,12 @@ export function usePlayAntiCheat() {
 
   /**
    * Registers a window blur event, which contributes to the suspicion score.
+   * Only fires if a game is currently active to avoid false positives in menus.
    */
   function handleWindowBlur() {
-    store.registerBlur()
+    if (store.gameActive) {
+      store.registerBlur()
+    }
   }
 
   onMounted(() => {

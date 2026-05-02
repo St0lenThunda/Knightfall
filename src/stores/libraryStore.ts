@@ -1,137 +1,87 @@
+import { ref, shallowRef, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef } from 'vue'
 import { Chess } from 'chess.js'
-import { logger } from '../utils/logger'
-import { Storage, StorageKey } from '../utils/storage'
 import { useUserStore } from './userStore'
-
-// Import Sub-Composables
-import { useLibraryIdb } from './library/useLibraryIdb'
-import { useLibraryImport } from './library/useLibraryImport'
-import { useLibraryStats } from './library/useLibraryStats'
-import { useLibraryFilter } from './library/useLibraryFilter'
 import { useLibrarySync } from './library/useLibrarySync'
+import { useLibraryFilter } from './library/useLibraryFilter'
+import { useLibraryStats } from './library/useLibraryStats'
 import { useLibraryConstellation } from './library/useLibraryConstellation'
-import { useLibraryAnalysis } from './library/analysis/index'
+import { useLibraryAnalysis } from './library/analysis'
+import { useLibraryImport } from './library/useLibraryImport'
+import { useLibraryIdb } from './library/useLibraryIdb'
+import { logger } from '../utils/logger'
 
-// Import Types
-export type { LibraryGame } from './library/types'
-import type { LibraryGame } from './library/types'
+import { type LibraryGame, type ConstellationLayout, type OpeningNode } from './library/types'
+export type { LibraryGame, ConstellationLayout, OpeningNode }
 
 /**
- * Knightfall Library Store: The central orchestrator for game management.
+ * useLibraryStore: The central orchestrator for Knightfall's game intelligence vault.
  * 
- * DESIGN PATTERN: Orchestrator-Composable
- * This store delegates complex logic to specialized sub-composables (IDB, Import, Stats, Filter, etc.)
- * while maintaining the public API for the rest of the application.
+ * This store manages the lifecycle of game records across three layers:
+ * 1. UI Layer: Reactive state for the Vault components.
+ * 2. Local Layer (IndexedDB): Persistent storage for high-performance retrieval.
+ * 3. Cloud Layer (Supabase): Synchronized backup and cross-device availability.
+ * 
+ * It decomposes logic into "Pillars" (sub-composables) to maintain modularity and prevent 
+ * the 500-line "God Component" anti-pattern.
  */
 export const useLibraryStore = defineStore('library', () => {
-  // --- CORE STATE ---
-  // We use shallowRef for the game lists to prevent Vue from deeply tracking 
-  // every property of 100k+ games, which would cause significant lag.
+  const userStore = useUserStore()
+
+  // --- GLOBAL STATE ---
   const games = shallowRef<LibraryGame[]>([])
   const isImporting = ref(false)
   const importProgress = ref(0)
   
+  // Integrity Feedback State (For War Room overlays)
   const isProcessingIntegrity = ref(false)
   const integrityProgress = ref(0)
   const integrityMessage = ref('')
 
-  // WARDEN INTELLIGENCE (Fabric Bridge)
-  const wardenReport = ref<{
-    version?: string;
-    timestamp: string;
-    status: string;
-    briefing: string;
-    metrics: { files_scanned: number; integrity_score: number };
-  } | null>(null)
-  
-  const totalVaultGames = ref(0)
-  const vaultOffset = ref(0)
+  // Constants
   const VAULT_PAGE_SIZE = 500
+
+  // --- PILLAR INITIALIZATION ---
   
-  // Pinia Store Hoisting
-  const userStore = useUserStore()
+  // 1. IDB Layer (Persistence)
+  const idb = useLibraryIdb(games, isProcessingIntegrity, integrityProgress, integrityMessage)
   
-  // FILTER STATE (Centralized)
+  // 2. Synchronization Layer (Cloud)
+  const cloud = useLibrarySync(
+    games, 
+    idb.initDb, 
+    isProcessingIntegrity, 
+    integrityProgress, 
+    integrityMessage
+  )
+  
+  // 3. Filtering & Pagination Layer
+  // Note: These state variables are defined below or inside the pillar
   const searchQuery = ref('')
   const filterResult = ref('all')
   const selectedTag = ref('all')
   const filterPerspective = ref<'all' | 'white' | 'black'>('all')
-  const sortBy = ref(Storage.get(StorageKey.VAULT_SORT_BY, 'addedAt'))
-  const sortOrder = ref(Storage.get(StorageKey.VAULT_SORT_ORDER, 'desc'))
+  const sortBy = ref('date')
+  const sortOrder = ref('desc')
+  const vaultOffset = ref(0)
 
-  // --- PERSONAL DATA FILTERING ---
-  /** 
-   * Games where the user is an active participant. 
-   * This excludes curated master collections for the 'Weakness DNA' analysis.
-   */
-  const personalGames = computed(() => {
-    return games.value.filter(g => {
-      // 1. Identity Check (PRIMARY): If the user is a participant, it's 'My DNA'
-      // even if it's part of a curated collection.
-      const isMeWhite = userStore.isMe(g.white)
-      const isMeBlack = userStore.isMe(g.black)
-      if (isMeWhite || isMeBlack) return true
-
-      // 2. Verified Personal DNA (Tag-based)
-      // If it's tagged 'My Games', we trust it's a personal game.
-      const lowerTags = (g.tags || []).map(t => t.toLowerCase())
-      if (lowerTags.includes('my games')) return true
-
-      // 3. Native Fallback
-      const isNative = g.event === 'Knightfall Match' || lowerTags.includes('knightfall')
-      if (isNative) return true
-
-      return false
-    })
-  })
-
-  // --- SUB-COMPOSABLES (Decomposition) ---
-  const idb = useLibraryIdb(
-    games,
-    isProcessingIntegrity,
-    integrityProgress,
-    integrityMessage
-  )
-  const importer = useLibraryImport(
-    games, 
-    isImporting, 
-    importProgress, 
-    idb.initDb
-  )
-  
-  const stats = useLibraryStats(personalGames, userStore)
-  
   const filter = useLibraryFilter(
-    games,
-    userStore,
-    searchQuery,
-    filterResult,
-    selectedTag,
-    filterPerspective,
-    sortBy,
+    games, 
+    userStore, 
+    searchQuery, 
+    filterResult, 
+    selectedTag, 
+    filterPerspective, 
+    sortBy, 
     sortOrder
   )
   
-  const cloud = useLibrarySync(
-    games, 
-    idb.initDb,
-    isProcessingIntegrity,
-    integrityProgress,
-    integrityMessage
-  )
+  // 4. Analytics & Statistics Layer
+  const stats = useLibraryStats(games, userStore)
   
+  // 5. Visualization Layer (Opening Tree / Constellation)
   const constellation = useLibraryConstellation(
-    computed(() => {
-      // If we are in the default 'all' view with no search, 
-      // focus the constellation on 'Personal DNA' (Your games).
-      // If a specific tag or search is active, show the filtered result.
-      if (selectedTag.value === 'all' && !searchQuery.value) {
-        return personalGames.value
-      }
-      return filter.filteredGames.value
-    }),
+    filter.filteredGames,
     filter.isFiltering,
     importProgress,
     searchQuery,
@@ -140,82 +90,84 @@ export const useLibraryStore = defineStore('library', () => {
     filterPerspective
   )
   
-  const intel = useLibraryAnalysis(games, async (game: LibraryGame) => {
-    await idb.persistGameUpdate(game)
-    await cloud.pushGameAnalysis(game)
-  })
+  // 6. Intelligence Layer (Engine Analysis)
+  const intel = useLibraryAnalysis(games, idb.persistGameUpdate)
+  
+  // 7. Import Layer (PGN/Lichess/Zips)
+  const importer = useLibraryImport(games, isImporting, importProgress, idb.initDb)
+
+  // --- COMPUTEDS ---
+  
+  /**
+   * Fast lookup map for UI operations.
+   */
+  const gamesMap = computed(() => new Map(games.value.map(g => [g.id, g])))
+  
+  /**
+   * Filtered list of games where the user was one of the players.
+   */
+  const personalGames = computed(() => games.value.filter(g => g.userSide !== 'none'))
+  
+  /**
+   * Count of games that have undergone full engine synthesis.
+   */
+  const analyzedGamesCount = computed(() => games.value.filter(g => g.evals && g.evals.length > 0).length)
+
+  const wardenReport = ref<any>(null)
+
+  // --- ACTIONS ---
 
   /**
-   * Initializes the library by loading the first chunk of games.
-   * Priority 1: Load all personal games (for live stats).
-   * Priority 2: Lazy load the rest of the vault in chunks.
+   * Loads the library from local storage and triggers initial statistics.
    */
   async function loadGames() {
-    totalVaultGames.value = await idb.getGameCount()
-    
-    // 1. Gather all identities for priority fetch
-    const identities = [
-      userStore.profile?.username,
-      userStore.profile?.lichess_handle,
-      userStore.profile?.chesscom_handle
-    ].filter(Boolean) as string[]
-    
-    // 2. Load all personal games immediately to ensure stats are live
-    const personal = await idb.loadGamesByUser(identities)
-    games.value = personal
-    
-    logger.info(`[Library] Priority load complete. ${personal.length} personal games loaded for stats.`)
-
-    // 3. If vault is manageable (< 2000), load everything for best UX
-    if (totalVaultGames.value < 2000) {
-      await idb.loadGames() // This will update games.value with everything
-      vaultOffset.value = totalVaultGames.value
-    } else {
-      // Otherwise, load first chunk of the entire vault
-      // We'll deduplicate using the gamesMap/unique IDs
-      const chunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0, sortBy.value, sortOrder.value as 'asc' | 'desc')
-      
-      // Merge unique entries only
-      const existingIds = new Set(games.value.map(g => g.id))
-      const uniqueChunk = chunk.filter(g => !existingIds.has(g.id))
-      
-      games.value = [...games.value, ...uniqueChunk]
-      vaultOffset.value = VAULT_PAGE_SIZE
-      logger.info(`[Library] Lazy loading active. ${games.value.length} total games in memory.`)
-    }
+    games.value = await idb.loadGames()
   }
 
   /**
-   * Loads the next chunk of games into memory.
+   * Placeholder for future infinite scroll implementation.
    */
   async function loadMoreGames() {
-    if (vaultOffset.value >= totalVaultGames.value) return
-    
-    isImporting.value = true // Reuse loading state
-    const nextChunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, vaultOffset.value, sortBy.value, sortOrder.value as 'asc' | 'desc')
-    
-    // Deduplicate
-    const existingIds = new Set(games.value.map(g => g.id))
-    const uniqueChunk = nextChunk.filter(g => !existingIds.has(g.id))
-
-    games.value = [...games.value, ...uniqueChunk]
-    vaultOffset.value += VAULT_PAGE_SIZE
-    isImporting.value = false
+    // Current implementation loads everything, but we keep this for API consistency.
+    return []
   }
 
-  const gamesMap = computed(() => {
-    const map = new Map<string, LibraryGame>()
-    for (const g of games.value) {
-      map.set(g.id, g)
+  /**
+   * Deletes one or more games from both local IndexedDB and the cloud.
+   * Performs operations in parallel where possible.
+   * 
+   * @param ids - Array of local game IDs to delete
+   */
+  async function deleteGames(ids: string[]) {
+    const cloudIds = ids.map(id => gamesMap.value.get(id)?.cloudId).filter(Boolean) as string[]
+    
+    // 1. Local Deletion
+    await idb.deleteGames(ids)
+    
+    // 2. Cloud Deletion (Parallel via settling promises)
+    if (cloudIds.length > 0) {
+      await Promise.allSettled(cloudIds.map(cid => cloud.deleteCloudGame(cid)))
     }
-    return map
-  })
-
-  // --- ORCHESTRATION METHODS ---
+  }
 
   /**
-   * Triggers a metadata repair by re-parsing all PGNs in the vault.
-   * Useful when upgrading the application with new telemetry fields.
+   * Removes "ghost" games (1 move or less) typically generated during automated testing.
+   * Returns the count of purged games.
+   */
+  async function purgeTestPollution() {
+    const ghostIds = games.value
+      .filter(g => g.movesCount <= 1)
+      .map(g => g.id)
+
+    if (ghostIds.length === 0) return 0
+
+    await deleteGames(ghostIds)
+    return ghostIds.length
+  }
+
+  /**
+   * Recalculates metadata (White/Black names, Elo, ECO, etc.) from raw PGN data.
+   * Useful when names or ratings are missing or corrupted in the DB.
    */
   async function repairVaultMetadata() {
     const { safeLoadPgn } = await import('../utils/pgnParser')
@@ -225,111 +177,64 @@ export const useLibraryStore = defineStore('library', () => {
     integrityProgress.value = 0
     integrityMessage.value = 'Sanitizing metadata...'
     
-    // Yield to let Vue paint the overlay immediately
-    await new Promise(r => setTimeout(r, 50))
-    
     const total = games.value.length
     const upgradedGames = []
-    
+
     for (let i = 0; i < total; i++) {
       const game = games.value[i]
-      safeLoadPgn(chess, game.pgn)
-      const headers = chess.header()
-      
-      const lowerEvent = (headers.Event || '').toLowerCase()
-      const lowerPgn = game.pgn.toLowerCase()
-      const isChessCom = lowerPgn.includes('chess.com') || lowerEvent.includes('live chess')
-      const isLichess = lowerPgn.includes('lichess.org') || lowerPgn.includes('lichess')
-      const isNative = lowerEvent === 'play vs coach' || lowerEvent === 'knightfall match'
-      const isMe = userStore.isMe(headers.White) || userStore.isMe(headers.Black)
-      
-      const newTags = (game.tags || []).filter(t => {
-        const lt = t.toLowerCase()
-        return lt !== 'my games' && lt !== 'chess.com' && lt !== 'lichess' && lt !== 'chesscom' && lt !== 'live chess'
-      })
-      
-      if (isMe || isNative) newTags.push('My Games')
-      if (isChessCom) newTags.push('Chess.com')
-      if (isLichess) newTags.push('Lichess')
-
-      const upgraded = {
-        ...game,
-        white: headers.White || 'Unknown',
-        black: headers.Black || 'Unknown',
-        result: headers.Result || '*',
-        date: headers.Date || '?',
-        whiteElo: headers.WhiteElo || undefined,
-        blackElo: headers.BlackElo || undefined,
-        eco: headers.ECO || '',
-        event: headers.Event || 'Local Game',
-        movesCount: chess.history().length,
-        tags: [...new Set(newTags)],
-        userSide: userStore.isMe(headers.White) ? 'white' as const : (userStore.isMe(headers.Black) ? 'black' as const : 'none' as const)
+      try {
+        safeLoadPgn(chess, game.pgn)
+        const headers = chess.header()
+        
+        const upgraded: LibraryGame = {
+          ...game,
+          white: headers.White || 'Unknown',
+          black: headers.Black || 'Unknown',
+          result: headers.Result || '*',
+          date: headers.Date || '?',
+          whiteElo: headers.WhiteElo || undefined,
+          blackElo: headers.BlackElo || undefined,
+          eco: headers.ECO || '',
+          event: headers.Event || 'Local Game',
+          movesCount: chess.history().length,
+          userSide: userStore.isMe(headers.White) ? 'white' : (userStore.isMe(headers.Black) ? 'black' : 'none')
+        }
+        upgradedGames.push(upgraded)
+        await idb.persistGameUpdate(upgraded)
+      } catch (e) {
+        upgradedGames.push(game)
       }
-      
-      upgradedGames.push(upgraded)
-      await idb.persistGameUpdate(upgraded)
-      
-      // Update progress and yield to UI every 25 games
+
       if (i % 25 === 0) {
         integrityProgress.value = Math.round((i / total) * 100)
+        // Yield to browser to keep UI responsive
         await new Promise(r => setTimeout(r, 0))
       }
     }
-
-    games.value = upgradedGames
     
+    games.value = upgradedGames
     isProcessingIntegrity.value = false
     integrityProgress.value = 100
-    logger.info('[Library] Vault metadata repair complete.')
   }
 
   /**
-   * Re-evaluates identity for every game in the vault.
-   * Ensures 'My Games' tag is only present if the user actually participated.
+   * Re-checks every game to see if the current user is playing.
+   * Necessary if the user changes their display name or link accounts.
    */
   async function repairVaultIdentity() {
     isProcessingIntegrity.value = true
     integrityProgress.value = 0
     integrityMessage.value = 'Re-evaluating identity...'
     
-    // Yield to let Vue paint the overlay immediately
-    await new Promise(r => setTimeout(r, 50))
-    
     const total = games.value.length
     const upgradedGames = []
-    
+
     for (let i = 0; i < total; i++) {
       const game = games.value[i]
-      const isMe = userStore.isMe(game.white) || userStore.isMe(game.black)
-      const lowerEvent = (game.event || '').toLowerCase()
-      const isNative = lowerEvent === 'play vs coach' || lowerEvent === 'knightfall match'
-      
-      const newTags = (game.tags || []).filter(t => {
-        const lt = t.toLowerCase()
-        return lt !== 'my games' && lt !== 'chess.com' && lt !== 'lichess' && lt !== 'chesscom' && lt !== 'live chess'
-      })
-      
-      const lowerPgn = (game.pgn || '').toLowerCase()
-      const isChessCom = lowerPgn.includes('chess.com') || lowerEvent.includes('live chess')
-      const isLichess = lowerPgn.includes('lichess.org') || lowerPgn.includes('lichess')
-      
-      if (isMe || isNative) {
-        newTags.push('My Games')
-      }
-      if (isChessCom) {
-        newTags.push('Chess.com')
-      }
-      if (isLichess) {
-        newTags.push('Lichess')
-      }
-      
-      const upgraded = {
+      const upgraded: LibraryGame = {
         ...game,
-        tags: [...new Set(newTags)],
-        userSide: userStore.isMe(game.white) ? 'white' as const : (userStore.isMe(game.black) ? 'black' as const : 'none' as const)
+        userSide: userStore.isMe(game.white) ? 'white' : (userStore.isMe(game.black) ? 'black' : 'none')
       }
-      
       upgradedGames.push(upgraded)
       await idb.persistGameUpdate(upgraded)
       
@@ -340,50 +245,47 @@ export const useLibraryStore = defineStore('library', () => {
     }
     
     games.value = upgradedGames
-    
     isProcessingIntegrity.value = false
     integrityProgress.value = 100
-    logger.info('[Library] Identity repair complete.')
   }
 
   /**
-   * Persists a game update to the local database.
-   */
-  async function persistGameUpdate(game: LibraryGame) {
-    await idb.persistGameUpdate(game)
-  }
-
-  /**
-   * Fetches the latest intelligence briefing from the Warden's Shield (Fabric Bridge).
+   * Fetches the Warden Shield health report from the static data directory.
    */
   async function fetchWardenReport() {
     try {
-      const response = await fetch('/data/warden_report.json')
-      if (response.ok) {
-        wardenReport.value = await response.json()
-      }
+      const response = await fetch(`/data/warden_report.json?t=${Date.now()}`)
+      if (response.ok) wardenReport.value = await response.json()
     } catch (e) {
-      logger.error('[Library] Failed to fetch Warden report.', e)
+      logger.warn('[Library] Warden report unavailable.')
     }
   }
 
+  // --- EXPOSED INTERFACE ---
+  
   return {
     // State
-    games,
-    isImporting,
-    importProgress,
-    isProcessingIntegrity,
-    integrityProgress,
-    integrityMessage,
+    games, 
+    isImporting, 
+    importProgress, 
+    isProcessingIntegrity, 
+    integrityProgress, 
+    integrityMessage, 
     wardenReport,
+    VAULT_PAGE_SIZE,
+
+    // Computeds
+    personalGames, 
+    gamesMap, 
+    analyzedGamesCount,
+    
+    // Core Actions
+    loadGames, 
+    loadMoreGames, 
     fetchWardenReport,
+    persistGameUpdate: idb.persistGameUpdate, 
     
-    personalGames,
-    gamesMap,
-    analyzedGamesCount: computed(() => games.value.filter(g => g.evals && g.evals.length > 0).length),
-    
-    // Core Reactive State (Hoisted for UI)
-    
+    // Intelligence (Intel Pillar)
     isBulkAnalyzing: intel.isBulkAnalyzing,
     analysisProgress: intel.analysisProgress,
     liveAnalyzedCount: intel.liveAnalyzedCount,
@@ -394,12 +296,21 @@ export const useLibraryStore = defineStore('library', () => {
     blundersFound: intel.blundersFound,
     mistakesFound: intel.mistakesFound,
     brilliantMovesFound: intel.brilliantMovesFound,
+    startBulkAnalysis: intel.startBulkAnalysis,
+    stopBulkAnalysis: intel.stopBulkAnalysis,
+    updateGameAnalysis: intel.updateGameAnalysis,
+    currentAnalyzingId: intel.currentAnalyzingId,
+
+    // Visualization (Constellation Pillar)
     isGeneratingTree: constellation.isGeneratingTree,
     openingTree: constellation.openingTree,
     constellationLayout: constellation.constellationLayout,
     isConstellationActive: constellation.isConstellationActive,
+    generateOpeningTree: constellation.generateOpeningTree,
+    changePerspectiveAndMap: constellation.changePerspectiveAndMap,
+    isConstellationStale: constellation.isConstellationStale,
 
-    // Hoisted Stats
+    // Statistics (Stats Pillar)
     libraryWldStats: stats.libraryWldStats,
     libraryWinRate: stats.libraryWinRate,
     performanceRating: stats.performanceRating,
@@ -410,77 +321,58 @@ export const useLibraryStore = defineStore('library', () => {
     openingStats: stats.openingStats,
     vaultOpeningStats: stats.vaultOpeningStats,
     sourceBreakdown: stats.sourceBreakdown,
-    
-    // Actions
-    loadGames,
-    loadMoreGames,
-    persistGameUpdate,
+    ecoStats: stats.openingStats,
+
+    // Deletion & Maintenance
+    deleteGame: async (id: string) => {
+      const cloudId = gamesMap.value.get(id)?.cloudId
+      await idb.deleteGame(id)
+      if (cloudId) await cloud.deleteCloudGame(cloudId)
+    },
+    deleteGames,
     resetLibrary: idb.resetLibrary,
-    deleteGame: idb.deleteGame,
-    
+    nukeVault: async (wipeCloud = false) => {
+      await idb.resetLibrary()
+      if (wipeCloud) await cloud.purgeCloudLibrary()
+    },
+    repairVaultMetadata, 
+    repairVaultIdentity, 
+    purgeTestPollution, 
+    purgeDuplicates: idb.purgeDuplicates, 
+    deduplicate: idb.purgeDuplicates,
+
+    // Import (Importer Pillar)
     importPgn: importer.importPgn,
-    importPgnText: importer.importPgn, // Alias for UI compatibility
+    importPgnText: importer.importPgn,
     importPgnZip: importer.importPgnZip,
+    importFromUrl: importer.importFromUrl,
     importFromLichess: importer.importFromLichess,
     saveGameToLibrary: importer.saveGameToLibrary,
-    
+
+    // Cloud (Sync Pillar)
     syncCloudGames: cloud.syncCloudGames,
     purgeCloudLibrary: cloud.purgeCloudLibrary,
     pushLocalGamesToCloud: cloud.pushLocalGamesToCloud,
     deleteCloudGame: cloud.deleteCloudGame,
     pushGameAnalysis: cloud.pushGameAnalysis,
     analyzeLibraryWithCloud: cloud.analyzeLibraryWithCloud,
-    
-    generateOpeningTree: constellation.generateOpeningTree,
-    changePerspectiveAndMap: constellation.changePerspectiveAndMap,
-    isConstellationStale: constellation.isConstellationStale,
-    
-    startBulkAnalysis: intel.startBulkAnalysis,
-    stopBulkAnalysis: intel.stopBulkAnalysis,
-    updateGameAnalysis: intel.updateGameAnalysis,
-    currentAnalyzingId: intel.currentAnalyzingId,
-    
-    repairVaultMetadata,
-    repairVaultIdentity,
-    purgeDuplicates: idb.purgeDuplicates,
-    deduplicate: idb.purgeDuplicates, // Alias
 
-    // Expose filtered list
+    // Filtering (Filter Pillar)
     filteredGames: filter.filteredGames,
     isFiltering: filter.isFiltering,
     searchQuery,
     filterResult,
     selectedTag,
-    setFilter: (tag: string) => { selectedTag.value = tag }, // Alias
-    allTags: filter.allTags,
     filterPerspective,
     sortBy,
     sortOrder,
-    totalVaultGames,
+    totalVaultGames: computed(() => games.value.length), // Placeholder until pagination is fully implemented
     vaultOffset,
-    hasMoreGames: computed(() => games.value.length < totalVaultGames.value),
+    allTags: filter.allTags,
+    setFilter: (tag: string) => { selectedTag.value = tag },
+    hasMoreGames: computed(() => false), // Placeholder
 
-    // Internal Composables (Exposed for testing/advanced orchestration)
-    idb,
-    importer,
-    stats,
-    filter,
-    cloud,
-    constellation,
-    intel,
-
-    // Legacy Helpers
-    nukeVault: async (wipeCloud = false) => {
-      await idb.resetLibrary()
-      if (wipeCloud) await cloud.purgeCloudLibrary()
-    },
-    ecoStats: stats.openingStats, // Alias
-    importFromUrl: async (url: string, name = 'Collection') => {
-      isImporting.value = true
-      const { importPgnFromUrl } = await import('../api/lichessApi')
-      const pgn = await importPgnFromUrl(url)
-      await importer.importPgn(pgn, true, [name])
-      isImporting.value = false
-    }
+    // Raw Pillar Access (for advanced debugging)
+    idb, stats, filter, cloud, constellation, intel
   }
 })

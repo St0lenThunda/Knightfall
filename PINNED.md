@@ -1,7 +1,7 @@
 # 📌 Pinned Context
 
-> Last pinned: 2026-04-30 20:13
-> Session: Strategic Pivot + Assessment Engine Launch
+> Last pinned: 2026-05-02 00:15
+> Session: Vault Stabilization + Navigation Declutter (v0.32.0)
 
 ## 🔗 Links & Resources
 - **Production Preview:** [Live App](https://knightfall-d16dff7vb-st0lenthundas-projects.vercel.app/)
@@ -14,32 +14,30 @@
 ## 🚀 The Onboarding "Magic Moment" Flow
 Landing → Quick Win (1 Puzzle) → Live Assessment (5-7 min) → **DNA Reveal** → Personalized Plan → Delayed Signup.
 
-## ## What Was Done (v0.29.4)
-- Resolved all TypeScript regressions in template refs and store orchestration.
-- Fixed Linux case-sensitivity build blockers on Vercel (`chesscomApi.ts`).
-- Promoted Shadow Realm (SRS) to a core production feature.
-- Hardened storage utility and audio resilience.
-- Updated README.md and Pin Workflow with priority management.
+## 🛠️ What Was Done (v0.32.0)
+- **Architectural Stabilization**: Successfully migrated `libraryStore.ts` to a **Pillar Architecture**, resolving all circular dependency and type mismatch regressions.
+- **Vault Maintenance**: Implemented automated `purgeTestPollution` to scrub test-generated "ghost" records from local and cloud storage.
+- **Immersive Feedback**: Synchronized administrative maintenance tasks with high-fidelity visual overlays and rhythmic animations in `WarRoomIntegrity.vue`.
+- **Navigation Declutter**: Simplified the `SideNav.vue` sidebar by consolidating categories, removing italicized subtitles, and optimizing vertical spacing.
+- **Warden Shield**: Finalized the `warden_report.json` bridge for automated build intelligence and health monitoring.
 
 ## ⚡ What's Next (Prioritized)
-- [x] [P0] Verify Green Build on Vercel for commit `797fc86`.
-- [x] [P0] Assessment Engine: Build the 5-7 minute live assessment logic.
-- [x] [P1] DNA Reveal Screen: Create the "Magic Moment" animation for Archetype/Skill breakdown.
-- [ ] [P1] Mortal Engine Validation: Integrate Stockfish layer to filter non-winning harvested blunders.
-- [ ] [P2] UI Alignment: Unify Activity Heatmap onto the main War Room dashboard (currently only in Constellation).
-- [ ] [P2] UI Alignment: Integrate "Top Opening" stats into the WLD Donut chart in StatsRatio.vue.
-- [ ] [P2] Vault Virtualization: Implement `vue-virtual-scroller` for >10,000 game libraries.
-- [ ] [P2] Delayed Signup Gate: Implement "Save your DNA profile" logic after assessment.
-- [ ] [P3] Expand Coach Prescriptions: Add positional and endgame theme recognition.
+- [ ] [P0] **CI Behavioral Validation**: Resolve the remaining Playwright teardown pollution using the new `purgeTestPollution` routine.
+- [ ] [P1] **Mortal Engine Validation**: Integrate Stockfish layer to filter non-winning harvested blunders.
+- [ ] [P2] **Telemetry Expansion**: Integrate `useLibraryStats` output into the `ConstellationPanel` for opening performance visualization.
+- [ ] [P2] **DNA Reveal Screen**: Finalize the "Magic Moment" animation for Archetype/Skill breakdown.
+- [ ] [P2] **Vault Virtualization**: Implement `vue-virtual-scroller` for >10,000 game libraries.
+- [ ] [P3] **Delayed Signup Gate**: Implement "Save your DNA profile" logic after assessment.
 
 ## ⚠️ Known Issues
-- Minor: Async `onMounted` warnings in Vitest suite (non-blocking).
+- Minor: `gameStore.ts` reports move object property errors (TS2339) in headless environments.
+- Environment: CI reports non-critical Supabase client warnings due to mock credentials.
 
 ## 🔥 Hot Files
-- `src/stores/curriculumStore.ts` (Assessment logic)
-- `src/views/PuzzlesView.vue` (Onboarding/Tactical loop)
-- `src/stores/userStore.ts` (DNA & Progression)
-- `src/api/chesscomApi.ts` (API Sync)
+- `src/stores/libraryStore.ts` (Orchestrator for all vault intelligence)
+- `src/components/SideNav.vue` (Consolidated Navigation)
+- `src/stores/library/useLibraryIdb.ts` (Local persistence layer)
+- `src/components/profile/warroom/WarRoomIntegrity.vue` (Maintenance UI)
 
 ## 📝 Session Notes
-We are shifting from a **toolmaker mindset** to a **product company mindset**. The stabilization of v0.29.4 provides the technical foundation needed to build the standalone "Duolingo" onboarding flow without regressions.
+We have successfully bridged the gap between raw intelligence gathering and a stable, modular storage architecture. The transition to the **Pillar Pattern** ensures that as we add more "Power User" features (like the Mortal Engine), we won't compromise the stability of the core onboarding experience. The sidebar is now cleaner, prioritizing the high-level "Command" and "Training" categories.

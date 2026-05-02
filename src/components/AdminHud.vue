@@ -16,7 +16,7 @@
             </div>
             <div class="header-right">
               <span class="uptime">UPTIME: {{ uptime }}</span>
-              <button class="refresh-btn" @click="adminStore.fetchCacheCount" :class="{ spinning: adminStore.isFetching }">
+              <button class="refresh-btn" @click="() => { adminStore.fetchCacheCount(); libraryStore.fetchWardenReport(); }" :class="{ spinning: adminStore.isFetching }">
                 ↻
               </button>
             </div>
@@ -112,6 +112,33 @@
                 </div>
               </div>
             </div>
+
+            <!-- Card 5: WARDEN'S INTELLIGENCE -->
+            <div class="telemetry-card glass-xs span-2" title="Architectural intelligence synthesized by the Warden's Shield (Fabric AI). Tracks project integrity and high-level structural health.">
+              <div class="card-label">WARDEN'S SHIELD (PROJECT INTELLIGENCE)</div>
+              <div v-if="libraryStore.wardenReport" class="card-main">
+                <div class="big-metric">
+                  <span class="val">{{ libraryStore.wardenReport.metrics.integrity_score }}%</span>
+                  <span class="unit">INTEGRITY</span>
+                </div>
+                <div class="briefing-container glass-sm">
+                  <div class="briefing-header">
+                    <span class="status-indicator" :class="libraryStore.wardenReport.status.toLowerCase()"></span>
+                    <span class="ver">v{{ libraryStore.wardenReport.version }}</span>
+                    <span class="ts">{{ formatTime(libraryStore.wardenReport.timestamp) }}</span>
+                  </div>
+                  <pre class="briefing-preview">{{ libraryStore.wardenReport.briefing || 'NO_SUMMARY_DATA_SYNTHESIZED_YET // SYSTEM_STABLE' }}</pre>
+                </div>
+                <div class="metric-row mt-4">
+                  <span>FILES SCANNED</span>
+                  <span class="val-pill success">{{ libraryStore.wardenReport.metrics.files_scanned }}</span>
+                </div>
+              </div>
+              <div v-else class="card-main empty-state">
+                <div class="loading-pulse"></div>
+                <span class="muted">AWAITING_SYNTHESIS...</span>
+              </div>
+            </div>
           </div>
 
           <footer class="console-footer">
@@ -175,12 +202,20 @@ const getWaveHeight = (i: number) => {
   return (Math.sin(seed) * 10 + 15) + 'px'
 }
 
+const formatTime = (ts: string) => {
+  const d = new Date(ts)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 let timer: any = null
 let poll: any = null
 
 const startTelemetry = () => {
-  if (timer || poll) return
+  // Always fetch on start, regardless of timer state
   adminStore.fetchCacheCount()
+  libraryStore.fetchWardenReport()
+
+  if (timer || poll) return
   timer = setInterval(() => {
     const diff = Math.floor((Date.now() - startTime) / 1000)
     const h = Math.floor(diff / 3600).toString().padStart(2, '0')
@@ -188,10 +223,26 @@ const startTelemetry = () => {
     const s = (diff % 60).toString().padStart(2, '0')
     uptime.value = `${h}:${m}:${s}`
   }, 1000)
-  poll = setInterval(() => adminStore.fetchCacheCount(), 120000)
+  poll = setInterval(() => {
+    adminStore.fetchCacheCount()
+    libraryStore.fetchWardenReport() // Poll the Warden as well
+  }, 120000)
 }
 
 watch(() => userStore.isAdmin, (val) => { if (val) startTelemetry() }, { immediate: true })
+
+// Fetch whenever the HUD is opened to ensure fresh data
+watch(isCollapsed, (collapsed) => {
+  if (!collapsed && userStore.isAdmin) {
+    libraryStore.fetchWardenReport()
+  }
+})
+
+// Force a fetch on mount if we're already admin
+if (userStore.isAdmin) {
+  libraryStore.fetchWardenReport()
+}
+
 onUnmounted(() => { clearInterval(timer); clearInterval(poll); })
 </script>
 
@@ -343,6 +394,59 @@ onUnmounted(() => { clearInterval(timer); clearInterval(poll); })
   height: 30px;
   margin-top: 8px;
 }
+
+.telemetry-card.span-2 {
+  grid-column: span 2;
+}
+
+.briefing-container {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.02);
+}
+
+.briefing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.status-indicator {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+}
+.status-indicator.validated { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+
+.briefing-preview {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.7);
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: var(--space-8) 0;
+}
+
+.loading-pulse {
+  width: 32px; height: 32px; background: var(--accent); border-radius: 50%; opacity: 0.2;
+  animation: pulse 1.5s infinite;
+}
+
 .wave-bar {
   flex: 1;
   background: var(--accent);

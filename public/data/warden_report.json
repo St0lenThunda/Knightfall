@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-01T21:46:23Z",
+  "timestamp": "2026-05-02T00:18:00Z",
   "status": "VALIDATED",
-  "briefing": "Intelligence engine offline. Please install Fabric to enable high-fidelity briefings.\nLast Build: Fri May  1 21:46:23 EDT 2026\nRecent: 862c8e2 - feat(arch): implement Pillar Architecture and modularize ProfileView v0.31.0 (Antonio Moses)\n8351d95 - feat(ci): add job summaries for high-fidelity Warden reporting (Antonio Moses)\ne74861b - fix(ci): harden Behavioral Validation gate with standard runner and Playwright install (Antonio Moses)\n0ba291f - fix(ci): provide global mock env vars for Supabase to allow test initialization (Antonio Moses)\nd246ba5 - fix(ci): upgrade Warden to Node 24 and remove non-existent lint step (Antonio Moses)\n",
+  "briefing": "",
   "metrics": {
     "files_scanned":      325,
     "integrity_score": 98

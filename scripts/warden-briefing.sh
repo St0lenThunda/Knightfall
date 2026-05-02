@@ -26,9 +26,12 @@ Active Files: $STATS
 "
 
 # 2. Process with Fabric
-if command -v fabric &> /dev/null; then
-    echo "Piping context into Fabric (Pattern: summarize)..."
-    echo "$CONTEXT" | fabric --pattern summarize > "$TEMP_REPORT"
+GLOBAL_PATTERNS="/Users/thunda/Desktop/Development/spectral-suite/patterns"
+FABRIC_BIN=$(command -v fabric || echo "/Users/thunda/.local/bin/fabric")
+
+if [ -f "$FABRIC_BIN" ]; then
+    echo "Piping context into Fabric (Pattern: knightfall_warden)..."
+    echo "$CONTEXT" | "$FABRIC_BIN" --pattern "$GLOBAL_PATTERNS/knightfall_warden" > "$TEMP_REPORT"
 else
     echo "⚠️ Fabric not found in PATH. Using fallback generator..."
     echo "Intelligence engine offline. Please install Fabric to enable high-fidelity briefings." > "$TEMP_REPORT"

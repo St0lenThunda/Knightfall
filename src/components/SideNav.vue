@@ -55,7 +55,6 @@
         >
           <div class="section-titles">
             <span class="section-title">{{ section.title }}</span>
-            <span class="section-subtitle" v-if="section.subtitle">{{ section.subtitle }}</span>
           </div>
           <span class="section-chevron">{{ collapsedSections.has(section.title) ? '⌃' : '⌄' }}</span>
         </div>
@@ -250,8 +249,7 @@ const navSections = computed(() => {
 
   return [
     {
-      title: 'Command & Identity',
-      subtitle: 'The High Keep',
+      title: 'Command',
       showTitle: true,
       items: [
         { path: '/profile', icon: '⬡', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
@@ -259,8 +257,7 @@ const navSections = computed(() => {
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'Training Grounds',
-      subtitle: 'The Academy',
+      title: 'Training',
       showTitle: true,
       items: [
         { path: '/academy', icon: '⚔️', label: "Knight's Path", badge: 'ACTIVE', auth: true },
@@ -269,16 +266,14 @@ const navSections = computed(() => {
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'The Front Lines',
-      subtitle: 'The Grand Arena',
+      title: 'Combat',
       showTitle: true,
       items: [
         { path: '/play', icon: '♟', label: 'Direct Combat', badge: 'LIVE', auth: false },
       ].filter(i => !i.auth || !!userStore.session)
     },
     {
-      title: 'Intelligence Lab',
-      subtitle: 'The Apothecary',
+      title: 'Intelligence',
       showTitle: true,
       items: [
         { path: '/analysis', icon: '🔬', label: "Oracle's Review", badge: null, auth: true },
@@ -389,7 +384,7 @@ const navSections = computed(() => {
 .sidenav-sections {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-4);
   flex: 1;
   overflow-y: auto;
   padding-right: 4px;
@@ -414,24 +409,17 @@ const navSections = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-left: var(--space-3);
+  margin-left: var(--space-2);
 }
 
 .section-title {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--text-muted);
   transition: color 0.2s;
-}
-
-.section-subtitle {
-  font-size: 0.55rem;
-  font-weight: 600;
-  color: var(--text-dim);
-  font-style: italic;
-  letter-spacing: 0.05em;
+  opacity: 0.8;
 }
 .section-chevron {
   font-size: 0.8rem;

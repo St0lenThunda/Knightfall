@@ -168,6 +168,43 @@
                       <div class="sub-item"><span>Shadow Protocol</span><span class="text-muted">ACTIVE</span></div>
                     </div>
                   </div>
+
+                  <!-- WARDEN ARCHITECTURAL INTEL -->
+                  <div class="stat-group glass-xs span-2">
+                    <div class="group-label">🧠 Architectural Intelligence (Fabric)</div>
+                    <div v-if="libraryStore.wardenReport" class="briefing-deck">
+                      <div class="intel-header">
+                        <div class="status-pill" :class="libraryStore.wardenReport.status.toLowerCase()">
+                          {{ libraryStore.wardenReport.status }}
+                        </div>
+                        <span class="version-tag">W_v{{ libraryStore.wardenReport.version }}</span>
+                        <span class="ts-tag">{{ formatTime(libraryStore.wardenReport.timestamp) }}</span>
+                      </div>
+                      
+                      <div class="briefing-box custom-scroll">
+                        <pre>{{ libraryStore.wardenReport.briefing || 'SYNTHESIZING_ARCHITECTURAL_SNAPSHOT...' }}</pre>
+                      </div>
+
+                      <div class="briefing-footer">
+                        <div class="metric-chip">
+                          <span class="label">INTEGRITY:</span>
+                          <span class="val" :class="libraryStore.wardenReport.metrics.integrity_score > 90 ? 'text-green' : 'text-gold'">
+                            {{ libraryStore.wardenReport.metrics.integrity_score }}%
+                          </span>
+                        </div>
+                        <div class="metric-chip">
+                          <span class="label">FILES:</span>
+                          <span class="val text-accent">{{ libraryStore.wardenReport.metrics.files_scanned }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="empty-intel">
+                      <div class="loading-bar">
+                        <div class="fill"></div>
+                      </div>
+                      <p class="muted">AWAITING_FABRIC_SYNTHESIS...</p>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- SYSTEM TAB -->
@@ -225,12 +262,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAdminStore } from '../stores/adminStore'
+import { useLibraryStore } from '../stores/libraryStore'
 import GhostlyTooltip from './GhostlyTooltip.vue'
 
 defineProps<{ show: boolean }>()
 defineEmits(['close'])
 
 const adminStore = useAdminStore()
+const libraryStore = useLibraryStore()
 const nodeVersion = '24.11.0'
 const activeTab = ref('finance')
 
@@ -279,6 +318,11 @@ const formatDuration = (seconds: number) => {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}m ${s}s`
+}
+
+const formatTime = (ts: string) => {
+  const d = new Date(ts)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -407,6 +451,91 @@ const formatDuration = (seconds: number) => {
   justify-content: space-between;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.stat-group.span-2 {
+  grid-column: span 2;
+}
+
+/* Briefing Styles */
+.briefing-deck {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.intel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+}
+
+.status-pill {
+  background: rgba(255,255,255,0.05);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.status-pill.validated { background: rgba(16, 185, 129, 0.1); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); }
+
+.version-tag { color: var(--accent-bright); }
+.ts-tag { opacity: 0.4; }
+
+.briefing-box {
+  background: rgba(0,0,0,0.3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.02);
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.briefing-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.8);
+}
+
+.briefing-footer {
+  display: flex;
+  gap: 20px;
+}
+
+.metric-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+.metric-chip .label { opacity: 0.5; font-weight: 800; }
+.metric-chip .val { font-weight: 800; }
+
+.empty-intel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: var(--space-10) 0;
+}
+
+.loading-bar {
+  width: 100px; height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;
+}
+.loading-bar .fill {
+  width: 30%; height: 100%; background: var(--accent);
+  animation: loading-slide 1.5s infinite ease-in-out;
+}
+
+@keyframes loading-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
 }
 
 .modal-footer {
