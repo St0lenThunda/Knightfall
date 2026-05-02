@@ -109,9 +109,24 @@ export const useUserStore = defineStore('user', () => {
    * Fetches profile, match history, and puzzle attempts in parallel.
    */
   async function fetchUserData() {
-    const { data: { session: s } } = await supabase.auth.getSession()
-    session.value = s
-    if (!s) return
+    // Safety timeout for CI/Slow networks: don't hang the app forever
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Auth Timeout')), 5000)
+    )
+
+    try {
+      const { data: { session: s } } = await Promise.race([
+        supabase.auth.getSession(),
+        timeout as Promise<any>
+      ])
+      session.value = s
+    } catch (e) {
+      logger.warn('[UserStore] Session fetch timed out or failed. Continuing in guest mode.')
+      session.value = null
+      return
+    }
+
+    if (!session.value) return
 
     // Execute Profile and Games in parallel
     const [profileRes, matchesRes] = await Promise.all([

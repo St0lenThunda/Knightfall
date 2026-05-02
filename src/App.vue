@@ -43,8 +43,15 @@ onMounted(() => {
 })
 
 const init = async () => {
-  await userStore.fetchUserData()
-  await libraryStore.loadGames()
+  try {
+    // Run fetches in parallel so one failure doesn't block the other
+    await Promise.all([
+      userStore.fetchUserData(),
+      libraryStore.loadGames()
+    ])
+  } catch (e) {
+    console.warn('[Knightfall] Initialization failed:', e)
+  }
 }
 
 init()

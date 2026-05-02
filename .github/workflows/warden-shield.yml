@@ -9,7 +9,7 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   # Provide mock values so the app can boot during testing without real secrets
-  VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL || 'https://mock.supabase.co' }}
+  VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL || 'http://127.0.0.1:54321' }}
   VITE_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY || 'mock-anon-key' }}
   # Fabric AI Context (Using Gemini for v0.30.0 Intelligence)
   GEMINI_API_KEY: ${{ secrets.TEST_GEMINI_API_KEY }}
