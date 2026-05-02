@@ -44,7 +44,15 @@
               Forgot?
             </button>
           </div>
-          <input type="password" class="input" v-model="password" placeholder="••••••••" required data-testid="password-input" />
+          <input 
+            type="password" 
+            class="input" 
+            v-model="password" 
+            placeholder="••••••••" 
+            required 
+            data-testid="password-input"
+            :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'" 
+          />
         </div>
 
         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: var(--space-4);" :disabled="isLoading" data-testid="auth-submit-btn">
@@ -132,17 +140,19 @@ async function handleSubmit() {
       emit('success')
       setTimeout(() => emit('close'), 500)
     } else {
-      const { data, error } = await supabase.auth.signUp({ email: email.value, password: password.value })
+      const { data, error } = await supabase.auth.signUp({ 
+        email: email.value, 
+        password: password.value,
+        options: {
+          data: {
+            username: username.value
+          }
+        }
+      })
       if (error) throw error
-      if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          username: username.value,
-          rating: 1200
-        })
-        if (profileError) throw profileError
-      }
+      
+      // We no longer manually insert to 'profiles' here. 
+      // The Database Trigger (handle_new_user) takes over to avoid 401/RLS issues.
       
       await userStore.fetchUserData()
       

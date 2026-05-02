@@ -124,7 +124,26 @@ export const useUserStore = defineStore('user', () => {
         .limit(100)
     ])
 
-    if (profileRes.data) profile.value = profileRes.data
+    if (profileRes.data) {
+      profile.value = profileRes.data
+      
+      // Self-Healing: If profile exists but username is missing, try to recover from metadata
+      if (!profile.value.username && s.user.user_metadata?.username) {
+        logger.info('[UserStore] Repairing profile: Username missing, recovering from metadata...')
+        await updateProfile({ username: s.user.user_metadata.username })
+      }
+    } else if (s.user.user_metadata?.username) {
+      // If profile is missing entirely but we have metadata, create it now
+      logger.info('[UserStore] Profile missing: Creating from metadata...')
+      const { data: newProfile } = await supabase.from('profiles').insert({
+        id: s.user.id,
+        username: s.user.user_metadata.username,
+        rating: 1200,
+        hearts: 5,
+        xp: 0
+      }).select().single()
+      if (newProfile) profile.value = newProfile
+    }
 
     if (matchesRes.data) {
       pastGames.value = matchesRes.data.map((row: any) => {
@@ -155,6 +174,39 @@ export const useUserStore = defineStore('user', () => {
       .order('created_at', { ascending: false })
     
     if (az) puzzleAttempts.value = az
+    
+    // 4. Check for Floating Guest Data (Delayed Signup Gate)
+    await promoteGuestData()
+  }
+
+  /**
+   * Promotes anonymous guest assessment data to the permanent user profile.
+   * This is the "Bridge" that makes the Delayed Signup Gate work.
+   */
+  async function promoteGuestData() {
+    if (!profile.value) return
+    
+    const pending = localStorage.getItem('knightfall_pending_dna')
+    if (!pending) return
+
+    try {
+      const { archetype, stats } = JSON.parse(pending)
+      logger.info(`[UserStore] Found guest DNA: ${archetype}. Promoting to profile...`)
+
+      await updateProfile({
+        archetype: archetype
+      })
+
+      // In a real implementation, we would also insert the stats 
+      // into a 'dna_history' table here.
+      
+      localStorage.removeItem('knightfall_pending_dna')
+      
+      const uiStore = useUiStore()
+      uiStore.addToast(`DNA Profile Saved: Welcome to the War Room, ${profile.value.username}.`, 'success')
+    } catch (e) {
+      logger.error('[UserStore] Failed to promote guest DNA:', e)
+    }
   }
 
   /**

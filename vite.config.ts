@@ -12,13 +12,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
-    hmr: {
-      protocol: 'ws',
-      host: '127.0.0.1',
-      port: 5173,
-    },
-    // Sometimes needed for proxy environments
-    allowedHosts: true
+    strictPort: true,
   },
   test: {
     globals: true,

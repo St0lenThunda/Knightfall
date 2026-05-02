@@ -1,11 +1,16 @@
 <template>
-  <div class="dna-reveal-container page">
+  <div class="dna-reveal-container page" :class="!isSequencing ? 'theme-' + archetype.id : ''">
     <div v-if="isSequencing" class="sequencing-overlay">
       <div class="dna-helix-container">
         <div v-for="i in 20" :key="i" class="dna-dot" :style="{ '--i': i }"></div>
       </div>
       <h1 class="sequencing-text">SEQUENCING CHESS DNA...</h1>
-      <p class="muted">{{ statusMessage }}</p>
+      <div class="status-box">
+        <p class="status-message">{{ statusMessage }}</p>
+        <div class="status-progress-bar">
+          <div class="status-progress-fill" :style="{ width: progress + '%' }"></div>
+        </div>
+      </div>
     </div>
 
     <Transition name="scale-fade">
@@ -54,6 +59,7 @@ const router = useRouter()
 const curriculumStore = useCurriculumStore()
 
 const isSequencing = ref(true)
+const progress = ref(0)
 const statusMessage = ref('Analyzing tactical floor...')
 
 const archetypes = [
@@ -137,10 +143,20 @@ const proceedToWarRoom = () => {
 }
 
 const saveProfile = () => {
+  // Store results in localStorage temporarily so they survive the auth redirect/refresh
+  localStorage.setItem('knightfall_pending_dna', JSON.stringify({
+    archetype: archetype.value.id,
+    stats: stats.value
+  }))
   document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
 }
 
 onMounted(() => {
+  const interval = setInterval(() => {
+    progress.value += 2
+    if (progress.value >= 100) clearInterval(interval)
+  }, 80)
+
   setTimeout(() => { statusMessage.value = 'Mapping calculation depth...' }, 1000)
   setTimeout(() => { statusMessage.value = 'Evaluating endgame precision...' }, 2000)
   setTimeout(() => { statusMessage.value = 'Determining archetype...' }, 3000)
@@ -151,25 +167,60 @@ onMounted(() => {
 <style scoped>
 .dna-reveal-container {
   height: 100vh;
-  background: var(--bg-deep);
+  background: radial-gradient(circle at center, var(--bg-deep) 0%, #000 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  --reveal-accent: var(--accent-bright);
 }
+
+/* Archetype Theme Overrides */
+.theme-storm { --reveal-accent: #a78bfa; }      /* Electric Violet */
+.theme-oracle { --reveal-accent: #6366f1; }     /* Deep Indigo */
+.theme-technician { --reveal-accent: #fbbf24; } /* Industrial Amber */
+.theme-rogue { --reveal-accent: #f43f5e; }      /* Crimson Edge */
+.theme-student { --reveal-accent: #10b981; }    /* Emerald Growth */
 
 .sequencing-overlay {
   text-align: center;
 }
 
 .sequencing-text {
-  font-size: 1.5rem;
-  letter-spacing: 0.3em;
+  font-size: 1.2rem;
+  letter-spacing: 0.5em;
   font-weight: 900;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: white;
+  opacity: 0.8;
   margin-top: var(--space-8);
+  text-transform: uppercase;
+}
+
+.status-box {
+  width: 300px;
+  margin: var(--space-4) auto;
+  text-align: left;
+}
+
+.status-message {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent-bright);
+  margin-bottom: 8px;
+  min-height: 1em;
+}
+
+.status-progress-bar {
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 1px;
+}
+
+.status-progress-fill {
+  height: 100%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 10px var(--accent-bright);
+  transition: width 0.1s linear;
 }
 
 .dna-helix-container {
@@ -206,14 +257,37 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(20px);
+}
+
+.archetype-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: scan 3s infinite;
+}
+
+@keyframes scan {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .dna-badge {
   font-size: 0.7rem;
   font-weight: 900;
-  color: var(--accent-bright);
+  color: var(--reveal-accent);
   letter-spacing: 0.2em;
   margin-bottom: var(--space-4);
+  text-shadow: 0 0 20px var(--reveal-accent);
 }
 
 .archetype-name {
@@ -262,8 +336,10 @@ onMounted(() => {
 
 .stat-bar-fill {
   height: 100%;
-  background: var(--accent-gradient);
+  background: var(--reveal-accent);
   border-radius: 3px;
+  box-shadow: 0 0 10px var(--reveal-accent);
+  transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .scale-fade-enter-active {

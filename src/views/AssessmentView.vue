@@ -164,10 +164,14 @@ function loadPuzzle(puzzle: Puzzle) {
   gameStore.loadPosition(puzzle.fen, 'puzzle')
   
   // 2. Sync Drill State
+  gameStore.mode = 'puzzle'
   gameStore.setDrill(puzzle.solution || [])
   gameStore.playerColor = puzzle.fen.split(' ')[1] as 'w' | 'b'
   
-  // 3. Telemetry
+  // 3. Activate Board
+  gameStore.startMatch()
+  
+  // 4. Telemetry
   startTime.value = Date.now()
   errorsInCurrentPuzzle.value = 0
 }
