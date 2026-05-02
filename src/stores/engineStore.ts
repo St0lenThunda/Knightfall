@@ -41,7 +41,19 @@ export const useEngineStore = defineStore('engine', () => {
 
   function init() {
     if (worker) return
-    worker = new Worker('/engine/stockfish.js')
+    
+    // Safety check for environments without Worker support (e.g. some CI setups)
+    if (typeof Worker === 'undefined') {
+        logger.warn('[Engine] Web Workers are not supported in this environment. Engine features disabled.')
+        return
+    }
+
+    try {
+        worker = new Worker('/engine/stockfish.js')
+    } catch (e) {
+        logger.error('[Engine] Failed to initialize Worker:', e)
+        return
+    }
     
     worker.onerror = (err) => {
         logger.error('[Engine] Worker error caught:', err)

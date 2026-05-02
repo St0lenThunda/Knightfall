@@ -20,215 +20,45 @@
           <div :key="activeTab" class="tab-pane">
             
             <!-- GENERAL SETTINGS -->
-            <div v-if="activeTab === 'general'" class="settings-group">
-              <h3>System</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Sound Effects</div>
-                  <div class="desc">Enable move sounds and notifications</div>
-                </div>
-                <div class="setting-action">
-                  <input type="checkbox" v-model="settings.soundEnabled" class="toggle-switch" />
-                </div>
-              </div>
-
-              <h3>Animations</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Movement Speed</div>
-                  <div class="desc">Control the velocity of pieces on the board</div>
-                </div>
-                <div class="setting-action">
-                  <select v-model="settings.animationSpeed" class="custom-select">
-                    <option value="instant">Instant</option>
-                    <option value="fast">Fast</option>
-                    <option value="normal">Standard</option>
-                    <option value="slow">Cinematic</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+            <SettingsGeneralTab 
+              v-if="activeTab === 'general'"
+              v-model:soundEnabled="settings.soundEnabled"
+              v-model:animationSpeed="settings.animationSpeed"
+            />
 
             <!-- BOARD SETTINGS -->
-            <div v-if="activeTab === 'board'" class="settings-group">
-              <h3>Aesthetics</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Board Theme</div>
-                  <div class="desc">Select the visual material for the 64 squares</div>
-                </div>
-                <div class="setting-action">
-                   <div class="theme-grid">
-                      <div v-for="t in boardThemes" :key="t.id" 
-                        class="theme-thumb" :class="{ active: settings.boardTheme === t.id }"
-                        @click="settings.boardTheme = t.id as any">
-                        <div class="thumb-preview" :style="{ background: t.color }"></div>
-                        <span>{{ t.label }}</span>
-                      </div>
-                   </div>
-                </div>
-              </div>
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Piece Set</div>
-                  <div class="desc">Classic uses fast unicode glyphs. Neo and Glass use high-res local image assets.</div>
-                </div>
-                <div class="setting-action">
-                  <select v-model="settings.pieceTheme" class="custom-select">
-                    <option value="classic">Classic (Unicode)</option>
-                    <option value="neo">Neo-Obsidian (HD)</option>
-                    <option value="glass">Holographic Glass (HD)</option>
-                  </select>
-                </div>
-              </div>
-              
-              <h3>Visual Aids</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Engine Best Move Arrow</div>
-                  <div class="desc">Show a glowing green prediction arrow indicating the top AI recommendation</div>
-                </div>
-                <div class="setting-action">
-                  <input type="checkbox" v-model="settings.showBestMoveArrow" class="toggle-switch" />
-                </div>
-              </div>
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Engine Threat Arrow</div>
-                  <div class="desc">Show a red arrow indicating the opponent's strongest expected counter-response</div>
-                </div>
-                <div class="setting-action">
-                  <input type="checkbox" v-model="settings.showThreatArrow" class="toggle-switch" />
-                </div>
-              </div>
-            </div>
+            <SettingsBoardTab 
+              v-if="activeTab === 'board'"
+              v-model:boardTheme="settings.boardTheme"
+              v-model:pieceTheme="settings.pieceTheme"
+              v-model:showBestMoveArrow="settings.showBestMoveArrow"
+              v-model:showThreatArrow="settings.showThreatArrow"
+            />
 
             <!-- ENGINE SETTINGS -->
-            <div v-if="activeTab === 'engine'" class="settings-group">
-              <h3>Computational Power</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Multi-PV Mode</div>
-                  <div class="desc">Number of alternative lines Stockfish calculates simultaneously</div>
-                </div>
-                <div class="setting-action">
-                  <div class="number-stepper">
-                     <button @click="settings.engineMultiPv = Math.max(1, settings.engineMultiPv - 1)">-</button>
-                     <span>{{ settings.engineMultiPv }}</span>
-                     <button @click="settings.engineMultiPv = Math.min(5, settings.engineMultiPv + 1)">+</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Target Analysis Depth</div>
-                  <div class="desc">The default depth the AI Coach waits for before giving feedback</div>
-                </div>
-                <div class="setting-action">
-                  <select v-model="settings.analysisDepth" class="custom-select">
-                    <option :value="10">Depth 10 (Fastest)</option>
-                    <option :value="15">Depth 15 (Balanced)</option>
-                    <option :value="20">Depth 20 (Deep)</option>
-                    <option :value="24">Depth 24 (Grandmaster)</option>
-                  </select>
-                </div>
-              </div>
-
-              <h3>AI Coaching Personality</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Coach Archetype</div>
-                  <div class="desc">Affects the tone and style of analysis feedback</div>
-                </div>
-                <div class="setting-action">
-                  <select v-model="settings.coachPersonality" class="custom-select">
-                    <option value="encouraging">Encouraging (Standard)</option>
-                    <option value="strict">Strict (Direct)</option>
-                    <option value="socratic">Socratic (Questioning)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+            <SettingsEngineTab 
+              v-if="activeTab === 'engine'"
+              v-model:engineMultiPv="settings.engineMultiPv"
+              v-model:analysisDepth="settings.analysisDepth"
+              v-model:coachPersonality="settings.coachPersonality"
+            />
 
             <!-- IDENTITY & DNA SETTINGS -->
-            <div v-if="activeTab === 'identity'" class="settings-group">
-              <h3>Knightfall Identity</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Public Username</div>
-                  <div class="desc">How you appear in the global laboratory rankings and DNA profiles</div>
-                </div>
-                <div class="setting-action">
-                  <input type="text" v-model="editUsername" class="custom-input" placeholder="Enter username..." />
-                </div>
-              </div>
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Geographic Location</div>
-                  <div class="desc">Displayed on your profile coordinates and local mapping</div>
-                </div>
-                <div class="setting-action">
-                  <input type="text" v-model="editLocation" class="custom-input" placeholder="City, Country..." />
-                </div>
-              </div>
-
-              <h3>External DNA Sources</h3>
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Chess.com Integration</div>
-                  <div class="desc">External handle for PGN intelligence ingestion</div>
-                </div>
-                <div class="setting-action">
-                  <input type="text" v-model="editChessComUser" class="custom-input" placeholder="Chess.com username" />
-                </div>
-              </div>
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <div class="label">Lichess Integration</div>
-                  <div class="desc">External handle for open-source DNA synchronization</div>
-                </div>
-                <div class="setting-action">
-                  <input type="text" v-model="editLichessUser" class="custom-input" placeholder="Lichess username" />
-                </div>
-              </div>
-
-              <div class="settings-actions mt-6" style="flex-wrap: wrap;">
-                <button @click="saveIdentity" class="btn btn-primary" :disabled="isSaving">
-                  {{ isSaving ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save Changes' }}
-                </button>
-                <button @click="syncAllIntelligence" class="btn btn-ghost" :disabled="isSyncing">
-                  {{ isSyncing ? 'Synchronizing DNA...' : '⚡ Manual DNA Sync' }}
-                </button>
-                <div v-if="saveError" class="text-danger" style="width: 100%; margin-top: 8px; font-size: 0.85rem;">
-                  {{ saveError }}
-                </div>
-              </div>
-
-              <h3>Authentication & Session</h3>
-              <div class="setting-row" v-if="userStore.profile">
-                <div class="setting-info">
-                  <div class="label">Connected as {{ userStore.profile.username }}</div>
-                  <div class="desc">{{ userStore.session?.user?.email }}</div>
-                </div>
-                <div class="setting-action">
-                  <button class="btn btn-ghost btn-sm" @click="handleSignOut">Sign Out</button>
-                </div>
-              </div>
-              <div class="setting-row" v-else>
-                <div class="setting-info">
-                  <div class="label">Guest Mode</div>
-                  <div class="desc">Sign in to sync your library across devices</div>
-                </div>
-                <div class="setting-action">
-                  <button class="btn btn-primary btn-sm" @click="handleSignIn">Create Account</button>
-                </div>
-              </div>
-            </div>
+            <SettingsIdentityTab 
+              v-if="activeTab === 'identity'"
+              v-model:username="editUsername"
+              v-model:location="editLocation"
+              v-model:chesscomHandle="editChessComUser"
+              v-model:lichessHandle="editLichessUser"
+              :isSaving="isSaving"
+              :isSyncing="isSyncing"
+              :saveError="saveError"
+              :saveSuccess="saveSuccess"
+              @save="saveIdentity"
+              @sync="syncAllIntelligence"
+              @signOut="handleSignOut"
+              @signIn="handleSignIn"
+            />
 
           </div>
         </Transition>
@@ -238,131 +68,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useSettingsStore } from '../stores/settingsStore'
-import { useUserStore } from '../stores/userStore'
-import { useLibraryStore } from '../stores/libraryStore'
-import { useUiStore } from '../stores/uiStore'
 import { supabase } from '../api/supabaseClient'
-import { fetchRecentChesscomGames } from '../api/chesscomApi'
-import { fetchRecentLichessGames } from '../api/lichessApi'
+
+// Pillar Components
+import SettingsGeneralTab from '../components/settings/SettingsGeneralTab.vue'
+import SettingsBoardTab from '../components/settings/SettingsBoardTab.vue'
+import SettingsEngineTab from '../components/settings/SettingsEngineTab.vue'
+import SettingsIdentityTab from '../components/settings/SettingsIdentityTab.vue'
+
+// Pillar Composables
+import { useSettingsNavigation } from '../composables/settings/useSettingsNavigation'
+import { useSettingsIdentity } from '../composables/settings/useSettingsIdentity'
 
 const settings = useSettingsStore()
-const userStore = useUserStore()
-const uiStore = useUiStore()
 const router = useRouter()
-const route = useRoute()
 
-const activeTab = ref('general')
+// Initialize Pillar Logic
+const { activeTab, tabs } = useSettingsNavigation()
+const { 
+  editUsername, editLocation, editChessComUser, editLichessUser,
+  isSaving, isSyncing, saveError, saveSuccess,
+  saveIdentity, syncAllIntelligence 
+} = useSettingsIdentity()
 
-onMounted(() => {
-  if (route.query.tab) {
-    activeTab.value = route.query.tab as string
-  }
-})
-
-watch(() => route.query.tab, (newTab) => {
-  if (newTab) activeTab.value = newTab as string
-})
-
-const tabs = [
-    { id: 'general', label: 'General', icon: '⚙️' },
-    { id: 'board', label: 'Board & Style', icon: '🎨' },
-    { id: 'engine', label: 'Engine', icon: '🧠' },
-    { id: 'identity', label: 'Identity & DNA', icon: '🧬' },
-  ]
-  
-  // Identity Form State
-  const editUsername = ref('')
-  const editLocation = ref('')
-  const editChessComUser = ref('')
-  const editLichessUser = ref('')
-  const isSaving = ref(false)
-  const isSyncing = ref(false)
-
-  // Reactively populate form when profile loads
-  watch(() => userStore.profile, (p) => {
-    if (p) {
-      editUsername.value = p.username || ''
-      editLocation.value = p.location || ''
-      editChessComUser.value = p.chesscom_handle || ''
-      editLichessUser.value = p.lichess_handle || ''
-    }
-  }, { immediate: true })
-  
-  const libraryStore = useLibraryStore()
-  
-  const saveError = ref('')
-  const saveSuccess = ref(false)
-
-  async function saveIdentity() {
-    isSaving.value = true
-    saveError.value = ''
-    saveSuccess.value = false
-    try {
-      const result = await userStore.updateProfile({
-        username: editUsername.value,
-        location: editLocation.value,
-        chesscom_handle: editChessComUser.value,
-        lichess_handle: editLichessUser.value
-      })
-      if (result?.error) {
-        saveError.value = result.error.message || 'Failed to save identity.'
-      } else {
-        saveSuccess.value = true
-        setTimeout(() => { saveSuccess.value = false }, 3000)
-      }
-    } catch (err: any) {
-      saveError.value = err.message || 'An unexpected error occurred.'
-    } finally {
-      isSaving.value = false
-    }
-  }
-  
-  async function syncAllIntelligence() {
-    isSyncing.value = true
-    let chessComCount = 0
-    let lichessCount = 0
-
-    try {
-      if (editChessComUser.value.trim()) {
-        const games = await fetchRecentChesscomGames(editChessComUser.value.trim())
-        for (const game of games) {
-          const res = await libraryStore.saveGameToLibrary(game.pgn, ['Chess.com'])
-          if (res) chessComCount++
-        }
-      }
-      
-      if (editLichessUser.value.trim()) {
-        const games = await fetchRecentLichessGames(editLichessUser.value.trim())
-        for (const game of games) {
-          const res = await libraryStore.saveGameToLibrary(game.pgn, ['Lichess'])
-          if (res) lichessCount++
-        }
-      }
-
-      if (chessComCount === 0 && lichessCount === 0) {
-        uiStore.addToast('Vault is already up to date. No new games found.', 'info')
-      } else {
-        const parts = []
-        if (chessComCount > 0) parts.push(`${chessComCount} from Chess.com`)
-        if (lichessCount > 0) parts.push(`${lichessCount} from Lichess`)
-        uiStore.addToast(`DNA Synchronized! Added ${parts.join(' and ')}.`, 'success')
-      }
-    } catch (e) {
-      uiStore.addToast('Failed to synchronize DNA from external sources.', 'error')
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-const boardThemes = [
-  { id: 'classic', label: 'Classic', color: '#8ca2ad' },
-  { id: 'wood', label: 'Wood', color: '#b58863' },
-  { id: 'obsidian', label: 'Obsidian', color: '#2a2a2a' },
-]
-
+/**
+ * Global Session Actions
+ */
 async function handleSignOut() {
   await supabase.auth.signOut()
   window.location.reload()
@@ -428,113 +161,6 @@ function handleSignIn() {
   padding: var(--space-10);
   background: rgba(255,255,255,0.01);
 }
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
-
-.settings-group h3 {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--accent-bright);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  padding-bottom: 8px;
-}
-
-.setting-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-10);
-}
-
-.setting-info { flex: 1; }
-.setting-info .label { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-.setting-info .desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
-
-.custom-select, .custom-input {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  outline: none;
-  min-width: 220px;
-  transition: all 0.2s;
-}
-.custom-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.05); }
-
-.settings-actions {
-  display: flex;
-  gap: var(--space-4);
-  padding-top: var(--space-6);
-  border-top: 1px solid rgba(255,255,255,0.05);
-}
-
-.toggle-switch {
-  width: 44px;
-  height: 22px;
-  appearance: none;
-  background: #3f3f46;
-  border-radius: 11px;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-.toggle-switch:checked { background: var(--accent); }
-.toggle-switch::after {
-  content: '';
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 18px; height: 18px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.3s;
-}
-.toggle-switch:checked::after { transform: translateX(22px); }
-
-.number-stepper {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--bg-elevated);
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-.number-stepper button {
-  width: 24px; height: 24px;
-  background: rgba(255,255,255,0.05);
-  border: none;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.number-stepper span { font-weight: 700; min-width: 20px; text-align: center; }
-
-.theme-grid {
-  display: flex;
-  gap: var(--space-3);
-}
-.theme-thumb {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-.thumb-preview {
-  width: 60px; height: 40px;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-}
-.theme-thumb.active .thumb-preview { border-color: var(--accent); scale: 1.05; }
-.theme-thumb span { font-size: 0.75rem; color: var(--text-muted); }
 
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.2s ease; }
 .fade-slide-enter-from { opacity: 0; transform: translateX(10px); }

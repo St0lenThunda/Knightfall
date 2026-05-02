@@ -234,7 +234,10 @@ export function usePuzzleLogic() {
   }
 
   // --- LIFECYCLE & WATCHERS ---
-  onMounted(() => {
+  onMounted(async () => {
+    // Initial load
+    await loadNextPuzzle()
+
     timerInterval = setInterval(() => {
       if (!puzzleSolved.value && introDismissed.value) {
         timeTakenNow.value = Math.round((Date.now() - puzzleStartTime.value) / 1000)

@@ -14,9 +14,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 if (
   !supabaseUrl ||
   !supabaseAnonKey ||
-  supabaseUrl.includes('YOUR_SUPABASE_PROJECT_URL_HERE')
+  supabaseUrl.includes('YOUR_SUPABASE_PROJECT_URL_HERE') ||
+  supabaseUrl.includes('placeholder') ||
+  supabaseUrl.includes('mock')
 ) {
-  if (import.meta.env.DEV) {
+  // Never throw in CI/Test environments
+  const isCI = import.meta.env.PROD || !!import.meta.env.CI || !!import.meta.env.VITEST
+
+  if (import.meta.env.DEV && !isCI) {
     throw new Error(
       '[Knightfall] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
       'Copy .env.example to .env.local and fill in your Supabase project credentials.'
