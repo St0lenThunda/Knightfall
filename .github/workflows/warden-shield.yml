@@ -108,6 +108,13 @@ jobs:
           mkdir -p $INSTALL_DIR
           curl -fsSL https://raw.githubusercontent.com/danielmiessler/Fabric/main/scripts/installer/install.sh | bash
           echo "$INSTALL_DIR" >> $GITHUB_PATH
+          
+      - name: Configure Fabric
+        run: |
+          mkdir -p ~/.config/fabric
+          echo "GEMINI_API_KEY=${{ secrets.TEST_GEMINI_API_KEY }}" > ~/.config/fabric/.env
+          # Set Gemini as the default provider for this run
+          echo "DEFAULT_MODEL=gemini-1.5-pro" >> ~/.config/fabric/.env
 
       - name: Setup Node
         uses: actions/setup-node@v4
