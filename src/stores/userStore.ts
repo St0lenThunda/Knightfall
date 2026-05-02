@@ -128,7 +128,7 @@ export const useUserStore = defineStore('user', () => {
       profile.value = profileRes.data
       
       // Self-Healing: If profile exists but username is missing, try to recover from metadata
-      if (!profile.value.username && s.user.user_metadata?.username) {
+      if (profile.value && !profile.value.username && s.user.user_metadata?.username) {
         logger.info('[UserStore] Repairing profile: Username missing, recovering from metadata...')
         await updateProfile({ username: s.user.user_metadata.username })
       }
@@ -186,24 +186,21 @@ export const useUserStore = defineStore('user', () => {
   async function promoteGuestData() {
     if (!profile.value) return
     
-    const pending = localStorage.getItem('knightfall_pending_dna')
-    if (!pending) return
-
     try {
-      const { archetype, stats } = JSON.parse(pending)
-      logger.info(`[UserStore] Found guest DNA: ${archetype}. Promoting to profile...`)
+      const pending = localStorage.getItem('knightfall_pending_dna')
+      if (pending) {
+        const { archetype } = JSON.parse(pending)
+        logger.info(`[UserStore] Found guest DNA: ${archetype}. Promoting to profile...`)
 
-      await updateProfile({
-        archetype: archetype
-      })
+        await updateProfile({
+          archetype: archetype
+        })
 
-      // In a real implementation, we would also insert the stats 
-      // into a 'dna_history' table here.
-      
-      localStorage.removeItem('knightfall_pending_dna')
-      
-      const uiStore = useUiStore()
-      uiStore.addToast(`DNA Profile Saved: Welcome to the War Room, ${profile.value.username}.`, 'success')
+        localStorage.removeItem('knightfall_pending_dna')
+        
+        const uiStore = useUiStore()
+        uiStore.addToast(`DNA Profile Saved: Welcome to the War Room, ${profile.value.username}.`, 'success')
+      }
     } catch (e) {
       logger.error('[UserStore] Failed to promote guest DNA:', e)
     }

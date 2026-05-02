@@ -140,7 +140,7 @@ async function handleSubmit() {
       emit('success')
       setTimeout(() => emit('close'), 500)
     } else {
-      const { data, error } = await supabase.auth.signUp({ 
+      const { error } = await supabase.auth.signUp({ 
         email: email.value, 
         password: password.value,
         options: {
