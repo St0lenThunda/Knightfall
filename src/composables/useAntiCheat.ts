@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { logger } from '../utils/logger'
 
 /**
@@ -76,12 +76,15 @@ export function useAntiCheat() {
     
     const total = Math.min(100, blurScore + rythmPenalty + correlationPenalty)
     
-    // Update Admin Telemetry
-    import('../stores/adminStore').then(({ useAdminStore }) => {
-      useAdminStore().recordSuspicion(total)
-    })
-
     return total
+  })
+
+  // Watch for changes in the suspicion score to update administrative telemetry
+  // without blocking the main calculation logic.
+  watch(suspicionScore, (newScore) => {
+    import('../stores/adminStore').then(({ useAdminStore }) => {
+      useAdminStore().recordSuspicion(newScore)
+    })
   })
 
   const isCheaterBusted = computed(() => suspicionScore.value >= 100)
@@ -113,6 +116,8 @@ export function useAntiCheat() {
   function registerBlur() {
     blurCount.value++
     
+    const score = suspicionScore.value
+
     // Fire UI Toast Alert (Longer duration as requested)
     import('../stores/uiStore').then(({ useUiStore }) => {
       const ui = useUiStore()
@@ -120,9 +125,11 @@ export function useAntiCheat() {
     })
 
     import('../stores/adminStore').then(({ useAdminStore }) => {
-      useAdminStore().recordSuspicion(suspicionScore.value, true)
+      const admin = useAdminStore()
+      admin.recordSuspicion(score, true)
     })
-    logger.warn(`[Anti-Cheat] Visibility violation. Count: ${blurCount.value}. Score: ${suspicionScore.value}`)
+
+    logger.warn(`[Anti-Cheat] Visibility violation. Count: ${blurCount.value}. Score: ${score}`)
   }
 
   function reset() {

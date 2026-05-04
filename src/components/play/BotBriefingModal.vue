@@ -14,48 +14,20 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits(['close'])
-
+const emit = defineEmits(['close', 'prev', 'next'])
 
 /**
- * Tactical traits based on bot ID.
- * This adds flavor and hints at how they play.
+ * Fallback traits if not defined in the bot object.
  */
 const traits = computed(() => {
-  if (!props.bot) return []
-  
-  switch (props.bot.id) {
-    case 'leo': return ['Curious', 'Unpredictable', 'Hesitant']
-    case 'tanya': return ['Aggressive', 'Tactical', 'Impatient']
-    case 'maya': return ['Balanced', 'Solid', 'Patient']
-    case 'boris': return ['Dogmatic', 'Stubborn', 'Classical']
-    case 'arthur': return ['Ruthless', 'Sacrificial', 'Chaos-driven']
-    case 'elara': return ['Precise', 'Cold', 'Unforgiving']
-    case 'magnus_mini': return ['Genius', 'Relentless', 'Squeezing']
-    case 'gm': return ['Flawless', 'Encyclopedic', 'Stoic']
-    case 'nova': return ['Transcendent', 'Infinite', 'Alien']
-    default: return ['Standard']
-  }
+  return props.bot?.traits || ['Standard']
 })
 
 /**
- * Extended backstories for the "Briefing" feel.
+ * Fallback backstory if not defined in the bot object.
  */
 const backstory = computed(() => {
-  if (!props.bot) return ''
-  
-  switch (props.bot.id) {
-    case 'leo': return "A neural network prototype designed to mimic the curiosity of a child. Leo doesn't just play chess; he's discovering the universe one square at a time. He's prone to 'creative' mistakes."
-    case 'tanya': return "A combat specialist logic-gate. Tanya was trained on thousands of tactical drills. She views the board as a minefield and isn't afraid to step on a few mines to get to your King."
-    case 'maya': return "The most human-aligned engine in the suite. Maya understands the value of a solid center and patient development. She won't overwhelm you with calculation, but she will punish positional negligence."
-    case 'boris': return "A legacy algorithm modeled after the giants of the 20th century. Boris values structure, space, and safety. He plays a heavy, traditional game that feels like pushing against a stone wall."
-    case 'arthur': return "Arthur is an anomaly. He values 'Dynamic Compensation' over material. If he sees an attack, he will burn his own house down just to smoke you out. Pure tactical adrenaline."
-    case 'elara': return "The Queen of the Endgame. Elara is programmed with perfect tablebase knowledge. If the game reaches the final stage, she calculates with a chilling, 100% efficiency. Do not trade down."
-    case 'magnus_mini': return "A distillation of master-level intuition. Mini Magnus doesn't need huge attacks; he will take a 1% advantage and nurse it until it's a 100% win. Relentless and exhausting."
-    case 'gm': return "The Sentinel of the Vault. A grandmaster-tier engine with no known weaknesses. He represents the pinnacle of human-comparable play, devoid of emotion and error."
-    case 'nova': return "The Supernova is less of a bot and more of a cosmic event. It calculates millions of variations per second. It doesn't play chess; it solves it. Entering a match with Nova is a lesson in humility."
-    default: return "A standard digital adversary."
-  }
+  return props.bot?.backstory || "A standard digital adversary."
 })
 </script>
 
@@ -112,9 +84,17 @@ const backstory = computed(() => {
             </div>
 
             <div class="dossier-footer">
-              <button class="btn btn-primary btn-block" @click="emit('close')">
-                CONFIRM MISSION PARAMETERS
-              </button>
+              <div class="nav-controls">
+                <button class="nav-btn prev" @click="emit('prev')">
+                  <span class="arrow">←</span> PREV
+                </button>
+                <button class="btn btn-primary" @click="emit('close')">
+                  CONFIRM MISSION
+                </button>
+                <button class="nav-btn next" @click="emit('next')">
+                  NEXT <span class="arrow">→</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -131,9 +111,9 @@ const backstory = computed(() => {
   backdrop-filter: blur(12px);
   z-index: 2000;
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Moved to top */
   justify-content: center;
-  padding: var(--space-6);
+  padding: var(--space-12) var(--space-6);
 }
 
 .briefing-modal {
@@ -142,6 +122,7 @@ const backstory = computed(() => {
   border: 1px solid var(--border);
   position: relative;
   overflow: hidden;
+  margin-top: var(--space-8);
   animation: modal-enter 0.4s var(--ease) forwards;
 }
 
@@ -307,18 +288,51 @@ const backstory = computed(() => {
   padding-top: var(--space-4);
 }
 
+.nav-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.nav-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: var(--accent-dim);
+}
+
+.nav-btn .arrow {
+  font-size: 1rem;
+}
+
 @keyframes scan {
   0% { top: 0; }
   100% { top: 100%; }
 }
 
 @keyframes modal-enter {
-  from { opacity: 0; transform: scale(0.95) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: translateY(-20px); } /* Enter from top */
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .fade-scale-enter-active, .fade-scale-leave-active { transition: all 0.3s var(--ease); }
-.fade-scale-enter-from, .fade-scale-leave-to { opacity: 0; transform: scale(1.1); }
+.fade-scale-enter-from, .fade-scale-leave-to { opacity: 0; transform: scale(1.02); }
 
 @media (max-width: 768px) {
   .briefing-layout { grid-template-columns: 1fr; }

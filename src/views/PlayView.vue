@@ -31,6 +31,7 @@
           v-model:selectedTc="selectedTc"
           :activeBotId="store.activeBot.id"
           @selectBot="store.activeBot = $event"
+          @showBriefing="showBriefing = true"
           @start="startGame(selectedMode, selectedColor, selectedTc)"
         />
       </Transition>
@@ -135,13 +136,15 @@
       :show="showBriefing" 
       :bot="store.activeBot" 
       @close="showBriefing = false" 
+      @prev="cycleBot(-1)"
+      @next="cycleBot(1)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue'
-import { useGameStore } from '../stores/gameStore'
+import { useGameStore, BOTS } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
 
 // Pillar Components
@@ -181,6 +184,19 @@ usePlayAntiCheat()
 // Derived Eval Data
 const evalNumber = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
+
+/**
+ * Cycle through bots in the briefing modal.
+ */
+function cycleBot(direction: number) {
+  const currentIndex = BOTS.findIndex(b => b.id === store.activeBot.id)
+  let nextIndex = currentIndex + direction
+  
+  if (nextIndex < 0) nextIndex = BOTS.length - 1
+  if (nextIndex >= BOTS.length) nextIndex = 0
+  
+  store.activeBot = BOTS[nextIndex]
+}
 
 /**
  * Handle turn-based flipping for local games.

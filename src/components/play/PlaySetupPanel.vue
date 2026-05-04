@@ -26,7 +26,7 @@ const colors: { value: Color; icon: string; label: string }[] = [
   { value: 'w', icon: '♔', label: 'White side' },
 ]
 
-defineEmits(['start', 'selectBot'])
+defineEmits(['start', 'selectBot', 'showBriefing'])
 </script>
 
 <template>
@@ -74,6 +74,13 @@ defineEmits(['start', 'selectBot'])
                 </div>
                 <div class="bot-desc muted">{{ bot.description }}</div>
               </div>
+              <button 
+                class="btn-info-circle" 
+                title="View Dossier"
+                @click.stop="() => { $emit('selectBot', bot); $emit('showBriefing') }"
+              >
+                ?
+              </button>
             </div>
           </div>
         </div>
@@ -248,6 +255,30 @@ defineEmits(['start', 'selectBot'])
 .bot-desc { 
   font-size: 0.75rem; 
   line-height: 1.3; 
+}
+
+.btn-info-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-info-circle:hover {
+  background: var(--accent-dim);
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  transform: scale(1.1);
 }
 
 .tc-grid { 

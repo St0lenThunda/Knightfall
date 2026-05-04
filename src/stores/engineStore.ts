@@ -42,6 +42,25 @@ export const useEngineStore = defineStore('engine', () => {
   let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
   let activeTurn: 'w' | 'b' = 'w'
 
+  // Command Queue for stable worker handshaking
+  let messageQueue: string[] = []
+  let isReadyForCommand = true
+
+  /**
+   * Safe command dispatcher that waits for Stockfish's 'readyok' 
+   * before sending the next command in the queue.
+   */
+  function sendCommand(cmd: string) {
+    if (!worker) init()
+    if (isReadyForCommand) {
+      worker?.postMessage(cmd)
+      // If we ask 'isready', we must wait for 'readyok' before next move
+      if (cmd === 'isready') isReadyForCommand = false
+    } else {
+      messageQueue.push(cmd)
+    }
+  }
+
   // Mortal Pillar
   const mortal = useMortalLogic()
   const activeArchetype = ref<string | null>(null)
@@ -73,12 +92,17 @@ export const useEngineStore = defineStore('engine', () => {
       
       if (msg === 'uciok') {
         isReady.value = true
-        worker?.postMessage('isready')
+        sendCommand('isready')
         
         const settings = useSettingsStore()
-        worker?.postMessage(`setoption name MultiPV value ${settings.engineMultiPv}`)
+        sendCommand(`setoption name MultiPV value ${settings.engineMultiPv}`)
       } else if (msg === 'readyok') {
-        // Ready to receive position/go
+        isReadyForCommand = true
+        // Flush the queue
+        while (messageQueue.length > 0 && isReadyForCommand) {
+          const next = messageQueue.shift()
+          if (next) sendCommand(next)
+        }
       } else if (msg.startsWith('info ')) {
         throttledParseInfo(msg)
       } else if (msg.startsWith('bestmove')) {
@@ -105,7 +129,7 @@ export const useEngineStore = defineStore('engine', () => {
         }
       }
     }
-    worker.postMessage('uci')
+    sendCommand('uci')
   }
 
   function reboot() {
@@ -131,6 +155,8 @@ export const useEngineStore = defineStore('engine', () => {
     pendingInfo = null
     isReady.value = false
     isAnalyzing.value = false
+    isReadyForCommand = true
+    messageQueue = []
     init()
   }
   
@@ -287,16 +313,16 @@ export const useEngineStore = defineStore('engine', () => {
     if (!worker) init()
     
     // Reset to defaults or apply bot specifics
-    worker!.postMessage(`setoption name Skill Level value ${bot.skillLevel ?? 20}`)
+    sendCommand(`setoption name Skill Level value ${bot.skillLevel ?? 20}`)
     
     if (bot.elo) {
-      worker!.postMessage('setoption name UCI_LimitStrength value true')
-      worker!.postMessage(`setoption name UCI_Elo value ${bot.elo}`)
+      sendCommand('setoption name UCI_LimitStrength value true')
+      sendCommand(`setoption name UCI_Elo value ${bot.elo}`)
     } else {
-      worker!.postMessage('setoption name UCI_LimitStrength value false')
+      sendCommand('setoption name UCI_LimitStrength value false')
     }
     
-    worker!.postMessage(`setoption name Contempt value ${bot.contempt ?? 0}`)
+    sendCommand(`setoption name Contempt value ${bot.contempt ?? 0}`)
   }
 
   /**
@@ -304,11 +330,11 @@ export const useEngineStore = defineStore('engine', () => {
    */
   function setMortalArchetype(archetypeId: string | null) {
     activeArchetype.value = archetypeId
-    if (archetypeId && worker) {
+    if (archetypeId) {
       const commands = mortal.getUciCommands(archetypeId)
-      commands.forEach(cmd => worker!.postMessage(cmd))
+      commands.forEach(cmd => sendCommand(cmd))
       // Always use MultiPV 3 for Mortal mode to allow for blunder selection
-      worker!.postMessage('setoption name MultiPV value 3')
+      sendCommand('setoption name MultiPV value 3')
     }
   }
 
@@ -345,9 +371,9 @@ export const useEngineStore = defineStore('engine', () => {
     multiPvs.value = []
     analysisStartTime = Date.now()
     
-    worker!.postMessage('isready') // Optional: wait for readyok before go
-    worker!.postMessage(`position fen ${fen}`)
-    worker!.postMessage(`go depth ${depth}`)
+    sendCommand('isready') 
+    sendCommand(`position fen ${fen}`)
+    sendCommand(`go depth ${depth}`)
   }
 
   // Derived eval values for UI

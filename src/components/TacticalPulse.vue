@@ -108,6 +108,13 @@ const renderedBlunder = computed(() => renderMarkdown(blunderText.value))
 watch(() => store.fen, (newFen) => {
   if (!store.gameActive || store.mode !== 'vs-computer') return
 
+  // CRITICAL: If it is the bot's turn, do NOT trigger a separate analysis.
+  // The bot's own analysis will update the engineStore state, which 
+  // the Mood Orb and Blunder Alert will naturally pick up.
+  if (store.turn !== store.playerColor) {
+    return
+  }
+
   const evalBefore = prevEval.value
   engineStore.analyze(newFen, 14) // 14 depth for quick live analysis
 
