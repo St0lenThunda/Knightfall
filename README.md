@@ -1,7 +1,7 @@
 # ♞ Knightfall
 
 > A premium, full-stack chess training platform built with Vue 3, TypeScript, and Supabase.
-> **Current Version: v0.29.4 (Stable)**
+> **Current Version: v0.37.0 (Active Development)**
 
 ---
 
