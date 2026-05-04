@@ -1,31 +1,37 @@
 # ♞ Knightfall
 
 > A premium, full-stack chess training platform built with Vue 3, TypeScript, and Supabase.
-> **Current Version: v0.37.0 (Active Development)**
+> **Current Version: v0.38.0 (The Cathedral Launch)**
 
 ---
 
 ## Overview
 
-Knightfall is a modern chess web application focused on **skill development through deep analytics**. It combines an interactive chess engine, AI-powered coaching, adaptive puzzle training, and persistent player profiles into a single cohesive experience. Every session you play feeds a living Weakness DNA model that directs your training toward your actual blind spots.
+Knightfall is a modern chess web application focused on **skill development through deep analytics**. It combines an interactive chess engine, AI-powered coaching, adaptive puzzle training, and persistent player profiles into a single cohesive experience. Every session you play feeds a living Weakness DNA model that directs your training toward your actual blind spots through a thematic, high-fidelity "Cathedral of Analysis" interface.
 
 ---
 
 ## Features
+
+### 🏛️ The Cathedral (Home)
+- **Cathedral of Analysis** — A premium, atmospheric landing experience with real-time strategic previews
+- **Divining the Blade** — Interactive mini-board showcasing AI-powered tactical divination
+- **The Warrior's Signature** — Visual representation of your "Weakness DNA" via a stained-glass radar chart
 
 ### ♟ Play
 - Play against a Stockfish-powered chess engine with configurable difficulty
 - Real-time legal move highlights, drag-and-drop piece input, and promotion dialogs
 - Game Over screen with result breakdown and a **Review Game** button
 - Anti-cheat heuristics measuring move time variance
+- **Gothic Iconography** — A fully thematic navigation system utilizing medieval artifacts
 
-### 🔬 Analysis
+### 🔮 Analysis & The Oracle
 - Full game replay with forward/backward navigation
-- AI coaching panel powered by a language model — generates natural language commentary per move
+- **The Oracle's Review** — AI coaching panel providing professional, strategic narratives (not just engine moves)
 - PGN import for analyzing games from external sources
 - Stockfish engine integration with best-move suggestions
 
-### ⚡ Puzzles & Shadow Realm
+### ⚒️ Stratagem Forge & Shadow Realm
 - Adaptive puzzle queue driven by your **Weakness DNA** category
 - **Shadow Realm (SRS)** — Hyper-personalized tactical training that harvests your actual blunders and serves them back as spaced-repetition drills
 - **DNA Clinic** — Instant tactical prescriptions based on recent gameplay patterns
