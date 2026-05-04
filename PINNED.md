@@ -15,6 +15,7 @@
 - [ ] **[P0] [Gameplay] Full Testing of Gameplay and Puzzle Verification.**
 - [ ] **[P0] [Mortal] Mortal UX**: Build the "Mortal Probability" graph for the analysis board to visualize human move likelihood.
 - [ ] **[P1] [Engine] External Engine Integration**: Prototype Approach 1 (WebSocket Bridge).
+- [ ] **[P1] [UX] Feedback System**: Implement a thematic "Courier's Dispatch" or "Scribe's Ledger" for bug reports and suggestions.
 - [ ] **[P1] [Mortal] Mortal Engine Validation**: Finalize drill validation for the training queue using the new personality layer.
 - [ ] **[P1] [DNA] Struggle Tracking**: Implement logic to identify which Mortal archetypes the user struggles against most.
 - [ ] **[P2] [Telemetry] Expansion**: Integrate `useLibraryStats` output into the `ConstellationPanel`.

@@ -1,25 +1,22 @@
 # Project Status: Knightfall Intelligence
 
-**Last Updated**: 2026-05-04 00:51
-**Current Version**: v0.36.1 (Accessibility Compliant)
+**Last Updated**: 2026-05-04 09:46
+**Current Version**: v0.38.0 (The Cathedral Launch)
 
 ## 🎯 Recent Accomplishments
-- **100/100 Accessibility Goal achieved**: Hardened the engine against WCAG 2.1 AA standards.
-    - **Contrast remediation**: Brightened section headers (#94a3b8) and darkened blunder tags (#881337) to meet 4.5:1+ thresholds.
-    - **ARIA Bridge repair**: Fixed broken `aria-controls` references in navigation by implementing sanitized, kebab-case ID mapping.
-    - **Target Size hardening**: Expanded collapse toggle hit-zones to 44px and isolated them from the logo to prevent touch-target collisions.
-- **Identity Resolution Fix**: Corrected generic player assignment logic to prevent Guests from being auto-claimed as both sides in the Analysis View.
-- **The Magic Moment (DNA Reveal)**: Implemented cinematic sequencing and archetype-specific theming for a premium onboarding reward.
-- **Neural Vault Scaling**: Implemented Hybrid Paging logic with IndexedDB cursors for infinite library growth.
+- **Cathedral of Analysis Redesign**: Transitioned the home experience to a thematic Gothic-Medieval aesthetic with atmospheric "God Ray" drift and high-contrast feature grids.
+- **Medieval Iconography Overhaul**: Replaced modern sci-fi icons with thematic symbols (`📜`, `🛡️`, `🔮`, `⚒️`, `🗝️`) across the navigation system.
+- **Strategic AI Narrative**: Shifted the coaching tone to an authoritative, professional strategic voice, focusing on "Strategic Intent" and "Positional Rites."
+- **Engine Self-Healing**: Hardened the WASM worker against memory crashes by implementing a depth-fallback loop (Depth 16 cap).
 
 ## 🚧 In Progress / Next Priorities
 1. **[P0] Mortal Probability Graph**: Visualizing real-time "humanization" likelihood on the analysis board.
-2. **[P1] DNA Struggle Tracking**: SURFACING which Mortal archetypes the user struggles against most.
-3. **[P2] Global Leaderboard**: Connecting profile XP and Rating data to a competitive command center.
+2. **[P1] [UX] Courier's Dispatch**: Implementing a thematic feedback and bug reporting system.
+3. **[P1] External Engine Integration**: Prototyping the WebSocket Bridge for Stockfish/Lc0.
 
 ## ⚠️ Known Debt / Blockers
-- **Port Sensitivity / EPERM**: macOS system-level locks on ports 4173/5173 continue to interfere with standard `vite preview` behavior.
-- **Local Dev EPERM**: Permission errors on `.vite-temp` and node_modules often require manual port clearing or alternative high-port binding (e.g. 8888).
+- **LibraryStore Unit Tests**: Known baseline regression in Identity Filtering tests requiring architectural refactor.
+- **Port Sensitivity**: macOS system-level locks continue to interfere with standard `vite preview` behavior (Port 9000 fallback).
 
 ## 🧠 Brain Context (Handoff)
-The engine is now fully inclusive and accessible. All core navigation elements pass semantic and contrast audits. The "Bot Briefing Modal" (Dossier) is fully functional and triggered via the PlayerBar next to bot ratings. The intelligence pipeline is stable, and the focus now returns to the "Mortal" UI enhancements and the Humanization Graph.
+The platform has undergone a major aesthetic and narrative pivot. Knightfall is no longer just an engine; it is a "Cathedral" of tactical analysis. The focus for v0.38.x will be on implementing the "Courier's Dispatch" for user feedback and finalizing the Mortal Probability visualizations.

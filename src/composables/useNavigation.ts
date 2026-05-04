@@ -111,15 +111,15 @@ export function useNavigation() {
         title: 'Mission',
         showTitle: true,
         items: [
-          { path: '/', icon: '📡', label: 'Strategic Briefing', auth: false },
+          { path: '/', icon: '📜', label: 'Strategic Briefing', auth: false },
         ].filter(() => !userStore.session)
       },
       {
         title: 'Command',
         showTitle: true,
         items: [
-          { path: '/', icon: '📡', label: 'Strategic Briefing', auth: true },
-          { path: '/profile', icon: '⬡', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
+          { path: '/', icon: '📜', label: 'Strategic Briefing', auth: true },
+          { path: '/profile', icon: '🛡️', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
           { path: '/profile?tab=dna', icon: '🧬', label: 'Soul Mapping', badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true },
         ].filter(i => !i.auth || !!userStore.session)
       },
@@ -143,9 +143,9 @@ export function useNavigation() {
         title: 'Intelligence',
         showTitle: true,
         items: [
-          { path: '/analysis', icon: '🔬', label: "Oracle's Review", badge: null, auth: true },
-          { path: '/opening-lab', icon: '📖', label: 'Stratagem Forge', badge: null, auth: true },
-          { path: '/settings', icon: '⚙️', label: 'Codex of Rites', badge: null, auth: false },
+          { path: '/analysis', icon: '🔮', label: "Oracle's Review", badge: null, auth: true },
+          { path: '/opening-lab', icon: '⚒️', label: 'Stratagem Forge', badge: null, auth: true },
+          { path: '/settings', icon: '🗝️', label: 'Codex of Rites', badge: null, auth: false },
         ].filter(i => !i.auth || !!userStore.session)
       }
     ].filter(section => section.items.length > 0) // Final pass: Purge empty sections
