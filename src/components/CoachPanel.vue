@@ -6,7 +6,7 @@
   <div class="coaching-section">
     <!-- Level 1 Deterministic Tag removed from here, emitted to parent instead -->
 
-    <div v-if="isCoachThinking" class="coach-thinking-compact">
+    <div v-if="isCoachThinking" class="coach-thinking-compact animated-fade-in">
       <div class="spinner"></div>
       <span>Generating Deep Insights...</span>
     </div>
@@ -15,6 +15,10 @@
         <span>COACH'S TAKE</span>
       </div>
       <div class="coach-markdown" v-html="renderedCoach"></div>
+    </div>
+    <div v-else-if="!hasGame || store.viewIndex === -1" class="coach-welcome glass-xs p-4 animated-fade-in">
+       <span class="text-accent font-bold text-xs uppercase mb-1 block">Oracle Readiness</span>
+       <p class="muted text-xs">Select any move to receive strategic coaching and psychological profiling.</p>
     </div>
   </div>
 </template>
@@ -80,13 +84,13 @@ const userSide = computed(() => {
 
 
 const comparisonData = computed(() => {
-  if (store.moveHistory.length === 0) return null
-  const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+  if (store.moveHistory.length === 0 || store.viewIndex === -1) return null
+  const idx = store.viewIndex
   
   const playedMove = store.moveHistory[idx]
   const beforeFen = idx > 0 ? store.moveHistory[idx - 1].fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
   
-  return { playedMove, beforeFen, moveNumber: idx + 1 }
+  return { playedMove, beforeFen, moveNumber: playedMove.moveNumber || idx + 1 }
 })
 
 /**
@@ -280,7 +284,8 @@ watch(() => [store.viewIndex, store.loadedGameId], () => {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100%;
+  /* height: 100%; REMOVED: Pushed move list down when empty */
+  min-height: 0; 
 }
 
 /* Level 1: Mistake Tag Banner */
@@ -474,4 +479,10 @@ watch(() => [store.viewIndex, store.loadedGameId], () => {
   font-style: italic;
 }
 .coach-markdown :deep(hr) { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+.coach-welcome {
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+}
 </style>

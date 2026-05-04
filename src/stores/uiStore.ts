@@ -62,6 +62,13 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   const isArchetypeModalOpen = ref(false)
+  const isTelemetryOpen = ref(false)
+  const isSidebarCollapsed = ref(localStorage.getItem('sidebar-collapsed') === 'true')
+
+  function toggleSidebar() {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value
+    localStorage.setItem('sidebar-collapsed', isSidebarCollapsed.value.toString())
+  }
 
   function handleCancel() {
     isConfirmOpen.value = false
@@ -72,6 +79,10 @@ export const useUiStore = defineStore('ui', () => {
     toasts, addToast, removeToast, 
     isConfirmOpen, confirmTitle, confirmMessage, confirmIcon, confirmVariant, confirmLabel,
     confirm, handleConfirm, handleCancel,
-    isArchetypeModalOpen
+    notify: addToast,
+    isArchetypeModalOpen,
+    isTelemetryOpen,
+    isSidebarCollapsed,
+    toggleSidebar
   }
 })

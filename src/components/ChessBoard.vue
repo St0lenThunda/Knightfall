@@ -83,6 +83,8 @@ import { logger } from '../utils/logger'
 import type { Square } from 'chess.js'
 import type { MoveQuality } from '../utils/analysisUtils'
 
+import { copySystemSnapshot } from '../utils/debugUtils'
+
 // Sub-Layers
 import PieceLayer from './board/PieceLayer.vue'
 import BadgeLayer from './board/BadgeLayer.vue'
@@ -115,76 +117,46 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['square-click', 'drop', 'badge-click'])
 
-const isInteractive = computed(() => props.interactive)
+const isInteractive = computed(() => props.interactive && store.isPlayersTurn)
 const uiStore = useUiStore()
 const isDev = import.meta.env.DEV
 
 /**
  * EXPORT DEBUG INFO
- * Copies a comprehensive "Black Box" snapshot to the clipboard
- * and dumps the full reactive state to the console.
+ * Uses the global debug utility to copy a forensic snapshot to the clipboard.
  */
-function exportDebugInfo() {
-  // Map store properties safely
-  const mode = store.mode
-  const gameActive = store.gameActive
-  const turn = store.turn
-  const fen = store.fen
-  const pgn = store.pgn
-  const whiteTime = store.whiteTime
-  const blackTime = store.blackTime
-  const suspicion = store.suspicionScore
-  
-  // Safely extract blur count (check if it's a ref or unwrapped value)
-  const blurs = typeof store.antiCheat?.blurCount === 'object' 
-    ? (store.antiCheat.blurCount as any).value 
-    : (store.antiCheat?.blurCount || 0)
-  
-  // 1. Prepare Clipboard Payload (Human-Readable Metadata)
-  const gameId = store.loadedGameId || 'N/A (unsaved)'
-  const viewIdx = store.viewIndex
-  const moveCount = store.moveHistory?.length || 0
-
-  const metadata = [
-    `--- KNIGHTFALL BLACK BOX SNAPSHOT ---`,
-    `Game ID: ${gameId}`,
-    `Mode: ${mode}`,
-    `Active: ${gameActive}`,
-    `Turn: ${turn} | Move: ${viewIdx}/${moveCount}`,
-    `Clock W: ${whiteTime}s | Clock B: ${blackTime}s`,
-    `Suspicion: ${suspicion} | Blurs: ${blurs}`,
-    `FEN: ${fen}`,
-    `PGN: ${pgn}`,
-    `Solution: ${JSON.stringify(store.currentDrill || [])}`,
-    `Step: ${store.drillIndex || 0}/${(store.currentDrill || []).length}`
-  ]
-
-  // Inject dynamic debug context (e.g. puzzle solution/step)
-  if (props.debugData && Object.keys(props.debugData).length > 0) {
-    metadata.push(`Context: ${JSON.stringify(props.debugData)}`)
-  }
-
-  metadata.push(`--------------------------------------`)
-  
-  const finalMetadata = metadata.join('\n')
-  
-  // 2. Console Payload (Deep Object for DevTools)
-  if (import.meta.env.DEV) {
-    console.group('%c 🛠️ KNF System Snapshot ', 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 4px;')
-    console.log('Game ID:', gameId)
-    console.log('Game Store State:', { ...store.$state })
-    console.log('Board FEN:', fen)
-    console.log('Match PGN:', pgn)
-    console.groupEnd()
-  }
-  
-  // 3. Execute Clipboard Copy
-  navigator.clipboard.writeText(finalMetadata).then(() => {
+async function exportDebugInfo() {
+  try {
+    await copySystemSnapshot({
+      gameId: store.loadedGameId || 'N/A (unsaved)',
+      mode: store.mode,
+      gameActive: store.gameActive,
+      turn: store.turn,
+      viewIdx: store.viewIndex,
+      moveCount: store.moveHistory?.length || 0,
+      fen: store.fen,
+      pgn: store.pgn,
+      whiteTime: store.whiteTime,
+      blackTime: store.blackTime,
+      suspicionScore: store.suspicionScore,
+      suspicionBreakdown: store.suspicionBreakdown,
+      lastMoveDuration: store.lastMoveDuration,
+      sessionDuration: store.sessionDuration,
+      engine: {
+        evalNumber: store.engine.evalNumber,
+        suggestedMove: store.engine.suggestedMove,
+        currentDepth: store.engine.currentDepth
+      },
+      currentDrill: store.currentDrill,
+      drillIndex: store.drillIndex,
+      debugData: props.debugData
+    })
+    
     uiStore.addToast('Full system snapshot copied to clipboard!', 'success')
-  }).catch(err => {
+  } catch (err) {
     logger.error('Failed to copy snapshot', err)
-    uiStore.addToast('Failed to capture state.', 'error')
-  })
+    uiStore.addToast('Snapshot export failed', 'error')
+  }
 }
 
 // Use prop lastMove if provided, else fallback to store's lastMove
@@ -385,17 +357,8 @@ function isKingInCheck(rowIdx: number, colIdx: number) {
 .board-container {
   flex: 1;
   position: relative;
-  /* THE SQUARE HACK: padding-bottom 100% on a container with height 0 */
-  height: 0;
-  padding-bottom: calc(100% - 36px); /* subtract room for rank labels if needed, but flex:1 handles width */
-}
-
-/* Actually, let's use a simpler approach that works with flex:1 */
-.board-container {
-  flex: 1;
-  position: relative;
   aspect-ratio: 1 / 1;
-  min-width: 0; /* Important for flex items */
+  min-width: 0;
 }
 
 .chess-board {

@@ -1,5 +1,5 @@
 <template>
-  <div class="app-layout" :class="{ 'mobile-nav-open': mobileOpen }">
+  <div class="app-layout" :class="{ 'mobile-nav-open': mobileOpen }" :style="layoutStyle">
     <SideNav :mobile-open="mobileOpen" @close="mobileOpen = false" />
     
     <!-- Mobile Hamburger -->
@@ -14,7 +14,8 @@
     <ToastProvider />
     <ConfirmModal />
     <ArchetypeModal />
-    <AdminHud v-if="!isTesting" />
+    <AdminHud v-if="isDev || isTesting" />
+    <TelemetryModal v-if="uiStore.isTelemetryOpen" :show="uiStore.isTelemetryOpen" @close="uiStore.isTelemetryOpen = false" />
   </div>
 </template>
 
@@ -25,12 +26,16 @@ import ToastProvider from './components/ToastProvider.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import ArchetypeModal from './components/profile/modals/ArchetypeModal.vue'
 import AdminHud from './components/AdminHud.vue'
+import TelemetryModal from './components/TelemetryModal.vue'
 import { useLibraryStore } from './stores/libraryStore'
 import { useUserStore } from './stores/userStore'
-import { ref, onMounted } from 'vue'
+import { useUiStore } from './stores/uiStore'
+import { ref, onMounted, computed } from 'vue'
 
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
+const uiStore = useUiStore()
+const isDev = import.meta.env.DEV
 const isTesting = ref(false)
 const mobileOpen = ref(false)
 
@@ -44,15 +49,21 @@ onMounted(() => {
 
 const init = async () => {
   try {
-    // Run fetches in parallel so one failure doesn't block the other
-    await Promise.all([
-      userStore.fetchUserData(),
-      libraryStore.loadGames()
-    ])
+    // 1. Establish identity first
+    // This is critical because libraryStore needs to know if it should load 
+    // Curated (Guest) or Private (Scholar) games.
+    await userStore.fetchUserData()
+    
+    // 2. Once identity is settled, load the tactical vault
+    await libraryStore.loadGames()
   } catch (e) {
     console.warn('[Knightfall] Initialization failed:', e)
   }
 }
 
 init()
+
+const layoutStyle = computed(() => ({
+  '--sidebar-width': uiStore.isSidebarCollapsed ? '72px' : '240px'
+}))
 </script>

@@ -60,7 +60,7 @@
                 :multiPvs="engineStore.multiPvs"
                 @deepScan="deepCloudScan"
                 @togglePlayback="togglePlayback"
-                @firstMove="store.goToMove(0)"
+                @firstMove="store.goToMove(-1)"
                 @prevMove="store.stepBack()"
                 @nextMove="store.stepForward()"
                 @lastMove="goToEnd()"
@@ -77,7 +77,7 @@
             </div>
 
             <!-- TAB 2: REVIEW -->
-            <div v-else class="tab-pane-content">
+            <div v-else-if="activeTab === 'review'" class="tab-pane-content">
               <div class="sidebar-scrollable-content neon-scroll">
                 <div class="review-pane-padding">
                   <GameAnalysisTable 
@@ -92,6 +92,20 @@
                       Focus on eliminating your <span class="text-rose font-bold">Blunders</span> first. A game with zero blunders is often more effective than one with multiple brilliant moves.
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 3: MORTAL -->
+            <div v-else class="tab-pane-content">
+              <div class="sidebar-scrollable-content neon-scroll p-4">
+                <MortalGraph :topMoves="engineStore.multiPvs" />
+                
+                <div class="mortal-explanation mt-6 glass-xs p-4 border-t border-glass">
+                  <h4 class="text-xs font-bold mb-2 opacity-50">HOW TO READ</h4>
+                  <p class="muted text-xs leading-relaxed">
+                    Higher bars indicate moves that are <span class="text-accent">Psychologically Natural</span> for that archetype. Engine-only moves will show high eval but low probability across all archetypes.
+                  </p>
                 </div>
               </div>
             </div>
@@ -137,6 +151,7 @@ import GameAnalysisTable from '../components/GameAnalysisTable.vue'
 import EvaluationHeader from '../components/analysis/EvaluationHeader.vue'
 import AnalysisSidebar from '../components/analysis/AnalysisSidebar.vue'
 import AnalysisControls from '../components/analysis/AnalysisControls.vue'
+import MortalGraph from '../components/analysis/MortalGraph.vue'
 import OracleInsightModal from '../components/analysis/OracleInsightModal.vue'
 import HealthLegendModal from '../components/analysis/HealthLegendModal.vue'
 import AnalysisEmptyState from '../components/analysis/AnalysisEmptyState.vue'

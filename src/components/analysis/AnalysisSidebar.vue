@@ -30,7 +30,8 @@ const emit = defineEmits(['update:isCollapsed', 'showLegend'])
 const activeTab = ref('insights')
 const tabs = [
   { id: 'insights', label: 'Insights', icon: '🧠' },
-  { id: 'review', label: 'Review', icon: '📊' }
+  { id: 'review', label: 'Review', icon: '📊' },
+  { id: 'mortal', label: 'Mortal', icon: '👤' }
 ]
 </script>
 

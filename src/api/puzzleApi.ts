@@ -22,6 +22,23 @@ export interface Puzzle {
 const puzzles = puzzlesData as Puzzle[]
 const assessmentPuzzles = assessmentPuzzlesData as Puzzle[]
 
+/**
+ * Validates that all moves in a puzzle solution are legal in the starting FEN.
+ * Returns true if valid, false if corrupt.
+ */
+function isPuzzleLegal(puzzle: Puzzle): boolean {
+  try {
+    const engine = new ChessEngine(puzzle.fen)
+    for (const move of puzzle.solution) {
+      const result = engine.move(move)
+      if (!result) return false
+    }
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
 export async function fetchAssessmentPuzzles(stage: string): Promise<Puzzle[]> {
   logger.info(`[PuzzleAPI] Fetching assessment stage: ${stage}. Total pool size: ${assessmentPuzzles.length}`)
   
@@ -53,15 +70,26 @@ export async function fetchDailyGauntlet(): Promise<Puzzle[]> {
   const totalPuzzles = puzzles.length;
   const startIndex = Math.abs(seed) % totalPuzzles;
   const gauntlet: Puzzle[] = [];
-  for (let i = 0; i < 5; i++) {
-    const index = (startIndex + i) % totalPuzzles;
-    gauntlet.push(puzzles[index]);
+  
+  let offset = 0;
+  // Attempt to find 5 valid puzzles starting from startIndex
+  while (gauntlet.length < 5 && offset < totalPuzzles) {
+    const index = (startIndex + offset) % totalPuzzles;
+    const p = puzzles[index];
+    if (isPuzzleLegal(p)) {
+      gauntlet.push(p);
+    } else {
+      logger.error(`[PuzzleAPI] Daily Gauntlet: Skipping corrupt puzzle ${p.id} at index ${index}`);
+    }
+    offset++;
   }
+  
   return new Promise((resolve) => setTimeout(() => resolve(gauntlet), 300));
 }
 
 /**
  * Fetches a batch of puzzles, prioritizing personal drills if requested.
+ * Every puzzle is validated for legality before being returned.
  */
 export async function fetchPuzzleBatch(category?: string, count: number = 3): Promise<Puzzle[]> {
   if (category === 'Personal Mistake') {
@@ -75,8 +103,19 @@ export async function fetchPuzzleBatch(category?: string, count: number = 3): Pr
     if (pool.length === 0) pool = puzzles
   }
   
-  const shuffled = [...pool].sort(() => 0.5 - Math.random())
-  return shuffled.slice(0, count)
+  const validPuzzles: Puzzle[] = []
+  const shuffledPool = [...pool].sort(() => 0.5 - Math.random())
+  
+  for (const p of shuffledPool) {
+    if (validPuzzles.length >= count) break
+    if (isPuzzleLegal(p)) {
+      validPuzzles.push(p)
+    } else {
+      logger.error(`[PuzzleAPI] Skipping corrupt puzzle ${p.id} (${p.title})`)
+    }
+  }
+
+  return validPuzzles
 }
 
 /**
@@ -88,7 +127,14 @@ export async function fetchPuzzleById(id: string): Promise<Puzzle | null> {
   }
 
   await new Promise(r => setTimeout(r, 100))
-  return puzzles.find(p => p.id === id) || null
+  const puzzle = puzzles.find(p => p.id === id) || null
+  
+  if (puzzle && !isPuzzleLegal(puzzle)) {
+    logger.error(`[PuzzleAPI] Static puzzle ${id} is corrupt (illegal solution). Skipping.`)
+    return null
+  }
+  
+  return puzzle
 }
 
 /**
@@ -122,35 +168,25 @@ export async function fetchPersonalPuzzleById(id: string): Promise<Puzzle | null
     return null
   }
 
-  // Tactical Validation: Ensure the solution is actually legal in the starting FEN.
-  // This prevents 'Ghost Drills' caused by harvesting off-by-one errors.
-  try {
-    const validator = new ChessEngine(data.fen)
-    const bestMove = data.metadata?.best_move
-    if (bestMove) {
-      const result = validator.move(bestMove)
-      if (!result) {
-        logger.error(`[PuzzleAPI] Corrupt drill detected: ${id}. Illegal move '${bestMove}' for FEN ${data.fen}. Auto-skipping.`)
-        return null
-      }
-    }
-  } catch (e) {
-    logger.error(`[PuzzleAPI] Validation failed for ${id}:`, e)
-    return null
-  }
-
-  return {
+  const puzzle: Puzzle = {
     id,
     title: data.theme || 'Personal Mistake',
     rating: data.metadata?.eval_drop ? Math.round(1500 - data.metadata.eval_drop * 100) : 1500,
     themes: ['Personal', data.theme, data.mistake_type],
     fen: data.fen,
-    lastMove: '', // We could derive this from PGN if needed
+    lastMove: '', 
     solution: [data.metadata?.best_move],
     category: 'Personal Mistake',
     explanation: data.explanation_text,
     severity: data.metadata?.severity
   }
+
+  if (!isPuzzleLegal(puzzle)) {
+    logger.error(`[PuzzleAPI] Personal drill ${id} is corrupt (illegal solution). Skipping.`)
+    return null
+  }
+
+  return puzzle
 }
 
 /**

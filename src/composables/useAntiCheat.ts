@@ -146,6 +146,7 @@ export function useAntiCheat() {
     recordMoveTime,
     recordEngineMatch,
     registerBlur,
+    lastMoveTimestamp,
     reset
   }
 }

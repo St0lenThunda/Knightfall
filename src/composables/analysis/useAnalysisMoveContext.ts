@@ -36,7 +36,7 @@ export function useAnalysisMoveContext() {
     const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
     const m = store.moveHistory[idx]
     if (!m) return 'Start Position'
-    return `${m.moveNumber}${m.moveNumber % 1 === 0 ? '.' : '...'} ${m.san}`
+    return `${m.moveNumber}${m.color === 'w' ? '.' : '...'} ${m.san}`
   })
 
   return {

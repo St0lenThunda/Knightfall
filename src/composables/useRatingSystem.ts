@@ -131,8 +131,13 @@ export function calculateRatingHistory(
             resultValue = isWhite ? 1.0 : 0.0;
         } else if (g.result === 'loss' || g.result === '0-1') {
             resultValue = isWhite ? 0.0 : 1.0;
-        } else if (g.result.includes('1/2')) {
+        } else if (g.result.includes('1/2') || g.result === '1/2-1/2') {
             resultValue = 0.5;
+        } else {
+            // SKIP UNFINISHED GAMES
+            // If the result is *, ?, or any other non-definitive string,
+            // it should NOT contribute to the rating history at all.
+            return;
         }
 
         // Resolve opponent rating (handles both UserStore and LibraryStore formats)

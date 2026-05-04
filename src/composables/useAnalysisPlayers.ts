@@ -27,13 +27,32 @@ export function useAnalysisPlayers() {
 
     const libraryGame = store.loadedGameId ? libraryStore.gamesMap.get(store.loadedGameId) : null
     if (libraryGame) {
-      if (w === 'White' || w === 'Unknown' || w === '?') w = libraryGame.white
-      if (b === 'Black' || b === 'Unknown' || b === '?') b = libraryGame.black
+      if ((w === 'White' || w === 'Unknown' || w === '?') && libraryGame.white) w = libraryGame.white
+      if ((b === 'Black' || b === 'Unknown' || b === '?') && libraryGame.black) b = libraryGame.black
     }
 
     const myUsername = userStore.profile?.username || userStore.displayName
-    if ((w === 'White' || w === 'Unknown') && userStore.isAuthenticated) w = myUsername
-    if ((b === 'Black' || b === 'Unknown') && userStore.isAuthenticated) b = myUsername
+    
+    // IDENTITY RESOLUTION: Only assign myUsername if we have evidence or a userSide hint
+    if (libraryGame?.userSide === 'white') {
+       if (w === 'White' || w === 'Unknown' || w === '?') w = myUsername
+    } else if (libraryGame?.userSide === 'black') {
+       if (b === 'Black' || b === 'Unknown' || b === '?') b = myUsername
+    } else if (userStore.isAuthenticated) {
+      const wIsMe = userStore.isMe(w)
+      const bIsMe = userStore.isMe(b)
+      
+      // If both match (e.g. both are generic 'White'/'Black' and user is Guest),
+      // we don't want to claim both.
+      if (wIsMe && bIsMe) {
+        if (w.toLowerCase() === myUsername.toLowerCase()) w = myUsername
+        else if (b.toLowerCase() === myUsername.toLowerCase()) b = myUsername
+        // Otherwise keep generic names
+      } else {
+        if (wIsMe) w = myUsername
+        if (bIsMe) b = myUsername
+      }
+    }
 
     const findBot = (name: string) => BOTS.find(bot => bot.name === name)
     const whiteBot = findBot(w)

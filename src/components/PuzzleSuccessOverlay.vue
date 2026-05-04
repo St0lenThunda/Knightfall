@@ -31,6 +31,7 @@
         </div>
 
         <div class="explanation-box" v-if="explanation">
+          <div class="explanation-header">COACH'S INSIGHT</div>
           <p class="explanation-text">{{ explanation }}</p>
         </div>
 
@@ -176,6 +177,15 @@ function formatTime(seconds: number): string {
   border-radius: var(--radius-sm);
   width: 100%;
   text-align: left;
+}
+
+.explanation-header {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-2);
+  opacity: 0.8;
 }
 
 .explanation-text {

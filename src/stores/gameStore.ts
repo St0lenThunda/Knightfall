@@ -16,7 +16,7 @@ import { TIME_CONTROLS, type TimeControl } from './game/useGameClock'
 export { BOTS, TIME_CONTROLS }
 export type { TimeControl }
 
-export type GameMode = 'local' | 'vs-computer' | 'puzzle' | 'analysis'
+export type GameMode = 'local' | 'vs-computer' | 'puzzle' | 'analysis' | 'live'
 
 /**
  * Knightfall Game Store
@@ -39,13 +39,34 @@ export const useGameStore = defineStore('game', () => {
   const forceGameOver = ref(false)
   const resignationWinner = ref<'w' | 'b' | null>(null)
   const loadedGameId = ref<string | null>(null)
+  const playerColor = ref<'w' | 'b'>('w')
+  const sessionStartTime = ref(Date.now())
+  const lastMoveDuration = ref(0)
 
-  // --- COMPUTED ---
-  const gameActive = computed(() => gameStarted.value && !forceGameOver.value && !boardLogic.isGameOver.value)
+  // Sync playerColor with boardLogic
+  watch(playerColor, (newColor) => {
+    boardLogic.playerColor.value = newColor
+  })
+  const gameActive = computed(() => {
+    const active = gameStarted.value && !forceGameOver.value && !boardLogic.isGameOver.value
+    if (!active && gameStarted.value) {
+      logger.warn(`[GameStore] Game inactive! Started: ${gameStarted.value}, ForceGameOver: ${forceGameOver.value}, BoardGameOver: ${boardLogic.isGameOver.value}, FEN: ${boardLogic.fen.value}`)
+    }
+    return active
+  })
+
   const isPlayersTurn = computed(() => {
     if (!gameActive.value) return false
-    if (mode.value === 'vs-computer') return boardLogic.turn.value === boardLogic.playerColor.value
-    return true
+    
+    // In local or analysis mode, the user can always move
+    if (mode.value === 'local' || mode.value === 'analysis') return true
+    
+    // In vs-computer or puzzle mode, user can only move if it's their color's turn
+    if (mode.value === 'vs-computer' || mode.value === 'puzzle') {
+      return boardLogic.turn.value === playerColor.value
+    }
+    
+    return false
   })
 
   const isGameOver = computed(() => boardLogic.isGameOver.value || forceGameOver.value)
@@ -112,6 +133,8 @@ export const useGameStore = defineStore('game', () => {
    * If a square is already selected and the new square is a legal move, execute it.
    */
   function selectSquare(sq: any) {
+    if (!isPlayersTurn.value) return
+    
     if (boardLogic.selectedSquare.value && boardLogic.legalMoveSquares.value.includes(sq)) {
       makeMove(boardLogic.selectedSquare.value, sq)
     } else {
@@ -124,12 +147,26 @@ export const useGameStore = defineStore('game', () => {
    * Orchestrates the move, clock updates, and Anti-Cheat tracking.
    */
   function makeMove(fromOrUci: any, to?: any, promotion?: any) {
-    // Only allow moves if the game is active
+    // Only allow moves if the game is active and it's the player's turn
     if (!gameActive.value) return null
+    
+    // We allow moves from the store itself (e.g. computer responses) by bypassing this check if needed,
+    // but for user-initiated moves via the UI, we check isPlayersTurn.
+    // NOTE: In Knightfall, all moves (user and computer) currently flow through makeMove.
+    // However, computer responses in puzzles are triggered by store.makeMove explicitly.
+    // If we block makeMove, we block the computer too!
+    
+    // REFINED LOGIC: We only block if it's a "User Mode" and not the turn.
+    // But wait, the computer move in vs-computer mode is triggered by triggerBotMove -> makeMove.
+    // So we need to distinguish between User and System.
+    
+    // Actually, the simplest way is to only gate the UI entry point: selectSquare.
 
     const move = boardLogic.makeMove(fromOrUci, to, promotion)
     if (move && typeof move === 'object') {
       // 1. Record move timing for rhythm analysis
+      const now = Date.now()
+      lastMoveDuration.value = now - antiCheat.lastMoveTimestamp.value
       antiCheat.recordMoveTime()
 
       // 2. Correlation Check: Did the player match the engine's recommendation?
@@ -251,6 +288,25 @@ export const useGameStore = defineStore('game', () => {
     resign,
     isGameOver,
     saveGame,
+    loadPosition(fen: string, newMode: GameMode = 'live') {
+      logger.info(`[GameStore] Loading position. Mode: ${newMode}, FEN: ${fen}`)
+      mode.value = newMode
+      boardLogic.loadPosition(fen, newMode as any)
+      
+      // CRITICAL: Synchronize the store's playerColor with the board's turn
+      // This ensures that for puzzles/drills, the store knows who the player is.
+      playerColor.value = boardLogic.playerColor.value
+      
+      gameStarted.value = true
+      forceGameOver.value = false
+      resignationWinner.value = null
+      boardLogic.viewIndex.value = -1
+      
+      // Ensure any computer responses are triggered if necessary
+      if (newMode === 'vs-computer') {
+        computerMove()
+      }
+    },
     selectSquare,
     undoMove() {
       if (mode.value === 'vs-computer') {
@@ -277,11 +333,19 @@ export const useGameStore = defineStore('game', () => {
     clock,
     bots,
     analysis,
+    engine: engineStore,
 
     // Anti-Cheat Direct (Aliases)
     registerBlur: antiCheat.registerBlur,
     isCheaterBusted: antiCheat.isCheaterBusted,
     blurCount: antiCheat.blurCount,
-    suspicionScore: antiCheat.suspicionScore
+    suspicionScore: antiCheat.suspicionScore,
+    suspicionBreakdown: computed(() => ({
+      blurs: antiCheat.blurCount.value,
+      robotic: Math.round(antiCheat.roboticScore.value),
+      correlation: Math.round(antiCheat.correlationScore.value)
+    })),
+    sessionDuration: computed(() => Math.round((Date.now() - sessionStartTime.value) / 1000)),
+    lastMoveDuration
   }
 })

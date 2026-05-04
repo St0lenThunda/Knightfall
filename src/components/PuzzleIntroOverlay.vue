@@ -65,6 +65,15 @@ const missionText = computed(() => {
     if (props.severity === 'mistake') return 'Your previous evaluation faltered here. Find the sequence that restores the equilibrium.'
     return 'Refine your accuracy. Find the subtle nuance you overlooked in the heat of battle.'
   }
+
+  if (props.themes?.length) {
+    const themesJoined = props.themes.join(' ').toLowerCase()
+    if (themesJoined.includes('fork')) return 'Multiple targets identified. Identify the fork and seize material.'
+    if (themesJoined.includes('pin')) return 'The enemy formation is rigid. Exploit the pin to paralyze their defense.'
+    if (themesJoined.includes('mate')) return 'Direct assault authorized. Find the inescapable sequence and checkmate the king.'
+    if (themesJoined.includes('zwischenzug')) return 'Expect the unexpected. Search for an intermediate move that disrupts the rhythm.'
+    if (themesJoined.includes('trap')) return 'A valuable piece has overextended. Cut off its escape and trap it.'
+  }
   return 'Identify the tactical pattern and execute the winning sequence.'
 })
 </script>

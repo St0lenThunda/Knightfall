@@ -8,6 +8,8 @@ import { useMortalLogic } from './engine/useMortalLogic'
 export interface MultiPV {
   id: number
   score: string
+  cp: number
+  isMate: boolean
   moves: string[]
 }
 
@@ -186,6 +188,8 @@ export const useEngineStore = defineStore('engine', () => {
       data.multiPvs = [{
         id,
         score: isMate ? `M${scoreNum}` : (scoreNum > 0 ? `+${scoreNum.toFixed(2)}` : scoreNum.toFixed(2)),
+        cp: cpMatch ? parseInt(cpMatch[1], 10) : (mateMatch ? parseInt(mateMatch[1], 10) * 1000 : 0),
+        isMate,
         moves: pvMatch[1].split(' ').slice(0, 5) // Top 5 moves of this variation
       }]
       
@@ -204,7 +208,18 @@ export const useEngineStore = defineStore('engine', () => {
         data.evalMate = null
       }
       if (mateMatch) data.evalMate = parseInt(mateMatch[1], 10)
-      if (pvMatch) data.pv = pvMatch[1].split(' ')
+      if (pvMatch) {
+        data.pv = pvMatch[1].split(' ')
+        // Ensure multiPvs has at least the best line for UI consistency
+        const scoreNum = cpMatch ? parseInt(cpMatch[1], 10) / 100 : (mateMatch ? parseInt(mateMatch[1], 10) : 0)
+        data.multiPvs = [{
+          id: 1,
+          score: mateMatch ? `M${scoreNum}` : (scoreNum > 0 ? `+${scoreNum.toFixed(2)}` : scoreNum.toFixed(2)),
+          cp: cpMatch ? parseInt(cpMatch[1], 10) : (mateMatch ? parseInt(mateMatch[1], 10) * 1000 : 0),
+          isMate: !!mateMatch,
+          moves: data.pv.slice(0, 5)
+        }]
+      }
     }
 
     return Object.keys(data).length > 0 ? data : null
@@ -243,6 +258,12 @@ export const useEngineStore = defineStore('engine', () => {
     }
     if (data.multiPvs) {
       data.multiPvs.forEach((newPv: MultiPV) => {
+        // Normalize to White's perspective
+        if (activeTurn === 'b') {
+          newPv.cp = -newPv.cp
+          // Note: score string is already formatted, we might want to update it but cp is primary for graph
+        }
+        
         const idx = multiPvs.value.findIndex(p => p.id === newPv.id)
         if (idx > -1) multiPvs.value[idx] = newPv
         else multiPvs.value.push(newPv)
@@ -320,6 +341,8 @@ export const useEngineStore = defineStore('engine', () => {
     evalScoreCp.value = 0
     evalMate.value = null
     bestMove.value = ''
+    pv.value = []
+    multiPvs.value = []
     analysisStartTime = Date.now()
     
     worker!.postMessage('isready') // Optional: wait for readyok before go

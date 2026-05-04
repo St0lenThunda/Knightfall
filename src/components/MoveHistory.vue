@@ -93,6 +93,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { useGameStore } from '../stores/gameStore'
+import { getMoveQuality as getMoveQualityShared } from '../utils/analysisUtils'
 
 const store = useGameStore()
 const listEl = ref<HTMLElement | null>(null)
@@ -110,14 +111,14 @@ const movePairs = computed(() => {
 })
 
 function isActive(index: number) {
-  if (store.viewIndex === -1) return index === store.moveHistory.length - 1
   return index === store.viewIndex
 }
 
 function goToEnd() {
-  store.viewIndex = -1
   if (store.moveHistory.length > 0) {
-    store.chess.load(store.moveHistory[store.moveHistory.length - 1].fen)
+    store.goToMove(store.moveHistory.length - 1)
+  } else {
+    store.goToMove(-1)
   }
 }
 
@@ -139,32 +140,7 @@ watch(() => store.moveHistory.length, async () => {
 // const gameSeed = computed(() => ...)
 
 function getMoveQuality(move: any, index: number) {
-  // Priority 1: If the store already has a tag from real analysis, use it
-  if (move.tag) {
-    const s = move.tag.severity
-    if (s === 'blunder') return { label: 'blunder', icon: '??', color: 'var(--rose)' }
-    if (s === 'mistake') return { label: 'mistake', icon: '?', color: 'var(--orange)' }
-    if (s === 'inaccuracy') return { label: 'inaccuracy', icon: '?!', color: 'var(--gold)' }
-  }
-
-  // Priority 2: Use real eval data if available
-  const allMoves = store.moveHistory
-  if (move.eval !== undefined && index > 0) {
-    const prevMove = allMoves[index - 1]
-    if (prevMove?.eval !== undefined) {
-      const evalDelta = Math.abs(move.eval - prevMove.eval)
-      if (evalDelta >= 2.5) return { label: 'blunder', icon: '??', color: 'var(--rose)' }
-      if (evalDelta >= 1.0) return { label: 'mistake', icon: '?!', color: 'var(--orange)' }
-      if (evalDelta >= 0.4) return { label: 'inaccuracy', icon: '?', color: 'var(--gold)' }
-      if (evalDelta <= 0.05) return { label: 'best', icon: '★', color: 'var(--teal)' }
-      if (evalDelta <= 0.15) return { label: 'great', icon: '!!', color: 'var(--teal)' }
-      if (evalDelta <= 0.3) return { label: 'good', icon: '✓', color: 'var(--accent)' }
-      return { label: 'book', icon: '📖', color: 'var(--accent)' }
-    }
-  }
-
-  // Fallback: No eval data — neutral label
-  return { label: 'book', icon: '📖', color: 'var(--accent)' }
+  return getMoveQualityShared(move, index, store.moveHistory)
 }
 
 const accuracy = computed(() => {
@@ -192,15 +168,44 @@ const accuracy = computed(() => {
   }
 })
 
-function formatEval(ev: number | undefined) {
-  if (ev === undefined) return ''
+function formatEval(ev: any) {
+  if (ev === undefined || ev === null) return ''
+  
+  // Handle mate strings or already formatted strings
+  if (typeof ev === 'string') return ev
+  
+  // Handle evaluation object from engine pass if it slipped through
+  if (typeof ev === 'object') {
+    if (ev.isMate) return `M${Math.abs(Math.round(ev.score / 10000))}`
+    const score = ev.score / 100
+    const sign = score > 0 ? '+' : ''
+    return `${sign}${score.toFixed(1)}`
+  }
+
+  if (typeof ev !== 'number') return ''
+  
   const sign = ev > 0 ? '+' : ''
   return `${sign}${ev.toFixed(1)}`
 }
 
 function getEvalColor(move: any) {
-  const ev = move.eval
-  if (ev === undefined) return ''
+  let ev = move.eval
+  if (ev === undefined || ev === null) return ''
+  
+  // Extract score if it's an object
+  if (typeof ev === 'object') {
+    if (ev.isMate) return ev.score > 0 ? 'winning' : 'losing'
+    ev = ev.score / 100
+  }
+  
+  // Handle mate strings
+  if (typeof ev === 'string') {
+    if (ev.startsWith('M')) return 'winning'
+    if (ev.startsWith('-M')) return 'losing'
+    ev = parseFloat(ev)
+  }
+  
+  if (isNaN(ev)) return 'equal'
   if (ev > 1.5) return 'winning'
   if (ev < -1.5) return 'losing'
   return 'equal'
@@ -211,7 +216,6 @@ function getEvalColor(move: any) {
 .move-history {
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
 }
 
@@ -296,8 +300,11 @@ function getEvalColor(move: any) {
 .move-btn.active { background: var(--accent-dim); color: var(--accent-bright); font-weight: 700; }
 
 /* Move Quality Colors */
+.move-btn.brilliant .quality-icon { color: var(--brilliant); font-weight: 900; background: rgba(181, 232, 83, 0.2); box-shadow: 0 0 8px rgba(181, 232, 83, 0.3); }
 .move-btn.great .quality-icon { color: var(--teal); font-weight: 900; background: rgba(16, 185, 129, 0.2); }
 .move-btn.best .quality-icon { color: var(--teal); background: rgba(16, 185, 129, 0.1); }
+.move-btn.excellent .quality-icon { color: var(--excellent); background: rgba(52, 211, 153, 0.1); }
+.move-btn.good .quality-icon { color: var(--accent); background: rgba(139, 92, 246, 0.1); }
 .move-btn.inaccuracy .quality-icon { color: var(--gold); background: rgba(245, 158, 11, 0.1); }
 .move-btn.mistake .quality-icon { color: var(--orange); background: rgba(249, 115, 22, 0.1); }
 .move-btn.blunder .quality-icon { color: var(--rose); font-weight: 900; background: rgba(244, 63, 94, 0.2); }

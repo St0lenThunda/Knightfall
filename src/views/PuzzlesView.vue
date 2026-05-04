@@ -46,7 +46,7 @@
           :isMate="isMatePuzzle"
           :movesToSolve="movesToSolve"
           :solved="puzzleSolved"
-          :explanation="currentPuzzle.explanation"
+          :explanation="puzzleExplanation"
           :hintLabel="hintLabelText"
           :isPersonal="!!route.query.personal"
           @hint="showHint"
@@ -64,11 +64,11 @@
               :interactive="!puzzleSolved"
               :hintSquares="hintSquares"
               :hintArrows="hintArrows"
-              :debugData="{ step: puzzleStep, solution: currentPuzzle?.solution }"
+              :debugData="{ step: puzzleStep, solution: currentPuzzle?.solution, title: currentPuzzle?.title }"
             />
 
             <PuzzleIntroOverlay
-              :visible="!!route.query.personal && !introDismissed"
+              :visible="!introDismissed"
               :title="currentPuzzle?.title"
               :category="currentPuzzle?.category"
               :themes="currentPuzzle?.themes"
@@ -82,7 +82,7 @@
               :xp-gained="xpGainedFinal"
               :time-taken="timeTakenFinal"
               :bonus-label="bonusLabelFinal"
-              :explanation="currentPuzzle?.explanation"
+              :explanation="puzzleExplanation"
               @next="loadNextPuzzle"
               @close="showSuccessOverlay = false"
             />
@@ -140,7 +140,7 @@ const {
   hintLevel, timeTakenNow, timeTakenFinal, xpGainedFinal, bonusLabelFinal,
   showDiscardConfirm, showSuccessOverlay, puzzleStep, queuePuzzles,
   activeCat, puzzleColor, puzzle, isMatePuzzle, movesToSolve,
-  hintSquares, hintArrows, weakness,
+  hintSquares, hintArrows, weakness, puzzleExplanation,
   startTraining, loadNextPuzzle, showHint, revealSolution,
   setCat, importLichessDaily, importChesscomDaily, confirmDiscard
 } = usePuzzleLogic()

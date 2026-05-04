@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js'
+import { logger } from '../utils/logger'
 
 export type MistakeCategory = 'tactics' | 'positional' | 'opening' | 'endgame' | 'missed_win'
 export type MistakeSeverity = 'inaccuracy' | 'mistake' | 'blunder'
@@ -143,6 +144,10 @@ export class TaggingService {
    * SHA-256(FEN + theme + severity)
    */
   static async generatePositionHash(fen: string, theme: string, severity: string, playerName: string = 'Guest'): Promise<string> {
+    if (!fen) {
+      logger.warn('[Tagging] generatePositionHash called with missing FEN. Using fallback.')
+      return `fallback-${Date.now()}`
+    }
     // Normalize FEN to ignore move counts/en passant for better cache hits
     const normalizedFen = fen.split(' ').slice(0, 4).join(' ')
     const msg = `${normalizedFen}|${theme}|${severity}|${playerName}`

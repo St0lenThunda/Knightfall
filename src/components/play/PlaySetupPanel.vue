@@ -61,7 +61,12 @@ defineEmits(['start', 'selectBot'])
               :class="{ active: activeBotId === bot.id }"
               @click="$emit('selectBot', bot)"
             >
-              <img :src="bot.avatar" class="bot-avatar" />
+              <img 
+                :src="bot.avatar" 
+                class="bot-avatar" 
+                :alt="bot.name"
+                @error="(e) => (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + bot.id"
+              />
               <div class="bot-info">
                 <div class="bot-name">
                   {{ bot.name }} 

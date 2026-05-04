@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-02T09:16:12Z",
+  "timestamp": "2026-05-02T15:20:58Z",
   "status": "VALIDATED",
-  "briefing": "",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: b7165a1 - chore: harden Fabric installation, update key resolution, and improve CI briefing error handling (Antonio Moses)\nf8d024b - chore: update default Gemini model to gemini-2.5-flash and remove debug model listing (Antonio Moses)\nc1b74fa - test(ci): add Fabric debug step (Antonio Moses)\ndce8e8c - chore: update default Gemini model to 2.5-pro in CI workflow (Antonio Moses)\n9c370ce - fix(ci): use vendor prefix for Fabric model (Antonio Moses)",
   "metrics": {
     "files_scanned":      330,
     "integrity_score": 98

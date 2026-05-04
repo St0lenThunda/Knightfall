@@ -13,9 +13,10 @@ export function useAnalysisControls() {
    * Navigates to the very end of the current move history.
    */
   function goToEnd() {
-    store.viewIndex = -1
     if (store.moveHistory.length > 0) {
-      store.chess.load(store.moveHistory[store.moveHistory.length - 1].fen)
+      store.goToMove(store.moveHistory.length - 1)
+    } else {
+      store.goToMove(-1)
     }
   }
 

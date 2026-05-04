@@ -42,8 +42,13 @@ export function useBoardLogic() {
     if (index < -1 || index >= moveHistory.value.length) return
     viewIndex.value = index
     if (index === -1) {
+      // Starting Position
       if (originalPgn.value) {
-        chess.value.loadPgn(originalPgn.value)
+        const temp = new Chess()
+        safeLoadPgn(temp, originalPgn.value)
+        // If the PGN has a FEN tag, use it, otherwise use default
+        const startFen = temp.header().FEN || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+        chess.value.load(startFen)
       } else {
         chess.value.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')
       }
@@ -61,13 +66,38 @@ export function useBoardLogic() {
     if (viewIndex.value < moveHistory.value.length - 1) goToMove(viewIndex.value + 1)
   }
 
-  function loadPgn(pgn: string, mode: 'live' | 'puzzle' | 'analysis' = 'live', _id?: string) {
+  function loadPgn(pgn: string, mode: 'live' | 'puzzle' | 'analysis' = 'live', _id?: string, extra?: { evals?: any[], tags?: any[], moveTags?: string[] }) {
     try {
       safeLoadPgn(chess.value, pgn)
-      moveHistory.value = chess.value.history({ verbose: true })
-      viewIndex.value = moveHistory.value.length - 1
-      if (mode === 'analysis') originalPgn.value = pgn
-      boardTrigger.value++
+      const history = chess.value.history({ verbose: true })
+      
+      // Reconstruct history with FENs and Move Numbers
+      const tempChess = new Chess()
+      moveHistory.value = history.map((move, idx) => {
+        const moveNum = tempChess.moveNumber()
+        tempChess.move(move)
+        return { 
+          ...move, 
+          fen: tempChess.fen(),
+          moveNumber: moveNum,
+          eval: extra?.evals ? (
+            typeof extra.evals[idx] === 'object' && extra.evals[idx] !== null
+              ? (extra.evals[idx].isMate 
+                  ? `M${Math.abs(Math.round(extra.evals[idx].score / 10000))}` 
+                  : extra.evals[idx].score / 100)
+              : extra.evals[idx]
+          ) : undefined,
+          tag: extra?.moveTags ? extra.moveTags[idx] : (extra?.tags ? extra.tags[idx] : undefined)
+        }
+      })
+      
+      if (mode === 'analysis') {
+        originalPgn.value = pgn
+        goToMove(-1) // Start at the beginning
+      } else {
+        viewIndex.value = moveHistory.value.length - 1
+        boardTrigger.value++
+      }
       return true
     } catch (e) {
       return false
@@ -110,10 +140,12 @@ export function useBoardLogic() {
         moveParams.to = finalTo
       }
 
+      const moveNum = chess.value.moveNumber()
       const move = chess.value.move(moveParams)
       if (move) {
         lastMove.value = { from, to: finalTo }
-        moveHistory.value.push(move)
+        // Ensure every move in history carries its resulting FEN and move number for UI/Analysis navigation
+        moveHistory.value.push({ ...move, fen: chess.value.fen(), moveNumber: moveNum })
         viewIndex.value = moveHistory.value.length - 1
         boardTrigger.value++
         clearSelection()
@@ -167,6 +199,7 @@ export function useBoardLogic() {
     drillSolution.value = []
     drillIndex.value = 0
     mistakeCount.value = 0
+    playerColor.value = fen.split(' ')[1] as Color
     if (mode !== 'analysis') originalPgn.value = ''
   }
 

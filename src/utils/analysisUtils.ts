@@ -38,10 +38,9 @@ export const QUALITIES: MoveQuality[] = [
 export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQuality {
   // Priority 1: If the move already has an engine-calculated tag, use it
   if (move.tag) {
-    const s = move.tag.severity
-    if (s === 'blunder') return QUALITIES.find(q => q.id === 'blunder')!
-    if (s === 'mistake') return QUALITIES.find(q => q.id === 'mistake')!
-    if (s === 'inaccuracy') return QUALITIES.find(q => q.id === 'inaccuracy')!
+    const s = typeof move.tag === 'string' ? move.tag : move.tag.severity
+    const found = QUALITIES.find(q => q.id === s || q.label.toLowerCase() === s.toLowerCase())
+    if (found) return found
   }
 
   // Priority 2: Use real eval data if available on consecutive moves
@@ -49,14 +48,24 @@ export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQu
     const prevMove = allMoves[idx - 1]
     if (prevMove?.eval !== undefined) {
       // Calculate eval delta (how much the eval changed after this move)
-      const evalDelta = Math.abs(move.eval - prevMove.eval)
+      const moveEval = typeof move.eval === 'string' ? (move.eval.startsWith('M') ? (move.eval.startsWith('-M') ? -100 : 100) : parseFloat(move.eval)) : move.eval
+      const prevEval = typeof prevMove.eval === 'string' ? (prevMove.eval.startsWith('M') ? (prevMove.eval.startsWith('-M') ? -100 : 100) : parseFloat(prevMove.eval)) : prevMove.eval
       
-      if (evalDelta >= 2.5) return QUALITIES.find(q => q.id === 'blunder')!
-      if (evalDelta >= 1.0) return QUALITIES.find(q => q.id === 'mistake')!
-      if (evalDelta >= 0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
-      if (evalDelta <= 0.05) return QUALITIES.find(q => q.id === 'best')!
-      if (evalDelta <= 0.15) return QUALITIES.find(q => q.id === 'excellent')!
-      if (evalDelta <= 0.3) return QUALITIES.find(q => q.id === 'good')!
+      const evalDelta = moveEval - prevEval
+      const absDelta = Math.abs(evalDelta)
+      
+      // BRILLIANT: Big positive jump (over 2.0 pawns)
+      if (evalDelta >= 2.0) return QUALITIES.find(q => q.id === 'brilliant')!
+
+      if (evalDelta <= -2.5) return QUALITIES.find(q => q.id === 'blunder')!
+      if (evalDelta <= -1.0) return QUALITIES.find(q => q.id === 'mistake')!
+      if (evalDelta <= -0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
+      
+      // Positive deltas (Engine approval)
+      if (absDelta <= 0.05) return QUALITIES.find(q => q.id === 'best')!
+      if (absDelta <= 0.15) return QUALITIES.find(q => q.id === 'excellent')!
+      if (absDelta <= 0.3) return QUALITIES.find(q => q.id === 'good')!
+      
       return QUALITIES.find(q => q.id === 'book')!
     }
   }
@@ -67,7 +76,7 @@ export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQu
     if (delta >= 2.5) return QUALITIES.find(q => q.id === 'blunder')!
     if (delta >= 1.0) return QUALITIES.find(q => q.id === 'mistake')!
     if (delta >= 0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
-    return QUALITIES.find(q => q.id === 'good')!
+    return QUALITIES.find(q => q.id === 'book')!
   }
 
   // Fallback: No eval data available — show neutral "unknown" to avoid misleading labels

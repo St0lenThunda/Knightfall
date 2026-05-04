@@ -36,7 +36,7 @@
     "themes": ["middlegame", "trappedPiece"],
     "fen": "r1b1kbnr/pppp1ppp/8/4p3/1n2P1Qq/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
     "lastMove": "h4g4",
-    "solution": ["g1f3", "g4g5", "f3g5"],
+    "solution": ["g1f3", "h4g5", "f3g5"],
     "category": "opening"
   },
   {
@@ -74,7 +74,7 @@
     "title": "Discovered Check",
     "rating": 1400,
     "themes": ["middlegame", "tactics", "discoveredAttack"],
-    "fen": "rn1qk2r/pbpp1ppp/1p2pn2/8/1bPP4/2N1PN2/PP1B1PPP/R2QKB1R w KQkq - 1 6",
+    "fen": "rn1qk2r/pbpp1ppp/1p2pn2/8/1bPP4/2b1PN2/PP1B1PPP/R2QKB1R w KQkq - 0 7",
     "lastMove": "b4c3",
     "solution": ["d2c3"],
     "category": "tactics"
@@ -114,7 +114,7 @@
     "title": "Pawn Race",
     "rating": 1200,
     "themes": ["endgame", "pawnEndgame"],
-    "fen": "8/k7/8/8/8/8/7P/K7 w - - 0 1",
+    "fen": "8/1k6/8/8/8/8/7P/K7 w - - 0 1",
     "lastMove": "a7b7",
     "solution": ["h2h4", "b7c7", "h4h5", "c7d7", "h5h6", "d7e7", "h6h7"],
     "category": "endgame"
@@ -146,7 +146,7 @@
     "themes": ["endgame", "rookEndgame", "philidor"],
     "fen": "8/8/8/4k3/8/5K2/r7/8 w - - 0 1",
     "lastMove": "a2e2",
-    "solution": ["f3e2"],
+    "solution": ["f3e3"],
     "category": "endgame"
   },
   {
@@ -224,11 +224,11 @@
     "title": "Fischer's Clearance Bolt",
     "rating": 1950,
     "themes": ["middlegame", "tactics", "clearance"],
-    "fen": "3r1rk1/pp3pbp/2p1p1p1/1q2P3/4N3/P3B3/1PQ2PPP/3R1RK1 w - - 0 1",
+    "fen": "3r1rk1/pp3pbp/2p1p1p1/1q2P3/4N3/P3B3/1PQ3PP/3R1RK1 w - - 0 1",
     "lastMove": "b5b4",
-    "solution": ["f1f6", "g7f6", "e5e6"],
+    "solution": ["f1f6", "g7f6", "e4f6"],
     "category": "tactics",
-    "explanation": "Bobby Fischer played Rf6! not to win material immediately, but to block the f-pawn and clear the e5 square for a deadly advance."
+    "explanation": "Bobby Fischer played Rf6! not to win material immediately, but to block the f-pawn and clear the f6 square for a deadly knight check."
   },
   {
     "id": "xray1",

@@ -6,13 +6,13 @@
         <tr>
           <th class="player-col white">
             <div class="avatar-wrap">
-              <img :src="whitePlayer.avatar || '/avatars/default.png'" class="avatar" />
+              <img :src="whitePlayer.avatar || '/avatars/default.png'" :alt="whitePlayer.name + ' avatar'" class="avatar" />
             </div>
           </th>
           <th class="icon-col"></th>
           <th class="player-col black">
             <div class="avatar-wrap">
-              <img :src="blackPlayer.avatar || '/avatars/default.png'" class="avatar" />
+              <img :src="blackPlayer.avatar || '/avatars/default.png'" :alt="blackPlayer.name + ' avatar'" class="avatar" />
             </div>
           </th>
         </tr>

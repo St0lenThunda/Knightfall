@@ -26,6 +26,7 @@ export function useAnalysisSession() {
 
   const isPlaying = ref(false)
   const pauseReason = ref<any>(null)
+  const isActive = ref(true)
   let playTimeout: any = null
 
   /**
@@ -94,13 +95,21 @@ export function useAnalysisSession() {
     const queryId = route.query.id as string
     let gameLoaded = false
 
+    const queryFen = route.query.fen as string
     if (queryId) {
       const targetGame = libraryStore.gamesMap.get(queryId)
       if (targetGame) {
-        store.loadPgn(targetGame.pgn, 'analysis', targetGame.id)
+        store.loadPgn(targetGame.pgn, 'analysis', targetGame.id, { 
+          evals: targetGame.evals,
+          // Extract tags from analysis if they exist as a flat array mapped to moves
+          // In Knightfall, tags are often stored in the analysis pass.
+        })
         gameLoaded = true
       }
-    } 
+    } else if (queryFen) {
+      store.loadPosition(queryFen, 'analysis')
+      gameLoaded = true
+    }
     
     if (!gameLoaded) {
       const savedPgn = Storage.get<string | null>(StorageKey.LAST_ANALYSIS_PGN, null)
@@ -115,15 +124,27 @@ export function useAnalysisSession() {
       const games = libraryStore.games
       if (games.length > 0) {
         const latest = games[games.length - 1]
-        store.loadPgn(latest.pgn, 'analysis', latest.id)
+        store.loadPgn(latest.pgn, 'analysis', latest.id, { evals: latest.evals })
         gameLoaded = true
       }
     }
 
-    if (gameLoaded && store.viewIndex === -1) {
-      store.goToMove(0)
+    if (gameLoaded) {
+      store.goToMove(-1)
     }
   }
+
+  // Live Synthesis: Watch for engine evals and store them in the history
+  watch(() => engineStore.evalNumber, (newEval) => {
+    if (!isActive.value) return
+    if (store.mode === 'analysis') {
+      const idx = store.viewIndex === -1 ? store.moveHistory.length - 1 : store.viewIndex
+      const move = store.moveHistory[idx]
+      if (move) {
+        move.eval = newEval
+      }
+    }
+  })
 
   // Auto-analyze FEN changes
   let analysisDebounce: any = null
@@ -136,6 +157,7 @@ export function useAnalysisSession() {
 
   // Cleanup on leave
   onUnmounted(() => {
+    isActive.value = false
     engineStore.stop()
     if (playTimeout) clearTimeout(playTimeout)
   })

@@ -17,7 +17,7 @@
     <div class="integrity-grid mt-8">
       <div class="integrity-item glass-sm">
         <div class="item-content">
-          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.syncCloudGames(), 'SYNCING_FROM_CLOUD', 'Cloud synchronization complete.')">🔄 Refresh Cloud DNA</button>
+          <button class="btn btn-action" @click="handleIntegrityAction(() => libraryStore.refreshCloudDna(), 'SYNCING_FROM_CLOUD', 'Cloud DNA refreshed and sanitized.')">🔄 Refresh Cloud DNA</button>
           <p class="muted">Sync local library with cloud. Use if played on another device.</p>
         </div>
       </div>
@@ -70,16 +70,19 @@
       <div v-if="libraryStore.isProcessingIntegrity" class="integrity-overlay glass-lg">
         <div class="scanning-light"></div>
         <div class="overlay-content">
-          <div class="pulse-container">
-            <div class="pulse-ring"></div>
-            <div class="pulse-ring"></div>
-            <div class="pulse-center">🧬</div>
+          <div class="progress-hero">
+            <div class="pulse-container">
+              <div class="pulse-ring"></div>
+              <div class="pulse-ring"></div>
+              <div class="pulse-center">🧬</div>
+            </div>
+            <div class="hero-percentage text-glow">
+              {{ libraryStore.integrityProgress }}%
+            </div>
           </div>
           <div class="text-center mt-6">
             <h3 class="status-msg text-glow">{{ libraryStore.integrityMessage }}</h3>
-            <div class="progress-stats mt-2">
-              <span class="percentage">{{ libraryStore.integrityProgress }}%</span>
-              <span class="muted mx-2">|</span>
+            <div class="progress-stats mt-4">
               <span class="task-id">TASK: INTEGRITY_REPAIR_{{ Math.floor(Math.random() * 1000) }}</span>
             </div>
           </div>
@@ -216,7 +219,8 @@ async function handleSanitize() {
 .fill-glow { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
 
 .status-msg { font-size: 1.2rem; }
-.percentage { font-family: var(--font-mono); font-weight: 800; color: var(--accent-bright); font-size: 1.1rem; }
+.progress-hero { display: flex; align-items: center; gap: var(--space-8); }
+.hero-percentage { font-family: var(--font-mono); font-weight: 800; color: var(--accent-bright); font-size: 3.5rem; line-height: 1; filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4)); }
 .task-id { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.1em; opacity: 0.5; }
 
 @keyframes scan-vertical { 0% { transform: translateY(-100%); } 100% { transform: translateY(500%); } }

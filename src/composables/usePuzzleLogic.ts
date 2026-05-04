@@ -9,6 +9,8 @@ import { fetchDailyPuzzle } from '../api/lichessApi'
 import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
 import { useRoute } from 'vue-router'
 import type { Square, PieceSymbol } from 'chess.js'
+import { getPuzzleExplanation, calculateTimeBonus, calculatePuzzleXP } from '../utils/tacticalHeuristics'
+import { logger } from '../utils/logger'
 
 /**
  * usePuzzleLogic
@@ -39,6 +41,7 @@ export function usePuzzleLogic() {
   const bonusLabelFinal = ref('')
   const showDiscardConfirm = ref(false)
   const showSuccessOverlay = ref(false)
+  const isLoading = ref(false)
   const puzzleStep = ref(0)
   const queuePuzzles = ref<Puzzle[]>([])
   const activeCat = ref(route.query.personal ? 'Personal Mistake' : (coachStore.archetypeReport.category || 'mixed'))
@@ -75,6 +78,10 @@ export function usePuzzleLogic() {
   })
 
   const weakness = computed(() => coachStore.archetypeReport)
+  
+  const puzzleExplanation = computed(() => 
+    getPuzzleExplanation(currentPuzzle.value)
+  )
 
   // --- ACTIONS ---
 
@@ -83,15 +90,12 @@ export function usePuzzleLogic() {
     puzzleStartTime.value = Date.now()
   }
 
-  function calculateTimeBonus(seconds: number) {
-    if (seconds < 5) return { amount: 10, label: 'Lightning!' }
-    if (seconds < 15) return { amount: 5, label: 'Quick!' }
-    if (seconds < 30) return { amount: 2, label: 'Solid.' }
-    return { amount: 0, label: '' }
-  }
-
   async function loadNextPuzzle(skipped = false) {
-    if (skipped && currentPuzzle.value && !puzzleSolved.value) {
+    if (isLoading.value) return
+    isLoading.value = true
+    
+    try {
+      if (skipped && currentPuzzle.value && !puzzleSolved.value) {
       const timeTaken = Math.round((Date.now() - puzzleStartTime.value) / 1000)
       userStore.submitPuzzleAttempt(
         currentPuzzle.value.id,
@@ -105,13 +109,16 @@ export function usePuzzleLogic() {
 
     puzzleSolved.value = false
     showSuccessOverlay.value = false
-    introDismissed.value = true
+    introDismissed.value = false
     solutionUsed.value = false
     hintLevel.value = 0
     maxHintLevel.value = 0
     attemptCount.value = 0
     timeTakenNow.value = 0
     puzzleStartTime.value = Date.now()
+    
+    // Safety check: don't load if we're already loading something else
+    if (store.isThinking) return 
     store.forceGameOver = false
     
     if (queuePuzzles.value.length === 0) {
@@ -149,13 +156,17 @@ export function usePuzzleLogic() {
     currentPuzzle.value = queuePuzzles.value.shift() || null
     if (currentPuzzle.value) {
       store.loadPosition(currentPuzzle.value.fen, 'puzzle')
+      store.playerColor = puzzleColor.value
     }
     puzzleStep.value = 0
     puzzleStartTime.value = Date.now()
 
-    if (queuePuzzles.value.length < 3 && activeCat.value !== 'Personal Mistake') {
-      const more = await fetchPuzzleBatch(activeCat.value, 3)
-      queuePuzzles.value.push(...more)
+      if (queuePuzzles.value.length < 3 && activeCat.value !== 'Personal Mistake') {
+        const more = await fetchPuzzleBatch(activeCat.value, 3)
+        queuePuzzles.value.push(...more)
+      }
+    } finally {
+      isLoading.value = false
     }
   }
 
@@ -253,11 +264,15 @@ export function usePuzzleLogic() {
     if (newLen !== oldLen) hintLevel.value = 0
     if (newLen > oldLen && currentPuzzle.value && !puzzleSolved.value && store.mode === 'puzzle') {
       const lastM = store.moveHistory[newLen - 1]
-      const uci = lastM.from + lastM.to + (lastM.san.includes('=') ? 'q' : '') 
+      const uci = lastM.from + lastM.to + (lastM.promotion || '') 
       const expected = currentPuzzle.value.solution[puzzleStep.value]
+
+      logger.info(`[Puzzle] Step: ${puzzleStep.value}, UCI: ${uci}, Expected: ${expected}`)
 
       if (uci === expected || uci.slice(0,4) === expected.slice(0,4)) {
         puzzleStep.value++
+        logger.info(`[Puzzle] Correct! Next Step: ${puzzleStep.value}`)
+
         if (puzzleStep.value >= currentPuzzle.value.solution.length) {
           if (puzzleSolved.value) return
           puzzleSolved.value = true
@@ -268,26 +283,37 @@ export function usePuzzleLogic() {
           userStore.submitPuzzleAttempt(currentPuzzle.value.id, true, Math.max(1, attemptCount.value), timeTakenFinal.value, maxHintLevel.value, currentPuzzle.value.themes || [])
 
           if (!solutionUsed.value) {
-            xpGainedFinal.value = 15 + bonus.amount
+            const { totalXp } = calculatePuzzleXP(timeTakenFinal.value)
+            xpGainedFinal.value = totalXp
             bonusLabelFinal.value = bonus.label
             userStore.addXP(xpGainedFinal.value)
-            if (bonus.amount > 0) userStore.addXP(bonus.amount)
           } else {
             xpGainedFinal.value = 0
             bonusLabelFinal.value = ''
           }
           
           store.forceGameOver = true 
-          showSuccessOverlay.value = true
+          
+          // Delay the success overlay slightly so the user can see the final move land.
+          setTimeout(() => {
+            showSuccessOverlay.value = true
+          }, 1200)
         } else if (puzzleStep.value % 2 !== 0) {
           hintLevel.value = 0
           uiStore.addToast('Good move! Keep going...', 'info', 2000)
           const oppMove = currentPuzzle.value.solution[puzzleStep.value]
+          
+          logger.info(`[Puzzle] Triggering opponent move: ${oppMove}`)
+
           setTimeout(() => {
-            if (!puzzleSolved.value) store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
+            if (!puzzleSolved.value) {
+              logger.info(`[Puzzle] Executing opponent move: ${oppMove}`)
+              store.makeMove(oppMove.slice(0,2) as Square, oppMove.slice(2,4) as Square, (oppMove[4] || 'q') as PieceSymbol)
+            }
           }, 400)
         }
       } else if (puzzleStep.value % 2 === 0) {
+        logger.warn(`[Puzzle] Incorrect move! Expected ${expected}, got ${uci}`)
         store.undoMove()
         attemptCount.value++
         uiStore.addToast('Incorrect. That move loses the advantage.', 'error')
@@ -302,7 +328,7 @@ export function usePuzzleLogic() {
     timeTakenNow, timeTakenFinal, xpGainedFinal, bonusLabelFinal,
     showDiscardConfirm, showSuccessOverlay, puzzleStep, queuePuzzles,
     activeCat, puzzleColor, puzzle, isMatePuzzle, movesToSolve,
-    hintSquares, hintArrows, weakness,
+    hintSquares, hintArrows, weakness, puzzleExplanation,
     startTraining, loadNextPuzzle, showHint, revealSolution,
     setCat, importLichessDaily, importChesscomDaily, confirmDiscard
   }

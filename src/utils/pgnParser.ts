@@ -40,15 +40,27 @@ export function safeLoadPgn(chess: Chess, pgn: string): void {
           if (typeof value === 'string') chess.header(key, value)
         }
       }
-    } catch {
-      // Tier 3: Destructive regex scrubber — strips all annotations
-      let clean = pgn.replace(/\[%[^\]]+\]/g, '')
+    } catch (err) {
+      // Tier 3: Destructive regex scrubber — strips all annotations, comments, and variations
+      let clean = pgn.replace(/\[%[^\]]+\]/g, '') // Strip clock/eval markers
+      clean = clean.replace(/\{[^}]*\}/g, '')     // Strip curly brace comments
+      
       let prev = ''
       while (clean !== prev) {
         prev = clean
-        clean = clean.replace(/\([^()]*\)/g, '')
+        clean = clean.replace(/\([^()]*\)/g, '')   // Strip nested variations
       }
-      try { chess.loadPgn(clean) } catch { /* Surrender — PGN is truly unreadable */ }
+      
+      // Salvage: try to load the sanitized text
+      try { 
+        chess.loadPgn(clean) 
+      } catch (e) {
+        // Absolute surrender: try to at least load the headers
+        try {
+          const headerMatch = clean.match(/(\[[^\]]+\]\s*)+/)
+          if (headerMatch) chess.loadPgn(headerMatch[0])
+        } catch { /* Final death */ }
+      }
     }
   }
 }

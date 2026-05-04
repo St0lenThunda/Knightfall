@@ -243,24 +243,37 @@ export const useCurriculumStore = defineStore('curriculum', () => {
         // Iterate through evals and find significant mistakes
         const evals = game.evals || []
         evals.forEach((ev, i) => {
-          if (!ev || !ev.bestMove || i >= moves.length) return
+          // We need the eval for the position BEFORE move i to find the best move for that position
+          const prevEval = i > 0 ? evals[i-1] : { score: 0.3, bestMove: '' }
+          if (!prevEval || !prevEval.bestMove || i >= moves.length) return
 
           const fenBefore = moves[i].before
-          const fenAfter = moves[i].after
-          const evalBefore = i > 0 ? (evals[i-1]?.score || 0.3) : 0.3
+          const evalBefore = prevEval.score || 0.3
           const evalAfter = ev.score || 0
 
           // Use TaggingService for deterministic classification
           const tag = TaggingService.identifyMistake(
             fenBefore,
-            fenAfter,
+            moves[i].after,
             evalBefore,
             evalAfter,
             moves[i].lan,
-            ev.bestMove
+            prevEval.bestMove
           )
 
           if (tag) {
+            // CRITICAL: Double check the move is actually legal in the FEN
+            const testChess = new Chess(fenBefore)
+            try {
+              const legal = testChess.move(prevEval.bestMove)
+              if (!legal) {
+                logger.warn(`[Curriculum] Skipping illegal harvest: ${prevEval.bestMove} in ${fenBefore}`)
+                return
+              }
+            } catch (e) {
+              return
+            }
+
             newPuzzles.push({
               id: `personal-${game.id}-${i}`,
               title: tag.theme,
@@ -270,9 +283,9 @@ export const useCurriculumStore = defineStore('curriculum', () => {
               evalDrop: tag.evalDrop,
               fen: fenBefore,
               lastMove: i > 0 ? moves[i-1].lan : '',
-              solution: [ev.bestMove],
+              solution: [prevEval.bestMove],
               category: 'Personal Mistake',
-              explanation: tag.explanation || game.analysisCache?.[fenBefore] || 'Find the best continuation.'
+              explanation: tag.explanation || game.analysisCache?.[fenBefore] || `You played ${moves[i].san}, but ${prevEval.bestMove} was stronger.`
             })
           }
         })
