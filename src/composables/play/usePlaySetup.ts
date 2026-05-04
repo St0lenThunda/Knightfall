@@ -9,7 +9,7 @@ import { TIME_CONTROLS, type GameMode, type TimeControl } from '../../stores/gam
  * Separates the UI selection state from the core game engine.
  */
 export function usePlaySetup() {
-  const selectedMode = ref<GameMode>('local')
+  const selectedMode = ref<GameMode>('vs-computer')
   const selectedColor = ref<Color>('w')
   const selectedTc = ref<TimeControl>(TIME_CONTROLS[3])
 

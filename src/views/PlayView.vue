@@ -45,6 +45,8 @@
           :time="flipped ? store.whiteTime : store.blackTime"
           :active="store.turn === (flipped ? 'w' : 'b') && store.gameActive"
           :color="flipped ? 'white' : 'black'"
+          :isBot="store.mode === 'vs-computer'"
+          @briefing="showBriefing = true"
         />
 
         <!-- Thinking indicator -->
@@ -98,6 +100,7 @@
           :time="flipped ? store.blackTime : store.whiteTime"
           :active="store.turn === (flipped ? 'b' : 'w') && store.gameActive"
           :color="flipped ? 'black' : 'white'"
+          :isBot="false"
         />
       </div>
 
@@ -126,6 +129,13 @@
         </div>
       </Transition>
     </div>
+
+    <!-- Bot Briefing Dossier -->
+    <BotBriefingModal 
+      :show="showBriefing" 
+      :bot="store.activeBot" 
+      @close="showBriefing = false" 
+    />
   </div>
 </template>
 
@@ -143,6 +153,7 @@ import PlaySetupPanel from '../components/play/PlaySetupPanel.vue'
 import PlayGameOverOverlay from '../components/play/PlayGameOverOverlay.vue'
 import PlayCheatBustedOverlay from '../components/play/PlayCheatBustedOverlay.vue'
 import PlayThinkingIndicator from '../components/play/PlayThinkingIndicator.vue'
+import BotBriefingModal from '../components/play/BotBriefingModal.vue'
 
 // Pillar Composables
 import { usePlaySetup } from '../composables/play/usePlaySetup'
@@ -159,6 +170,7 @@ engineStore.init()
 const flipped = ref(false)
 const showSetup = ref(true)
 const showHistory = ref(false)
+const showBriefing = ref(false)
 
 // Initialize Pillar Logic
 const { selectedMode, selectedColor, selectedTc } = usePlaySetup()

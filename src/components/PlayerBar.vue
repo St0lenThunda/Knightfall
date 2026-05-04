@@ -1,13 +1,22 @@
 <template>
   <div class="player-bar" :class="{ 'player-active': active }">
     <div class="player-avatar-sm" :style="avatarStyle">
-      <img v-if="avatar.includes('.png')" :src="avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+      <img 
+        v-if="avatar.includes('.png')" 
+        :src="avatar" 
+        :alt="name + ' avatar'"
+        style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" 
+        @error="(e) => (e.target as HTMLImageElement).src = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + name"
+      />
       <span v-else>{{ typeof avatar === 'string' ? avatar : '' }}</span>
     </div>
     <div class="player-details">
       <div class="player-name">{{ name }}</div>
       <div class="player-rating-small">
         <span class="badge" :class="color === 'white' ? 'badge-accent' : 'badge-teal'">{{ rating }}</span>
+        <button v-if="isBot" class="btn btn-ghost btn-xs ml-2 dossier-trigger" @click="$emit('briefing')">
+          <span class="icon">📁</span> Dossier
+        </button>
       </div>
     </div>
     <div class="clock" :class="{ 'clock-active': active, 'clock-low': timeSeconds < 30 }">
@@ -26,7 +35,10 @@ const props = defineProps<{
   time: number // seconds
   active: boolean
   color: 'white' | 'black'
+  isBot?: boolean
 }>()
+
+defineEmits(['briefing'])
 
 const timeSeconds = computed(() => props.time)
 
