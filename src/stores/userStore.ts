@@ -36,6 +36,7 @@ export interface GlobalStats {
 export interface UserProfile {
   id: string
   username: string
+  email?: string
   rating: number
   puzzle_rating?: number
   location?: string
@@ -94,13 +95,30 @@ export const useUserStore = defineStore('user', () => {
   const identity = useUserIdentity(profile)
   const stats = useUserStats(pastGames, puzzleAttempts)
   const gamification = useUserGamification(profile)
-  const ratingSystem = useRatingSystem(pastGames)
+  const ratingSystem = useRatingSystem(pastGames, identity.isMe)
 
   // --- LIFECYCLE ---
   supabase.auth.onAuthStateChange((_event, newSession) => {
     session.value = newSession
-    if (newSession) fetchUserData()
+    if (newSession) {
+      // Clear old state immediately so we don't show stale data while loading the new user
+      clearUserData()
+      fetchUserData()
+    } else {
+      // User logged out or session expired
+      clearUserData()
+    }
   })
+
+  /**
+   * Resets the store state to its initial empty values.
+   */
+  function clearUserData() {
+    profile.value = null
+    pastGames.value = []
+    puzzleAttempts.value = []
+    puzzleQueue.value = []
+  }
 
   // --- ACTIONS ---
 
@@ -176,7 +194,8 @@ export const useUserStore = defineStore('user', () => {
           opening: row.opening || row.eco || 'Unknown',
           opponentRating: isWhite ? row.black_rating : row.white_rating,
           accuracy: isWhite ? row.white_accuracy : row.black_accuracy,
-          rating: isWhite ? row.white_rating : row.black_rating
+          rating: isWhite ? row.white_rating : row.black_rating,
+          userSide: isWhite ? 'white' : 'black'
         }
       })
     }

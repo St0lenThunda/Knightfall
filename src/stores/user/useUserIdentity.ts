@@ -40,14 +40,7 @@ export function useUserIdentity(profile: Ref<UserProfile | null>) {
     const matchesChesscom = myChesscom && n === myChesscom
     const matchesLichess = myLichess && n === myLichess
 
-    if (matchesUsername || matchesChesscom || matchesLichess) return true
-
-    // Fuzzy Substring Comparison: Catch variations of the handles
-    const fuzzyUsername = myUsername && n.includes(myUsername)
-    const fuzzyChesscom = myChesscom && n.includes(myChesscom)
-    const fuzzyLichess = myLichess && n.includes(myLichess)
-
-    return !!(fuzzyUsername || fuzzyChesscom || fuzzyLichess)
+    return !!(matchesUsername || matchesChesscom || matchesLichess)
   }
 
   /** Centralized check for administrative privileges. */
