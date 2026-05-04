@@ -326,7 +326,7 @@ function isKingInCheck(rowIdx: number, colIdx: number) {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: min(1000px, 80vh); /* Slightly smaller to ensure fit */
+  max-width: min(800px, 72vh); /* Optimized for all-onscreen layout */
   margin: 0 auto;
 }
 

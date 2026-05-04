@@ -42,6 +42,11 @@ export const useEngineStore = defineStore('engine', () => {
   let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
   let activeTurn: 'w' | 'b' = 'w'
 
+  // State persistence for self-healing reboots
+  let lastAnalyzedFen = ''
+  let lastAnalyzedDepth = 0
+  let lastAnalyzedBot = ''
+
   // Command Queue for stable worker handshaking
   let messageQueue: string[] = []
   let isReadyForCommand = true
@@ -96,6 +101,7 @@ export const useEngineStore = defineStore('engine', () => {
         
         const settings = useSettingsStore()
         sendCommand(`setoption name MultiPV value ${settings.engineMultiPv}`)
+        sendCommand('setoption name Hash value 16')
       } else if (msg === 'readyok') {
         isReadyForCommand = true
         // Flush the queue
@@ -134,30 +140,45 @@ export const useEngineStore = defineStore('engine', () => {
 
   function reboot() {
     if (rebootCount > 5) {
-        logger.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.')
-        isAnalyzing.value = false
-        return
+        logger.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.');
+        isAnalyzing.value = false;
+        return;
     }
     
-    rebootCount++
-    if (rebootResetTimer) clearTimeout(rebootResetTimer)
-    rebootResetTimer = setTimeout(() => { rebootCount = 0 }, 10000)
+    // Capture current analysis state to resume after reboot
+    const wasAnalyzing = isAnalyzing.value;
+    const lastFen = lastAnalyzedFen;
+    const lastDepth = lastAnalyzedDepth;
+    const lastBot = lastAnalyzedBot;
 
-    logger.warn(`[Engine] Rebooting worker (Attempt ${rebootCount})...`)
+    rebootCount++;
+    if (rebootResetTimer) clearTimeout(rebootResetTimer);
+    rebootResetTimer = setTimeout(() => { rebootCount = 0 }, 10000);
+
+    logger.warn(`[Engine] Rebooting worker (Attempt ${rebootCount})...`);
     if (worker) {
-        worker.terminate()
-        worker = null
+        worker.terminate();
+        worker = null;
     }
     if (infoThrottleTimeout) {
-      clearTimeout(infoThrottleTimeout)
-      infoThrottleTimeout = null
+      clearTimeout(infoThrottleTimeout);
+      infoThrottleTimeout = null;
     }
-    pendingInfo = null
-    isReady.value = false
-    isAnalyzing.value = false
-    isReadyForCommand = true
-    messageQueue = []
-    init()
+    pendingInfo = null;
+    isReady.value = false;
+    isAnalyzing.value = false;
+    isReadyForCommand = true;
+    messageQueue = [];
+    
+    init();
+
+    // If we were analyzing, resume after a short delay to allow init to finish
+    // We reduce depth slightly to avoid hitting the same memory/stack limit
+    if (wasAnalyzing && lastFen) {
+      setTimeout(() => {
+        analyze(lastFen, Math.max(10, lastDepth - 2), lastBot);
+      }, 500);
+    }
   }
   
   function throttledParseInfo(msg: string) {
@@ -322,7 +343,6 @@ export const useEngineStore = defineStore('engine', () => {
       sendCommand('setoption name UCI_LimitStrength value false')
     }
     
-    sendCommand(`setoption name Contempt value ${bot.contempt ?? 0}`)
   }
 
   /**
@@ -347,6 +367,10 @@ export const useEngineStore = defineStore('engine', () => {
       depth = bot.depth || depth
     }
     
+    lastAnalyzedFen = fen;
+    lastAnalyzedDepth = depth;
+    lastAnalyzedBot = bot;
+
     logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     
     // Parse turn from FEN to normalize evaluation later

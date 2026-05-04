@@ -22,24 +22,11 @@
     </div>
 
     <div class="play-layout" :class="{ 'game-active': !showSetup, 'history-open': showHistory }">
-      <!-- Left: setup panel (shown when no game started) -->
-      <Transition name="slide-right">
-        <PlaySetupPanel 
-          v-if="showSetup"
-          v-model:selectedMode="selectedMode"
-          v-model:selectedColor="selectedColor"
-          v-model:selectedTc="selectedTc"
-          :activeBotId="store.activeBot.id"
-          @selectBot="store.activeBot = $event"
-          @showBriefing="showBriefing = true"
-          @start="startGame(selectedMode, selectedColor, selectedTc)"
-        />
-      </Transition>
-
-      <!-- Board area -->
-      <div class="board-area">
+      <!-- Main Board Area -->
+      <div class="board-area" ref="boardAreaRef">
         <!-- Opponent info -->
         <PlayerBar
+          v-if="!showSetup"
           :name="opponentName"
           :rating="opponentRating"
           :avatar="opponentAvatar"
@@ -47,7 +34,6 @@
           :active="store.turn === (flipped ? 'w' : 'b') && store.gameActive"
           :color="flipped ? 'white' : 'black'"
           :isBot="store.mode === 'vs-computer'"
-          @briefing="showBriefing = true"
         />
 
         <!-- Thinking indicator -->
@@ -56,7 +42,20 @@
         </Transition>
 
         <div class="board-wrapper">
-          <ChessBoard :flipped="flipped" />
+          <div class="board-main-container" :class="{ 'blurred': showSetup }">
+            <ChessBoard :flipped="flipped" />
+          </div>
+
+          <!-- Setup Overlay (when no game active) -->
+          <div v-if="showSetup" class="setup-overlay">
+            <div class="setup-cta">
+              <h1 class="text-glow mb-2">READY FOR BATTLE?</h1>
+              <p class="muted mb-8">Select your adversary and prepare for tactical engagement.</p>
+              <button class="btn btn-primary btn-lg px-12" @click="showNewGameModal = true">
+                ⚔️ START NEW GAME
+              </button>
+            </div>
+          </div>
 
           <!-- Overlays -->
           <Transition name="fade-up">
@@ -64,12 +63,12 @@
               v-if="store.isGameOver && !store.isCheaterBusted"
               :result="store.gameResult"
               :isReviewing="isReviewing"
-              @newGame="triggerNewGame(selectedMode, selectedColor, selectedTc)"
+              @newGame="showNewGameModal = true"
               @review="reviewGame(selectedMode)"
             />
           </Transition>
 
-          <!-- Anti-Cheat Warning (Yellow Card) -->
+          <!-- Anti-Cheat Warning -->
           <Transition name="fade-up">
             <div class="anti-cheat-warning glass-sm" v-if="store.suspicionScore >= 60 && !store.isCheaterBusted">
               <span class="warning-icon">⚠️</span>
@@ -80,7 +79,7 @@
             </div>
           </Transition>
 
-          <!-- Cheat Busted Overlay -->
+          <!-- Busted Overlay -->
           <Transition name="fade-up">
             <PlayCheatBustedOverlay 
               v-if="store.isCheaterBusted"
@@ -88,13 +87,14 @@
               :correlationScore="(store.antiCheat.engineMatches / (store.antiCheat.totalAnalyzedMoves || 1)) * 100"
               :blurCount="store.antiCheat.blurCount"
               :suspicionScore="store.suspicionScore"
-              @accept="triggerNewGame(selectedMode, selectedColor, selectedTc)"
+              @accept="showNewGameModal = true"
             />
           </Transition>
         </div>
 
         <!-- Player info -->
         <PlayerBar
+          v-if="!showSetup"
           :name="playerName"
           :rating="playerRating"
           :avatar="playerAvatar"
@@ -131,20 +131,18 @@
       </Transition>
     </div>
 
-    <!-- Bot Briefing Dossier -->
-    <BotBriefingModal 
-      :show="showBriefing" 
-      :bot="store.activeBot" 
-      @close="showBriefing = false" 
-      @prev="cycleBot(-1)"
-      @next="cycleBot(1)"
+    <!-- New Game Modal -->
+    <NewGameModal 
+      :show="showNewGameModal" 
+      @close="showNewGameModal = false"
+      @start="handleStartGame"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue'
-import { useGameStore, BOTS } from '../stores/gameStore'
+import { ref, computed, onUnmounted, watch, nextTick } from 'vue'
+import { useGameStore } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
 
 // Pillar Components
@@ -152,11 +150,10 @@ import ChessBoard from '../components/ChessBoard.vue'
 import MoveHistory from '../components/MoveHistory.vue'
 import PlayerBar from '../components/PlayerBar.vue'
 import TacticalPulse from '../components/TacticalPulse.vue'
-import PlaySetupPanel from '../components/play/PlaySetupPanel.vue'
 import PlayGameOverOverlay from '../components/play/PlayGameOverOverlay.vue'
 import PlayCheatBustedOverlay from '../components/play/PlayCheatBustedOverlay.vue'
 import PlayThinkingIndicator from '../components/play/PlayThinkingIndicator.vue'
-import BotBriefingModal from '../components/play/BotBriefingModal.vue'
+import NewGameModal from '../components/play/NewGameModal.vue'
 
 // Pillar Composables
 import { usePlaySetup } from '../composables/play/usePlaySetup'
@@ -173,12 +170,13 @@ engineStore.init()
 const flipped = ref(false)
 const showSetup = ref(true)
 const showHistory = ref(false)
-const showBriefing = ref(false)
+const showNewGameModal = ref(false)
+const boardAreaRef = ref<HTMLElement | null>(null)
 
 // Initialize Pillar Logic
 const { selectedMode, selectedColor, selectedTc } = usePlaySetup()
 const { playerName, playerRating, playerAvatar, opponentName, opponentRating, opponentAvatar, modeLabel } = usePlayOpponent(selectedMode)
-const { isReviewing, triggerNewGame, startGame, resign, reviewGame } = usePlayOrchestration(showSetup, flipped)
+const { isReviewing, startGame, resign, reviewGame } = usePlayOrchestration(showSetup, flipped)
 usePlayAntiCheat()
 
 // Derived Eval Data
@@ -186,16 +184,19 @@ const evalNumber = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
 /**
- * Cycle through bots in the briefing modal.
+ * Handle game start from the modal.
  */
-function cycleBot(direction: number) {
-  const currentIndex = BOTS.findIndex(b => b.id === store.activeBot.id)
-  let nextIndex = currentIndex + direction
+function handleStartGame(params: any) {
+  showNewGameModal.value = false
+  showSetup.value = false
   
-  if (nextIndex < 0) nextIndex = BOTS.length - 1
-  if (nextIndex >= BOTS.length) nextIndex = 0
+  // Sync the setup values to the composables/store
+  selectedMode.value = params.mode
+  selectedColor.value = params.color
+  selectedTc.value = params.tc
+  store.activeBot = params.bot
   
-  store.activeBot = BOTS[nextIndex]
+  startGame(params.mode, params.color, params.tc)
 }
 
 /**
@@ -204,6 +205,17 @@ function cycleBot(direction: number) {
 watch(() => store.fen, () => {
   if (store.gameActive && store.mode === 'local') {
     flipped.value = store.turn === 'b'
+  }
+})
+
+/**
+ * Focus the board when the setup is dismissed (game starts).
+ */
+watch(showSetup, (isSetup) => {
+  if (!isSetup) {
+    nextTick(() => {
+      boardAreaRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 })
 
@@ -259,6 +271,50 @@ onUnmounted(() => {
   gap: var(--space-4);
   align-items: center;
   width: 100%;
+  position: relative;
+}
+
+.setup-overlay {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width, 240px);
+  width: calc(100vw - var(--sidebar-width, 240px));
+  height: 100vh;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.4); /* Slightly lighter to feel more integrated */
+  backdrop-filter: blur(16px);
+  pointer-events: all;
+  transition: all var(--duration) var(--ease);
+}
+
+@media (max-width: 1024px) {
+  .setup-overlay {
+    left: 0;
+    width: 100vw;
+  }
+}
+
+.setup-cta {
+  max-width: 800px;
+  padding: var(--space-12);
+  animation: setupScaleIn 0.5s var(--ease-out);
+}
+
+@keyframes setupScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.setup-cta h1 {
+  font-size: 4.5rem;
+  font-weight: 950;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(255,255,255,0.2);
+  letter-spacing: -0.02em;
 }
 
 .board-wrapper {
@@ -267,6 +323,17 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   width: 100%;
+}
+
+.board-main-container {
+  width: 100%;
+  height: 100%;
+  transition: filter 0.5s var(--ease);
+}
+
+.board-main-container.blurred {
+  filter: blur(15px) grayscale(0.8);
+  pointer-events: none;
 }
 
 .side-panel {

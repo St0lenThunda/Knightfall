@@ -112,7 +112,7 @@ export const BOTS: Bot[] = [
     contempt: 20, 
     mortalArchetype: 'aggressor',
     traits: ['Genius', 'Relentless', 'Squeezing'],
-    backstory: "The Prince does not seek the blunders of his enemies; he simply removes their oxygen, one square at a time, until they collapse from the pressure of his brilliance. He is the quiet before the storm that never ends, squeezing tiny 1% advantages into 100% victories."
+    backstory: "The Prince does not seek the blunders of his enemies; he simply removes their oxygen, one square at a time, until they collapse from the pressure of his brilliance. He is the quiet before the storm that never ends, squeezing tiny 1% advantages into 100% victories. Many believe his fingers are strings, pulling the very destiny of the pieces into his favor."
   },
   { 
     id: 'gm', 
@@ -134,9 +134,9 @@ export const BOTS: Bot[] = [
     rating: 3200, 
     description: 'A collapse of logic into a singularity of pure mathematical truth.', 
     avatar: '/bots/nova.png', 
-    depth: 24, 
+    depth: 16, 
     skillLevel: 20, 
-    elo: 3200, 
+    elo: 3200,
     contempt: 0,
     traits: ['Transcendent', 'Infinite', 'Alien'],
     backstory: "Supernova is not a bot, but a singularity where your defeat was preordained since the birth of the stars. It calculates millions of realities simultaneously, solving the mystery of the squares before the first move is played. It is the ultimate silence of the silicon void."

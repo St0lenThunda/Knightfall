@@ -35,7 +35,7 @@ const uiStore = useUiStore()
       <RouterLink v-for="item in section.items" :key="item.path"
         :to="item.path"
         class="nav-link"
-        :class="{ active: isLinkActive(item.path) }"
+        :class="{ active: isLinkActive(item.path), 'is-collapsed': uiStore.isSidebarCollapsed }"
         :data-tooltip="uiStore.isSidebarCollapsed ? item.label : undefined"
         @click="$emit('close')"
       >
@@ -96,24 +96,43 @@ const uiStore = useUiStore()
   font-size: 0.7rem;
 }
 
+.section-items-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .nav-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 10px 14px;
+  padding: 10px 12px;
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: var(--radius-md);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   transition: all 0.2s;
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   transform: translateX(4px);
+}
+
+.nav-link.is-collapsed:hover {
+  transform: none; /* Don't shift when collapsed */
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.is-collapsed {
+  padding: 12px 0;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
 }
 
 .nav-link.active {

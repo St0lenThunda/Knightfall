@@ -66,15 +66,18 @@ const isDev = import.meta.env.DEV
         <div class="logo-icon logo-glow" aria-hidden="true">♞</div>
         <span class="logo-text" v-show="!uiStore.isSidebarCollapsed">Knightfall</span>
       </RouterLink>
-      <button 
-        class="btn btn-icon collapse-btn" 
-        @click.prevent.stop="uiStore.toggleSidebar()" 
-        :aria-label="uiStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        :title="uiStore.isSidebarCollapsed ? 'Expand' : 'Collapse'"
-      >
-        {{ uiStore.isSidebarCollapsed ? '›' : '‹' }}
-      </button>
     </div>
+
+    <!-- Floating Toggle -->
+    <button 
+      class="collapse-toggle-btn" 
+      @click.prevent.stop="uiStore.toggleSidebar()" 
+      :aria-label="uiStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      :title="uiStore.isSidebarCollapsed ? 'Expand' : 'Collapse'"
+      :class="{ 'is-collapsed': uiStore.isSidebarCollapsed }"
+    >
+      <span class="toggle-icon">{{ uiStore.isSidebarCollapsed ? '›' : '‹' }}</span>
+    </button>
 
     <!-- User Section -->
     <UserCard 
@@ -145,13 +148,16 @@ const isDev = import.meta.env.DEV
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  z-index: 200;
-  transition: width var(--duration) var(--ease);
-  overflow: hidden;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-5);
+  z-index: 2000; /* Elevated above all overlays including setup-overlay */
+  transition: all var(--duration) var(--ease);
 }
-.sidenav.collapsed { width: 72px; }
+.sidenav.collapsed { 
+  width: 72px; 
+  padding: var(--space-6) 0;
+  gap: var(--space-4);
+}
 
 /* Mobile logic */
 @media (max-width: 1024px) {
@@ -215,31 +221,39 @@ const isDev = import.meta.env.DEV
   background-clip: text;
   white-space: nowrap;
 }
-.collapse-btn {
-  margin-left: auto;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  min-width: 44px; /* Hardened for touch targets */
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sidenav.collapsed .collapse-btn {
+.collapse-toggle-btn {
   position: absolute;
-  right: -32px; /* Pushed further out to prevent target collision */
-  top: var(--space-5);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  top: 32px;
+  right: -16px;
   width: 32px;
   height: 32px;
-  transform: translateX(16px); /* Shifted to prevent logo overlap in collapsed mode */
+  background: var(--accent);
+  border: 2px solid var(--bg-surface);
+  border-radius: 50%;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  z-index: 10;
+  cursor: pointer;
+  z-index: 300; /* Above everything */
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
+  transition: all 0.3s var(--ease);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.collapse-toggle-btn:hover {
+  background: var(--accent-bright);
+  transform: scale(1.1) translateX(2px);
+  box-shadow: 0 0 25px rgba(167, 139, 250, 0.6);
+}
+
+.collapse-toggle-btn.is-collapsed {
+  right: -16px;
+}
+
+.toggle-icon {
+  margin-bottom: 2px;
 }
 
 .sidenav-sections {

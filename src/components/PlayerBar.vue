@@ -14,9 +14,6 @@
       <div class="player-name">{{ name }}</div>
       <div class="player-rating-small">
         <span class="badge" :class="color === 'white' ? 'badge-accent' : 'badge-teal'">{{ rating }}</span>
-        <button v-if="isBot" class="btn btn-ghost btn-xs ml-2 dossier-trigger" @click="$emit('briefing')">
-          <span class="icon">📁</span> Dossier
-        </button>
       </div>
     </div>
     <div class="clock" :class="{ 'clock-active': active, 'clock-low': timeSeconds < 30 }">

@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-02T15:20:58Z",
+  "timestamp": "2026-05-04T09:00:15Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: b7165a1 - chore: harden Fabric installation, update key resolution, and improve CI briefing error handling (Antonio Moses)\nf8d024b - chore: update default Gemini model to gemini-2.5-flash and remove debug model listing (Antonio Moses)\nc1b74fa - test(ci): add Fabric debug step (Antonio Moses)\ndce8e8c - chore: update default Gemini model to 2.5-pro in CI workflow (Antonio Moses)\n9c370ce - fix(ci): use vendor prefix for Fabric model (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: 4d52fd5 - feat(bot-ux): integrate immersive dossiers and engine stability hardening (Antonio Moses)\n947a228 - chore: general engine stabilization and structural integrity fixes (Antonio Moses)\nd85009d - security(auth): harden password reset flow and identity resolution (Antonio Moses)\n90440f7 - feat(library): implement hybrid paging and IndexedDB scaling for massive libraries (Antonio Moses)\n827b310 - feat(play): add Bot Briefing Dossier and high-fidelity bot assets (Antonio Moses)",
   "metrics": {
-    "files_scanned":      330,
+    "files_scanned":      366,
     "integrity_score": 98
   }
 }

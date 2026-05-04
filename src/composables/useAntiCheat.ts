@@ -12,6 +12,13 @@ import { logger } from '../utils/logger'
  * 2. Move Time Variance (Robotic consistency check)
  * 3. Engine Correlation (Match rate with Stockfish PV)
  */
+// Weights for different violations (Total 100 = Busted)
+const WEIGHTS = {
+  BLUR: 20,           // Tab switched (5 blurs = busted)
+  ROBOTIC_RHYTHM: 40, // Low variance in move times
+  CORRELATION: 50     // High match rate with top engine moves
+}
+
 export function useAntiCheat() {
   const blurCount = ref(0)
   const moveTimes = ref<number[]>([])
@@ -21,13 +28,6 @@ export function useAntiCheat() {
   const engineMatches = ref(0)
   const totalAnalyzedMoves = ref(0)
   const totalCpLoss = ref(0)
-
-  // Weights for different violations (Total 100 = Busted)
-  const WEIGHTS = {
-    BLUR: 30,           // Tab switched (3.3 blurs = busted)
-    ROBOTIC_RHYTHM: 40, // Low variance in move times
-    CORRELATION: 50     // High match rate with top engine moves
-  }
 
   /**
    * Calculates the Standard Deviation of move times.

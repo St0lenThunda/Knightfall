@@ -114,53 +114,6 @@ onMounted(() => {
 .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; position: relative; }
 
 .identity-connections { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4); }
-.empty-dna { margin-top: var(--space-2); }
-
-/* Tooltip System - Global Persistence */
-[data-tooltip] {
-  position: relative;
-  cursor: help;
-}
-
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 125%;
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
-  padding: 8px 12px;
-  background: rgba(15, 15, 20, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: white;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-[data-tooltip]:hover::after {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-.stat-info-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 50%;
-  font-size: 9px;
-  margin-left: 4px;
-  opacity: 0.8;
-}
 
 .title-badge {
   padding: 2px 10px;
