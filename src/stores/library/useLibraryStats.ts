@@ -18,7 +18,6 @@ export function useLibraryStats(
   games: Ref<LibraryGame[]>,
   userStore: ReturnType<typeof useUserStore>
 ) {
-  const personalGames = games
 
   /**
    * The 'Single Pass Reducer'
@@ -27,7 +26,6 @@ export function useLibraryStats(
    * edits (PGN/Result changes) by re-running the aggregation whenever the array changes.
    */
   const librarySummary = computed(() => {
-    // Initial State
     const summary = {
       wld: { win: 0, loss: 0, draw: 0, total: 0 },
       openingMap: {} as Record<string, any>,
@@ -38,7 +36,10 @@ export function useLibraryStats(
       vaultOpenings: new Set<string>()
     }
 
-    if (personalGames.value.length === 0) return summary
+    const isLoggedIn = !!userStore.session
+    const gamesToProcess = isLoggedIn ? games.value : games.value.filter(g => g.isCurated)
+
+    if (gamesToProcess.length === 0) return summary
 
     // Heatmap date reference
     const now = new Date()
@@ -46,7 +47,7 @@ export function useLibraryStats(
     heatmapStart.setDate(now.getDate() - (12 * 7))
     heatmapStart.setDate(heatmapStart.getDate() - heatmapStart.getDay())
 
-    personalGames.value.forEach(g => {
+    gamesToProcess.forEach(g => {
       // 1. Identity Detection (Persisted)
       // We rely on the 'userSide' property which was resolved during Import/Sanitize.
       // We also fallback to userStore.isMe() for legacy games that haven't been fully repaired yet.
@@ -57,7 +58,10 @@ export function useLibraryStats(
       const isParticipant = isWhite || isBlack
 
       // 2. WLD & Participation
-      if (isParticipant) {
+      // ONLY COUNT DEFINITIVE RESULTS
+      const hasDefinitiveResult = result !== '*' && result !== '?' && result && result !== '1/2';
+
+      if (isParticipant && hasDefinitiveResult) {
         summary.wld.total++
         if (result === '1/2-1/2' || result.includes('1/2')) {
           summary.wld.draw++
@@ -124,7 +128,10 @@ export function useLibraryStats(
    */
   const performanceHistory = computed(() => {
     const nativeUsername = userStore.displayName?.toLowerCase()
-    return calculateRatingHistory(personalGames.value, (u) => {
+    const isLoggedIn = !!userStore.session
+    const gamesToProcess = isLoggedIn ? games.value : games.value.filter(g => g.isCurated)
+    
+    return calculateRatingHistory(gamesToProcess, (u) => {
       return !!(userStore.isMe(u) || (nativeUsername && u.toLowerCase() === nativeUsername))
     })
   })

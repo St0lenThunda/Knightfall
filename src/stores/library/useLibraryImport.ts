@@ -77,18 +77,31 @@ export function useLibraryImport(
           if (userStore.displayName) autoTags.push(userStore.displayName)
         }
         
+        const userSide = userStore.isMe(white) ? 'white' : (userStore.isMe(black) ? 'black' : 'none')
+
+        const result = headers['Result'] || '*'
+        
+        // --- GUARD: Reject 'Unfinished' games ---
+        // Games without a definitive result (* or ?) are just noise and pollute stats.
+        if (result === '*' || result === '?' || !result || result === '1/2') {
+          continue
+        }
+
         const game: LibraryGame = {
           id,
           pgn: raw,
           white,
           black,
-          result: headers['Result'] || '*',
+          result,
           date: headers['Date'] || '?',
           event: headers['Event'] || 'Local Game',
           eco: headers['ECO'] || '',
+          openingName: headers['Opening'] || undefined,
+          termination: headers['Termination'] || undefined,
           movesCount: chess.history().length,
           addedAt: Date.now(),
           isCurated,
+          userSide,
           tags: [...new Set([...(extraTags.length > 0 ? extraTags : ['Imported']), ...autoTags])]
         }
         newGames.push(game)
@@ -168,6 +181,12 @@ export function useLibraryImport(
       else if (cleanResult.startsWith('0-1')) cleanResult = '0-1'
       else if (cleanResult.startsWith('1/2-1/2') || cleanResult.includes('1/2') || cleanResult.includes('½')) cleanResult = '1/2-1/2'
 
+      // --- GUARD: Reject 'Unfinished' games ---
+      if (cleanResult === '*' || cleanResult === '?' || !cleanResult || cleanResult === '1/2') {
+        logger.info('[Import] Skipping unfinished live game.')
+        return null
+      }
+
       const white = headers['White'] || 'Unknown'
       const black = headers['Black'] || 'Unknown'
       const stableId = generateGameFingerprint(white, black, pgn)
@@ -184,6 +203,8 @@ export function useLibraryImport(
         date: headers['Date'] || new Date().toISOString().split('T')[0],
         event: headers['Event'] || 'Local Game',
         eco: headers['ECO'] || '',
+        openingName: headers['Opening'] || undefined,
+        termination: headers['Termination'] || undefined,
         movesCount: (chess.history() || []).length,
         addedAt: Date.now(),
         whiteElo: headers['WhiteElo'] ?? undefined,
@@ -251,6 +272,9 @@ export function useLibraryImport(
           const lg = lichessGames[i]
           const pgn = lg.pgn || ''
           
+          const userSide = userStore.isMe(lg.players.white.user?.name) ? 'white' 
+                         : (userStore.isMe(lg.players.black.user?.name) ? 'black' : 'none')
+
           const game: LibraryGame = {
             id: lg.id,
             pgn,
@@ -260,10 +284,12 @@ export function useLibraryImport(
             date: new Date(lg.createdAt).toISOString().split('T')[0],
             event: `Lichess ${lg.speed} Game`,
             eco: lg.opening?.eco || '',
+            openingName: lg.opening?.name || undefined,
             movesCount: lg.moves.split(' ').length,
             addedAt: Date.now(),
             whiteElo: lg.players.white.rating.toString(),
             blackElo: lg.players.black.rating.toString(),
+            userSide,
             tags: [...new Set([
               ...(username.toLowerCase() === userStore.displayName?.toLowerCase() ? ['My Games'] : []),
               userStore.displayName || username, 
@@ -272,7 +298,8 @@ export function useLibraryImport(
               lg.perf
             ])],
             clocks: lg.clocks,
-            evals: lg.evals
+            evals: lg.evals,
+            isSynthesized: !!(lg.evals && lg.evals.length > 0)
           }
 
           // Persist

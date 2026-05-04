@@ -97,10 +97,26 @@ export function useLibrarySync(
         const stableId = generateGameFingerprint(white, black, m.pgn)
 
         let existing = localMap.get(stableId)
+        const meta = m.metadata || {}
+        const cloudIsSynthesized = !!meta.analyzed_at || (meta.evals && meta.evals.length > 0)
         
         if (existing) {
+          let modified = false
           if (!existing.cloudId) {
             existing.cloudId = m.id
+            modified = true
+          }
+          // Backfill analysis if cloud has it but local doesn't
+          if (cloudIsSynthesized && !existing.isSynthesized) {
+            existing.isSynthesized = true
+            existing.evals = meta.evals
+            existing.acpl = meta.acpl
+            existing.missedWins = meta.missed_wins
+            existing.theoreticalAccuracy = meta.theory_accuracy
+            modified = true
+          }
+          
+          if (modified) {
             const db = await initDb()
             const tx = db.transaction(['games'], 'readwrite')
             tx.objectStore('games').put(JSON.parse(JSON.stringify(existing)))
@@ -109,8 +125,19 @@ export function useLibrarySync(
           continue
         }
 
+        const movesCount = chess.history().length
+        
+        const result = m.result || headers['Result'] || '*'
+        
+        // --- GUARD: Reject 'Unfinished' games ---
+        if (result === '*' || result === '?' || !result || result === '1/2') {
+          logger.info(`[Sync] Skipping unfinished game ${m.id} (Result: ${result})`)
+          continue
+        }
+
         const userStore = useUserStore()
-        const isMe = userStore.isMe(white) || userStore.isMe(black)
+        const userSide = userStore.isMe(white) ? 'white' : (userStore.isMe(black) ? 'black' : 'none')
+        const isMe = userSide !== 'none'
 
         const autoTags: string[] = ['Synced']
         const lowerPgn = m.pgn.toLowerCase()
@@ -135,11 +162,17 @@ export function useLibrarySync(
           date: headers['Date'] || m.created_at?.split('T')[0] || '?',
           event: headers['Event'] || 'Online Game',
           eco: headers['ECO'] || '',
-          movesCount: chess.history().length,
+          movesCount,
           addedAt: Date.now(),
           whiteElo: headers['WhiteElo'] ?? undefined,
           blackElo: headers['BlackElo'] ?? undefined,
           tags: [...new Set(autoTags)],
+          userSide,
+          isSynthesized: cloudIsSynthesized,
+          evals: meta.evals,
+          acpl: meta.acpl,
+          missedWins: meta.missed_wins,
+          theoreticalAccuracy: meta.theory_accuracy,
           cloudId: m.id 
         }
         syncedGames.push(game)
@@ -349,7 +382,7 @@ export function useLibrarySync(
    * Also identifies blunders for the Shadow Realm (Approach 1).
    */
   async function analyzeLibraryWithCloud(limit = 10) {
-    const unanalyzed = games.value.filter(g => g.acpl === undefined).slice(0, limit)
+    const unanalyzed = games.value.filter(g => !g.isSynthesized).slice(0, limit)
     if (unanalyzed.length === 0) return
 
     logger.info(`[Intel Hub] Starting Cloud Pass for ${unanalyzed.length} games...`)
@@ -376,14 +409,12 @@ export function useLibrarySync(
           const cloudData = await fetchCloudEval(fen)
           
           if (!cloudData) {
-            // Throttling: Only wait if we actually need to hit the network
-            // Lichess public API is roughly 1 request per second
             await new Promise(r => setTimeout(r, 1200))
-            const freshData = await fetchCloudEval(fen) // This will now hit network
+            const freshData = await fetchCloudEval(fen)
             
             if (isRateLimited()) {
               logger.warn('[Intel Hub] Lichess Rate Limit hit. Pausing analysis pass.')
-              return // Break the entire analysis pass
+              return
             }
             
             if (freshData && freshData.pvs && freshData.pvs[0]) {
@@ -393,24 +424,54 @@ export function useLibrarySync(
             processCloudData(cloudData, i)
           }
 
-          // Local helper to track performance and capture blunders
           function processCloudData(data: any, index: number) {
+            const bestMove = data.pvs[0].pv?.split(' ')[0] || ''
             const evalScore = data.pvs[0].cp ?? (data.pvs[0].mate * 100)
-            totalCpl += evalScore // REQUIRED for ACPL calculation
-            
-            // If it's a huge drop, harvest as a Shadow Realm candidate
-            if (index > 0) {
-              const prevEval = (game.evals || [])[index-1] || 0
-              const drop = Math.abs(evalScore - prevEval)
-              if (drop > 200) {
-                const b = { fen: move.before, drop, move: move.san, ply: index }
-                blunders.push(b)
-                curriculum.harvestBlunders(game.id, b)
-              }
-            }
             
             if (!game.evals) game.evals = []
-            game.evals[index] = evalScore
+            // Store as object for better traceability
+            game.evals[index] = { score: evalScore, bestMove }
+            
+            totalCpl += evalScore
+
+            // Harvest Blunders for move index + 1 (using this position's bestMove)
+            // Note: We don't have the eval for nextMove yet, so we'll harvest it in the NEXT iteration
+          }
+
+          // Blunder Harvesting (Check move i vs eval i-1)
+          if (i > 0 && game.evals) {
+            const currentEval = game.evals[i] as any
+            const prevEval = game.evals[i-1] as any
+            
+            if (currentEval && prevEval) {
+              const drop = Math.abs(currentEval.score - prevEval.score)
+              // If you're White and the eval dropped significantly, you blundered
+              const isSignificant = drop > 180 
+              
+              if (isSignificant) {
+                // The solution is what you SHOULD have played (prevEval.bestMove)
+                const solution = prevEval.bestMove
+                
+                // VALIDATE: Ensure the solution is actually legal in the position BEFORE the mistake
+                const testChess = new Chess(move.before)
+                try {
+                  const legal = testChess.move(solution)
+                  if (legal) {
+                    const b = { 
+                      fen: move.before, 
+                      drop, 
+                      move: solution, // Use the BEST move as the solution
+                      playerMove: move.san, 
+                      ply: i 
+                    }
+                    blunders.push(b)
+                    curriculum.harvestBlunders(game.id, b)
+                  } else {
+                    logger.warn(`[Intel Hub] Skipping illegal harvest in ${game.id}: ${solution} illegal in ${move.before}`)
+                  }
+                } catch (e) {}
+              }
+            }
           }
 
           // 2. Theory DNA Check (First 12 moves)

@@ -45,6 +45,8 @@
       v-if="selectedGame" 
       :game="selectedGame" 
       @close="selectedGame = null"
+      @analyze="handleAnalyze(selectedGame!)"
+      @synthesize="libraryStore.analyzeGame(selectedGame!.id)"
       @delete="handleDelete"
     />
   </div>
@@ -57,9 +59,11 @@ import { useUiStore } from '../../stores/uiStore'
 import VaultControls from './VaultControls.vue'
 import VaultList from './VaultList.vue'
 import GameDetailsModal from './GameDetailsModal.vue'
+import { useVaultActions } from '../../composables/library/useVaultActions'
 
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
+const { handleAnalyze } = useVaultActions()
 
 // View State
 const viewMode = ref<'grid' | 'list'>('list')
@@ -92,12 +96,9 @@ function clearSelection() {
 }
 
 /**
- * Game Actions
+ * Game Actions (Delegated to Composable)
  */
-function handleAnalyze(game: LibraryGame) {
-  // Logic to open analysis view or start background analysis
-  console.log('Analyze game:', game.id)
-}
+// handleAnalyze is handled by the composable destructuring above
 
 function handleDelete(game: LibraryGame) {
   uiStore.confirm(

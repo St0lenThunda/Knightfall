@@ -47,6 +47,35 @@ export function useLibraryIdb(
   }
 
   /**
+   * Fetches ALL personal games (white or black) without pagination.
+   * This ensures stats and personal lists are always accurate even in 
+   * massive vaults.
+   */
+  async function loadPersonalGames(): Promise<LibraryGame[]> {
+    const activeDb = await initDb()
+    return new Promise((resolve, reject) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const results: LibraryGame[] = []
+      
+      const request = store.openCursor()
+      request.onsuccess = (event: any) => {
+        const cursor = event.target.result
+        if (cursor) {
+          const game = cursor.value as LibraryGame
+          if (game.userSide === 'white' || game.userSide === 'black') {
+            results.push(game)
+          }
+          cursor.continue()
+        } else {
+          resolve(results)
+        }
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
    * Returns the total number of records in the vault.
    * Essential for calculating pagination metadata.
    */
@@ -205,6 +234,7 @@ export function useLibraryIdb(
     deleteGames,
     persistGameUpdate,
     resetLibrary,
-    purgeDuplicates
+    purgeDuplicates,
+    loadPersonalGames
   }
 }

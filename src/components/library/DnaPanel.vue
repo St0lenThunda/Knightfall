@@ -2,6 +2,7 @@
 import { useCoachStore } from '../../stores/coachStore'
 import { useDnaMetrics } from '../../composables/library/useDnaMetrics'
 import { useDnaStats } from '../../composables/library/useDnaStats'
+import { useLibraryStore } from '../../stores/libraryStore'
 
 // Sub-components (Organs)
 import DnaIntelBar from './DnaIntelBar.vue'
@@ -18,6 +19,7 @@ import DnaPrescriptionItem from './DnaPrescriptionItem.vue'
  */
 
 const coachStore = useCoachStore()
+const libraryStore = useLibraryStore()
 
 // Behavioral Metrics (Aggression, Stability, etc.)
 const { dnaTraits } = useDnaMetrics()
@@ -37,6 +39,13 @@ const { phaseVulnerability } = useDnaStats()
       <div class="glass card-dna-main">
         <div class="dna-profile-header">
           <div class="dna-avatar-glow">🧬</div>
+          
+          <!-- New Enlarged Stat Pillar -->
+          <div class="dna-stat-large">
+            <span class="pct-val">{{ libraryStore.libraryWinRate }}%</span>
+            <span class="pct-label">WIN RATE</span>
+          </div>
+
           <div class="dna-title-block">
             <h2 class="text-gradient">{{ coachStore.playstyleNarrative.title }}</h2>
             <p class="muted">{{ coachStore.playstyleNarrative.desc }}</p>
@@ -211,6 +220,34 @@ const { phaseVulnerability } = useDnaStats()
   font-size: 2.2rem;
   font-weight: 900;
   letter-spacing: -0.02em;
+}
+
+/* Enlarged Percentage Display */
+.dna-stat-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-8);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  margin-right: var(--space-4);
+}
+
+.dna-stat-large .pct-val {
+  font-family: var(--font-mono);
+  font-size: 3.5rem; /* MEGA SCALE */
+  font-weight: 900;
+  color: var(--accent-bright);
+  line-height: 1;
+  text-shadow: var(--glow-accent);
+}
+
+.dna-stat-large .pct-label {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+  margin-top: 4px;
 }
 
 .dna-insight-box {

@@ -1,6 +1,5 @@
-import { ref, shallowRef, computed } from 'vue'
+import { ref, shallowRef, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { Chess } from 'chess.js'
 import { useUserStore } from './userStore'
 import { useLibrarySync } from './library/useLibrarySync'
 import { useLibraryFilter } from './library/useLibraryFilter'
@@ -9,6 +8,7 @@ import { useLibraryConstellation } from './library/useLibraryConstellation'
 import { useLibraryAnalysis } from './library/analysis'
 import { useLibraryImport } from './library/useLibraryImport'
 import { useLibraryIdb } from './library/useLibraryIdb'
+import { useLibraryIntegrity } from './library/useLibraryIntegrity'
 import { logger } from '../utils/logger'
 
 import { type LibraryGame, type ConstellationLayout, type OpeningNode } from './library/types'
@@ -33,13 +33,68 @@ export const useLibraryStore = defineStore('library', () => {
   const isImporting = ref(false)
   const importProgress = ref(0)
   
-  // Integrity Feedback State (For War Room overlays)
+  // Shared Integrity State (Passed to IDB and Sync pillars)
   const isProcessingIntegrity = ref(false)
   const integrityProgress = ref(0)
   const integrityMessage = ref('')
 
   // Constants
   const VAULT_PAGE_SIZE = 500
+
+  // --- CORE ACTIONS ---
+
+  /**
+   * Loads the library using a Hybrid Intelligence Strategy:
+   * 1. Always fetches ALL personal games to ensure 'My Games' list and stats are 100% accurate.
+   * 2. Lazy loads 'All Games' via paging if the vault is massive (> 2000).
+   * 3. Runs an automatic sanitization pass to purge test pollution (ghost games).
+   * 
+   * SECURITY: If not logged in, strictly only loads Curated games.
+   */
+  async function loadGames() {
+    // A. Clean up any leftover test pollution (Both Local & Cloud)
+    if (integrity) await integrity.autoSanitize()
+    
+    const isLoggedIn = !!userStore.session
+    totalVaultGames.value = await idb.getGameCount()
+    
+    // B. Fetch all personal games (essential for exhaustive DNA profiling)
+    // PROTECTED: Guests skip this entirely
+    const personal = isLoggedIn ? await idb.loadPersonalGames() : []
+    
+    // C. Fetch the 'All Games' view (respecting performance limits)
+    if (totalVaultGames.value < 2000) {
+      let all = await idb.loadGames()
+      
+      // AUTH GUARD: Anonymous users ONLY see curated content
+      if (!isLoggedIn) {
+        all = all.filter(g => g.isCurated)
+      }
+
+      // Deduplicate against personal set
+      const uniqueMap = new Map()
+      all.forEach(g => uniqueMap.set(g.id, g))
+      personal.forEach(g => uniqueMap.set(g.id, g))
+      games.value = Array.from(uniqueMap.values())
+      vaultOffset.value = games.value.length
+    } else {
+      // Lazy load the first chunk for the 'All' view
+      let pagedChunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0)
+
+      // AUTH GUARD: Anonymous users ONLY see curated content
+      if (!isLoggedIn) {
+        pagedChunk = pagedChunk.filter(g => g.isCurated)
+      }
+
+      const uniqueMap = new Map()
+      pagedChunk.forEach(g => uniqueMap.set(g.id, g))
+      personal.forEach(g => uniqueMap.set(g.id, g))
+      games.value = Array.from(uniqueMap.values())
+      vaultOffset.value = VAULT_PAGE_SIZE
+    }
+    
+    logger.info(`[Library] Vault loaded. Total: ${totalVaultGames.value}, Displaying: ${games.value.length}`)
+  }
 
   // --- PILLAR INITIALIZATION ---
   
@@ -56,7 +111,6 @@ export const useLibraryStore = defineStore('library', () => {
   )
   
   // 3. Filtering & Pagination Layer
-  // Note: These state variables are defined below or inside the pillar
   const searchQuery = ref('')
   const filterResult = ref('all')
   const selectedTag = ref('all')
@@ -97,6 +151,37 @@ export const useLibraryStore = defineStore('library', () => {
   // 7. Import Layer (PGN/Lichess/Zips)
   const importer = useLibraryImport(games, isImporting, importProgress, idb.initDb)
 
+  // 8. Integrity & Maintenance Layer
+  const integrity = useLibraryIntegrity(
+    games, 
+    userStore, 
+    idb, 
+    cloud, 
+    loadGames,
+    isProcessingIntegrity,
+    integrityProgress,
+    integrityMessage
+  )
+
+  // --- SESSION SENTINEL ---
+  // When the user changes, we MUST purge the local IDB to prevent identity bleed.
+  watch(() => userStore.session?.user.id, async (newId, oldId) => {
+    if (newId !== oldId) {
+      logger.info(`[Library] Identity shift detected (${oldId} -> ${newId}). Purging local vault...`)
+      // 1. Clear memory immediately to prevent "ghost" stats from being calculated while IDB is wiping
+      games.value = []
+      
+      // 2. Perform nuclear wipe of local storage
+      await idb.resetLibrary()
+      
+      // 3. Reload for the new identity
+      await loadGames()
+      
+      // 4. Update Warden telemetry for new session
+      await integrity.fetchWardenReport()
+    }
+  }, { immediate: false }) // Don't run on first load, App.vue handles bootup
+
   // --- COMPUTEDS ---
   
   /**
@@ -106,47 +191,44 @@ export const useLibraryStore = defineStore('library', () => {
   
   /**
    * Filtered list of games where the user was one of the players.
+   * PROTECTED: Guests only see an empty list here to prevent DNA leakage.
    */
-  const personalGames = computed(() => games.value.filter(g => g.userSide !== 'none'))
+  const personalGames = computed(() => {
+    if (!userStore.session) return []
+    return games.value.filter(g => g.userSide !== 'none')
+  })
   
   /**
    * Count of games that have undergone full engine synthesis.
+   * PROTECTED: Guests only see curated analyzed counts.
    */
-  const analyzedGamesCount = computed(() => games.value.filter(g => g.evals && g.evals.length > 0).length)
+  const analyzedGamesCount = computed(() => {
+    return games.value.filter(g => {
+      const hasEvals = g.evals && g.evals.length > 0
+      if (!userStore.session) return hasEvals && g.isCurated
+      return hasEvals
+    }).length
+  })
 
-  const wardenReport = ref<any>(null)
 
   // --- ACTIONS ---
 
-  /**
-   * Loads the library using a Hybrid Strategy:
-   * 1. If vault is small (< 2000), load everything for full-context stats.
-   * 2. If vault is large, load in chunks (VAULT_PAGE_SIZE) to keep UI responsive.
-   */
-  async function loadGames() {
-    totalVaultGames.value = await idb.getGameCount()
-    
-    // Large vault threshold: 2000 games
-    if (totalVaultGames.value < 2000) {
-      games.value = await idb.loadGames()
-      vaultOffset.value = games.value.length
-    } else {
-      // Lazy load the first chunk
-      games.value = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0)
-      vaultOffset.value = VAULT_PAGE_SIZE
-    }
-  }
+  // Maintenance and repair logic moved to useLibraryIntegrity
 
   /**
    * Fetches the next chunk of games and appends them to the vault.
-   * Typically triggered by infinite scroll components.
    */
   async function loadMoreGames() {
     if (games.value.length >= totalVaultGames.value) return []
 
-    const chunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, vaultOffset.value)
+    let chunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, vaultOffset.value)
+    
+    // AUTH GUARD: Anonymous users ONLY see curated content
+    if (!userStore.session) {
+      chunk = chunk.filter(g => g.isCurated)
+    }
+
     if (chunk.length > 0) {
-      // Append while preserving shallow reactivity
       games.value = [...games.value, ...chunk]
       vaultOffset.value += chunk.length
     }
@@ -155,130 +237,24 @@ export const useLibraryStore = defineStore('library', () => {
 
   /**
    * Deletes one or more games from both local IndexedDB and the cloud.
-   * Performs operations in parallel where possible.
-   * 
-   * @param ids - Array of local game IDs to delete
    */
-  async function deleteGames(ids: string[]) {
-    const cloudIds = ids.map(id => gamesMap.value.get(id)?.cloudId).filter(Boolean) as string[]
+  async function deleteGames(ids: string[], sourceList?: LibraryGame[]) {
+    const cloudIds: string[] = []
     
-    // 1. Local Deletion
+    ids.forEach(id => {
+      let game = gamesMap.value.get(id)
+      if (!game && sourceList) {
+        game = sourceList.find(g => g.id === id)
+      }
+      if (game?.cloudId) {
+        cloudIds.push(game.cloudId)
+      }
+    })
+    
     await idb.deleteGames(ids)
     
-    // 2. Cloud Deletion (Parallel via settling promises)
     if (cloudIds.length > 0) {
       await Promise.allSettled(cloudIds.map(cid => cloud.deleteCloudGame(cid)))
-    }
-  }
-
-  /**
-   * Removes "ghost" games (1 move or less) typically generated during automated testing.
-   * Returns the count of purged games.
-   */
-  async function purgeTestPollution() {
-    const ghostIds = games.value
-      .filter(g => g.movesCount <= 1)
-      .map(g => g.id)
-
-    if (ghostIds.length === 0) return 0
-
-    await deleteGames(ghostIds)
-    return ghostIds.length
-  }
-
-  /**
-   * Recalculates metadata (White/Black names, Elo, ECO, etc.) from raw PGN data.
-   * Useful when names or ratings are missing or corrupted in the DB.
-   */
-  async function repairVaultMetadata() {
-    const { safeLoadPgn } = await import('../utils/pgnParser')
-    const chess = new Chess()
-    
-    isProcessingIntegrity.value = true
-    integrityProgress.value = 0
-    integrityMessage.value = 'Sanitizing metadata...'
-    
-    const total = games.value.length
-    const upgradedGames = []
-
-    for (let i = 0; i < total; i++) {
-      const game = games.value[i]
-      try {
-        safeLoadPgn(chess, game.pgn)
-        const headers = chess.header()
-        
-        const upgraded: LibraryGame = {
-          ...game,
-          white: headers.White || 'Unknown',
-          black: headers.Black || 'Unknown',
-          result: headers.Result || '*',
-          date: headers.Date || '?',
-          whiteElo: headers.WhiteElo || undefined,
-          blackElo: headers.BlackElo || undefined,
-          eco: headers.ECO || '',
-          event: headers.Event || 'Local Game',
-          movesCount: chess.history().length,
-          userSide: userStore.isMe(headers.White) ? 'white' : (userStore.isMe(headers.Black) ? 'black' : 'none')
-        }
-        upgradedGames.push(upgraded)
-        await idb.persistGameUpdate(upgraded)
-      } catch (e) {
-        upgradedGames.push(game)
-      }
-
-      if (i % 25 === 0) {
-        integrityProgress.value = Math.round((i / total) * 100)
-        // Yield to browser to keep UI responsive
-        await new Promise(r => setTimeout(r, 0))
-      }
-    }
-    
-    games.value = upgradedGames
-    isProcessingIntegrity.value = false
-    integrityProgress.value = 100
-  }
-
-  /**
-   * Re-checks every game to see if the current user is playing.
-   * Necessary if the user changes their display name or link accounts.
-   */
-  async function repairVaultIdentity() {
-    isProcessingIntegrity.value = true
-    integrityProgress.value = 0
-    integrityMessage.value = 'Re-evaluating identity...'
-    
-    const total = games.value.length
-    const upgradedGames = []
-
-    for (let i = 0; i < total; i++) {
-      const game = games.value[i]
-      const upgraded: LibraryGame = {
-        ...game,
-        userSide: userStore.isMe(game.white) ? 'white' : (userStore.isMe(game.black) ? 'black' : 'none')
-      }
-      upgradedGames.push(upgraded)
-      await idb.persistGameUpdate(upgraded)
-      
-      if (i % 50 === 0) {
-        integrityProgress.value = Math.round((i / total) * 100)
-        await new Promise(r => setTimeout(r, 0))
-      }
-    }
-    
-    games.value = upgradedGames
-    isProcessingIntegrity.value = false
-    integrityProgress.value = 100
-  }
-
-  /**
-   * Fetches the Warden Shield health report from the static data directory.
-   */
-  async function fetchWardenReport() {
-    try {
-      const response = await fetch(`/data/warden_report.json?t=${Date.now()}`)
-      if (response.ok) wardenReport.value = await response.json()
-    } catch (e) {
-      logger.warn('[Library] Warden report unavailable.')
     }
   }
 
@@ -289,10 +265,10 @@ export const useLibraryStore = defineStore('library', () => {
     games, 
     isImporting, 
     importProgress, 
-    isProcessingIntegrity, 
-    integrityProgress, 
-    integrityMessage, 
-    wardenReport,
+    isProcessingIntegrity: integrity.isProcessingIntegrity, 
+    integrityProgress: integrity.integrityProgress, 
+    integrityMessage: integrity.integrityMessage, 
+    wardenReport: integrity.wardenReport,
     VAULT_PAGE_SIZE,
 
     // Computeds
@@ -303,7 +279,7 @@ export const useLibraryStore = defineStore('library', () => {
     // Core Actions
     loadGames, 
     loadMoreGames, 
-    fetchWardenReport,
+    fetchWardenReport: integrity.fetchWardenReport,
     persistGameUpdate: idb.persistGameUpdate, 
     
     // Intelligence (Intel Pillar)
@@ -319,8 +295,10 @@ export const useLibraryStore = defineStore('library', () => {
     brilliantMovesFound: intel.brilliantMovesFound,
     startBulkAnalysis: intel.startBulkAnalysis,
     stopBulkAnalysis: intel.stopBulkAnalysis,
+    analyzeGame: intel.analyzeGame,
     updateGameAnalysis: intel.updateGameAnalysis,
     currentAnalyzingId: intel.currentAnalyzingId,
+    activeGameStats: intel.activeGameStats,
 
     // Visualization (Constellation Pillar)
     isGeneratingTree: constellation.isGeneratingTree,
@@ -356,11 +334,13 @@ export const useLibraryStore = defineStore('library', () => {
       await idb.resetLibrary()
       if (wipeCloud) await cloud.purgeCloudLibrary()
     },
-    repairVaultMetadata, 
-    repairVaultIdentity, 
-    purgeTestPollution, 
+    repairVaultMetadata: integrity.repairVaultMetadata, 
+    repairVaultIdentity: integrity.repairVaultIdentity, 
+    purgeTestPollution: integrity.purgeTestPollution, 
+    autoSanitize: integrity.autoSanitize,
     purgeDuplicates: idb.purgeDuplicates, 
     deduplicate: idb.purgeDuplicates,
+    purgeUnfinishedGames: integrity.purgeUnfinishedGames,
 
     // Import (Importer Pillar)
     importPgn: importer.importPgn,
@@ -372,6 +352,10 @@ export const useLibraryStore = defineStore('library', () => {
 
     // Cloud (Sync Pillar)
     syncCloudGames: cloud.syncCloudGames,
+    refreshCloudDna: async () => {
+      await cloud.syncCloudGames()
+      await integrity.autoSanitize()
+    },
     purgeCloudLibrary: cloud.purgeCloudLibrary,
     pushLocalGamesToCloud: cloud.pushLocalGamesToCloud,
     deleteCloudGame: cloud.deleteCloudGame,

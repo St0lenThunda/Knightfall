@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 import { Chess } from 'chess.js'
 import type { LibraryGame } from '../types'
-// User store removed
+import { useUiStore } from '../../../stores/uiStore'
 import { logger } from '../../../utils/logger'
 
 // Import Sub-Modules
@@ -29,6 +29,17 @@ export function useLibraryAnalysis(
 ) {
   const isBulkAnalyzing = ref(false)
   const currentAnalyzingId = ref<string | null>(null)
+  
+  // LIVE STATS (for the game currently being processed)
+  const activeGameStats = ref({
+    blunders: 0,
+    mistakes: 0,
+    inaccuracies: 0,
+    brilliants: 0,
+    movesProcessed: 0,
+    totalMoves: 0
+  })
+
   let startTime = 0
   
   // Global Queue Pointer
@@ -38,6 +49,7 @@ export function useLibraryAnalysis(
   // Module Initialization
   const telemetry = useAnalysisTelemetry()
   const insights = useAnalysisInsights()
+  const uiStore = useUiStore()
   
   /**
    * Worker Instance State
@@ -52,6 +64,12 @@ export function useLibraryAnalysis(
     currentTotalCpl: number // Tracking ACPL
     currentMissedWins: number
     currentTheoryMoves: number
+    currentBlunders: number
+    currentMistakes: number
+    currentInaccuracies: number
+    currentBrilliants: number
+    currentMaxEvalChange: number
+    currentTags: string[]
     isProcessing: boolean
     gameId: string
     id: number
@@ -71,6 +89,12 @@ export function useLibraryAnalysis(
       currentTotalCpl: 0,
       currentMissedWins: 0,
       currentTheoryMoves: 0,
+      currentBlunders: 0,
+      currentMistakes: 0,
+      currentInaccuracies: 0,
+      currentBrilliants: 0,
+      currentMaxEvalChange: 0,
+      currentTags: [],
       isProcessing: false,
       gameId: '',
       id: i
@@ -156,8 +180,10 @@ export function useLibraryAnalysis(
     
     // SIDE-TO-MOVE ADJUSTMENT:
     // Evaluations are relative to the side whose turn it is.
-    // If it was white's turn and score dropped, it's a loss for white.
     const swing = score - prevEval
+    const absSwing = Math.abs(swing)
+    if (absSwing > inst.currentMaxEvalChange) inst.currentMaxEvalChange = absSwing
+
     const cpl = Math.max(0, -swing) 
     inst.currentTotalCpl += cpl
     
@@ -167,52 +193,93 @@ export function useLibraryAnalysis(
     if (inst.currentMoveIndex < 12) {
       try {
         const report = await LichessCurator.getTheoryReport(inst.currentPositions[inst.currentMoveIndex], playedMove)
-        if (report && report.isTheory) inst.currentTheoryMoves++
+        if (report && report.isTheory) {
+          inst.currentTheoryMoves++
+          inst.currentTags[inst.currentMoveIndex] = 'book'
+        }
       } catch (e) { /* silent fail */ }
     }
 
+    const isCurrentlyViewed = inst.gameId === currentAnalyzingId.value
+
     if (swing > 200) {
       telemetry.brilliantMovesFound.value++
-      insights.queueInsight({
-        fen: inst.currentPositions[inst.currentMoveIndex],
-        theme: 'Brilliant Discovery',
-        severity: 'brilliant',
-        gameId: inst.gameId,
-        bestMove,
-        playedMove
-      })
+      inst.currentBrilliants++
+      inst.currentTags[inst.currentMoveIndex] = 'brilliant'
+      if (isCurrentlyViewed) activeGameStats.value.brilliants = inst.currentBrilliants
+      if (inst.currentPositions[inst.currentMoveIndex]) {
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Brilliant Discovery',
+          severity: 'brilliant',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
     } else if (swing < -150 && prevEval > 200) {
       inst.currentMissedWins++
-      insights.queueInsight({
-        fen: inst.currentPositions[inst.currentMoveIndex],
-        theme: 'Missed Opportunity',
-        severity: 'missed-win',
-        gameId: inst.gameId,
-        bestMove,
-        playedMove
-      })
+      inst.currentTags[inst.currentMoveIndex] = 'missed-win'
+      if (inst.currentPositions[inst.currentMoveIndex]) {
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Missed Opportunity',
+          severity: 'missed-win',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
     } else if (swing < -200) {
       telemetry.blundersFound.value++
-      insights.queueInsight({
-        fen: inst.currentPositions[inst.currentMoveIndex],
-        theme: 'Critical Blunder',
-        severity: 'blunder',
-        gameId: inst.gameId,
-        bestMove,
-        playedMove
-      })
+      inst.currentBlunders++
+      inst.currentTags[inst.currentMoveIndex] = 'blunder'
+      if (isCurrentlyViewed) activeGameStats.value.blunders = inst.currentBlunders
+      if (playedMove && bestMove && playedMove !== bestMove && inst.currentPositions[inst.currentMoveIndex]) {
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Critical Blunder',
+          severity: 'blunder',
+          gameId: inst.gameId,
+          playedMove,
+          bestMove
+        })
+      }
     } else if (swing < -100) {
       telemetry.mistakesFound.value++
-      insights.queueInsight({
-        fen: inst.currentPositions[inst.currentMoveIndex],
-        theme: 'Strategic Mistake',
-        severity: 'mistake',
-        gameId: inst.gameId,
-        bestMove,
-        playedMove
-      })
+      inst.currentMistakes++
+      inst.currentTags[inst.currentMoveIndex] = 'mistake'
+      if (isCurrentlyViewed) activeGameStats.value.mistakes = inst.currentMistakes
+      if (inst.currentPositions[inst.currentMoveIndex]) {
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Strategic Mistake',
+          severity: 'mistake',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
     } else if (swing < -50) {
       telemetry.inaccuraciesFound.value++
+      inst.currentInaccuracies++
+      inst.currentTags[inst.currentMoveIndex] = 'inaccuracy'
+      if (isCurrentlyViewed) activeGameStats.value.inaccuracies = inst.currentInaccuracies
+      if (inst.currentPositions[inst.currentMoveIndex]) {
+        insights.queueInsight({
+          fen: inst.currentPositions[inst.currentMoveIndex],
+          theme: 'Inaccuracy',
+          severity: 'inaccuracy',
+          gameId: inst.gameId,
+          bestMove,
+          playedMove
+        })
+      }
+    } else {
+      // Good/Best/Excellent fallbacks
+      if (absSwing < 15) inst.currentTags[inst.currentMoveIndex] = 'best'
+      else if (absSwing < 40) inst.currentTags[inst.currentMoveIndex] = 'excellent'
+      else if (absSwing < 75) inst.currentTags[inst.currentMoveIndex] = 'good'
     }
   }
 
@@ -236,18 +303,19 @@ export function useLibraryAnalysis(
       games.value = games.value.map(g => ({
         ...g,
         evals: [],
+        isSynthesized: false,
         analysisCache: {} 
       }))
     }
 
     // Refresh counts after possible mutation
-    const currentAnalyzedCount = totalCount - games.value.filter(g => !g.evals || g.evals.length < (g.movesCount || 1)).length
+    const currentAnalyzedCount = totalCount - games.value.filter(g => !g.isSynthesized).length
     
     if (totalCount > 0) {
       telemetry.analysisProgress.value = Math.round((currentAnalyzedCount / totalCount) * 100)
     }
 
-    queue = games.value.filter(g => !g.evals || g.evals.length < (g.movesCount || 1))
+    queue = games.value.filter(g => !g.isSynthesized)
     
     if (queue.length === 0) {
       logger.info('[Intel Hub] Vault is already fully synthesized.')
@@ -283,10 +351,15 @@ export function useLibraryAnalysis(
    */
   async function processNextGame(inst: EngineInstance) {
     if (!isBulkAnalyzing.value || nextQueueIndex >= queue.length) {
+      // Mark this worker as idle since it has no more games to fetch
+      inst.currentIndex = -1
+
       // Check if all workers are done
-      if (pool.every(p => p.currentIndex >= queue.length || p.currentIndex === -1)) {
+      if (pool.every(p => p.currentIndex === -1)) {
         isBulkAnalyzing.value = false
         telemetry.analysisProgress.value = 100
+        
+        uiStore.addToast(`Synthesis Complete: Intelligence pass finished. ${queue.length} game(s) enlightened.`, 'success')
       }
       return
     }
@@ -316,6 +389,21 @@ export function useLibraryAnalysis(
       inst.currentTotalCpl = 0
       inst.currentMissedWins = 0
       inst.currentTheoryMoves = 0
+      inst.currentBlunders = 0
+      inst.currentMistakes = 0
+      inst.currentInaccuracies = 0
+      inst.currentBrilliants = 0
+      inst.currentMaxEvalChange = 0
+      
+      // Reset live stats for this specific game
+      activeGameStats.value = {
+        blunders: 0,
+        mistakes: 0,
+        inaccuracies: 0,
+        brilliants: 0,
+        movesProcessed: 0,
+        totalMoves: history.length
+      }
       
       const tempChess = new Chess()
       inst.currentPositions.push(tempChess.fen())
@@ -353,6 +441,10 @@ export function useLibraryAnalysis(
       return
     }
 
+    if (inst.gameId === currentAnalyzingId.value) {
+       activeGameStats.value.movesProcessed = inst.currentMoveIndex
+    }
+
     const fen = inst.currentPositions[inst.currentMoveIndex]
     if (!fen || fen.length < 10) {
       advancePly(inst)
@@ -381,6 +473,7 @@ export function useLibraryAnalysis(
   async function finalizeGame(inst: EngineInstance) {
     const game = queue[inst.currentIndex]
     game.evals = [...inst.currentEvals]
+    game.moveTags = [...inst.currentTags]
     game.acpl = Math.round(inst.currentTotalCpl / Math.max(1, inst.currentMoves.length))
     game.missedWins = inst.currentMissedWins
     
@@ -389,9 +482,29 @@ export function useLibraryAnalysis(
       ? Math.round((inst.currentTheoryMoves / theoryGames) * 100) 
       : 0
 
+    game.blunderCount = inst.currentBlunders
+    game.mistakeCount = inst.currentMistakes
+    game.inaccuracyCount = inst.currentInaccuracies
+    game.brilliantCount = inst.currentBrilliants
+    game.maxEvalChange = inst.currentMaxEvalChange
+
+    // Derive Terminal State
+    const lastMove = inst.currentMoves[inst.currentMoves.length - 1] || ''
+    if (lastMove.includes('#')) {
+      game.terminalState = 'Checkmate'
+    } else if (game.result === '1-0' || game.result === '0-1') {
+      game.terminalState = 'Resignation'
+    } else if (game.result === '1/2-1/2') {
+      game.terminalState = 'Draw'
+    } else {
+      game.terminalState = 'Unknown'
+    }
+
+    game.isSynthesized = true // EXPLICIT CONFIRMATION: Analysis is complete
     await persistGameUpdate(game)
     
     inst.currentEvals = []
+    inst.currentTags = []
     inst.currentPositions = []
     inst.currentMoveIndex = 0
     
@@ -465,6 +578,45 @@ export function useLibraryAnalysis(
     }
   }
 
+  /**
+   * Targeted analysis for a single game.
+   * If the engine is idle, it starts a single-game queue.
+   */
+  async function analyzeGame(gameId: string) {
+    const game = games.value.find(g => g.id === gameId)
+    if (!game) return
+
+    // Clear existing evals to ensure fresh data
+    game.evals = []
+    game.analysisCache = {}
+    game.isSynthesized = false
+
+    if (!isBulkAnalyzing.value) {
+      queue = [game]
+      nextQueueIndex = 0
+      isBulkAnalyzing.value = true
+      currentAnalyzingId.value = gameId
+      startTime = Date.now()
+      telemetry.resetTelemetry()
+      
+      activeGameStats.value = {
+        blunders: 0,
+        mistakes: 0,
+        inaccuracies: 0,
+        brilliants: 0,
+        movesProcessed: 0,
+        totalMoves: 0
+      }
+
+      // Use first available worker
+      const inst = pool[0]
+      inst.engine.initWorker(createMessageHandler(inst))
+      processNextGame(inst)
+    } else {
+      uiStore.addToast('Engine Busy: The Intelligence Engine is currently processing another task.', 'warning')
+    }
+  }
+
   onMounted(() => {
     window.addEventListener('knightfall-insight-complete', handleInsightComplete)
   })
@@ -478,8 +630,10 @@ export function useLibraryAnalysis(
     ...telemetry,
     startBulkAnalysis,
     stopBulkAnalysis,
+    analyzeGame,
     updateGameAnalysis,
     isBulkAnalyzing,
-    currentAnalyzingId
+    currentAnalyzingId,
+    activeGameStats
   }
 }

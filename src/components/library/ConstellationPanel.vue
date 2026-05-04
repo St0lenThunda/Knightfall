@@ -323,7 +323,7 @@ onMounted(() => {
 .node-tooltip {
   position: fixed;
   padding: var(--space-5);
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 100;
   min-width: 220px;
   box-shadow: 0 16px 32px rgba(0,0,0,0.4);
