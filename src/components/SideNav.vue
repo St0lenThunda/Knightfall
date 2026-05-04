@@ -1,142 +1,17 @@
-<template>
-  <nav class="sidenav" :class="{ collapsed, open: mobileOpen }">
-    <!-- Logo -->
-    <div class="sidenav-logo">
-      <div class="logo-icon">♞</div>
-      <span class="logo-text" v-show="!collapsed">Knightfall</span>
-      <button class="btn btn-icon collapse-btn" @click="collapsed = !collapsed" :title="collapsed ? 'Expand' : 'Collapse'">
-        {{ collapsed ? '›' : '‹' }}
-      </button>
-    </div>
-
-    <!-- User card -->
-    <div class="sidenav-user" v-show="!collapsed" v-if="userStore.session">
-      <div class="user-avatar">
-        <span>{{ userStore.profile?.username?.charAt(0).toUpperCase() || '?' }}</span>
-        <div class="online-dot"></div>
-      </div>
-      <div class="user-info" @click="handleLogout" data-tooltip="Click to sign out">
-        <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
-        <div class="user-rating">
-          <span class="badge badge-gold" data-tooltip="Your overall performance rating.">♔ {{ libraryStore.stats?.performanceRating || 1200 }} <span class="info-icon">ⓘ</span></span>
-          <span class="badge badge-primary" data-tooltip="Your total scholar experience.">✨ {{ userStore.xp || 0 }} XP <span class="info-icon">ⓘ</span></span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="sidenav-user" v-show="!collapsed" v-else>
-      <div style="display: flex; gap: var(--space-2); width: 100%;">
-        <button class="btn btn-primary btn-sm" style="flex: 1;" @click="handleLogin">Login</button>
-        <button class="btn btn-ghost btn-sm" style="flex: 1;" @click="handleSignup">Sign Up</button>
-      </div>
-    </div>
-    <div class="avatar-collapsed" v-show="collapsed">
-      <div class="user-avatar" v-if="userStore.session" @click="handleLogout" style="cursor: pointer;" data-tooltip="Sign out">
-        <span>{{ userStore.profile?.username?.charAt(0).toUpperCase() || '?' }}</span>
-        <div class="online-dot"></div>
-      </div>
-      <div class="user-avatar" v-else @click="handleLogin" style="cursor: pointer;" data-tooltip="Login">
-        <span>?</span>
-      </div>
-    </div>
-
-    <!-- Navigation sections -->
-    <div class="sidenav-sections">
-      <div 
-        v-for="section in navSections" 
-        :key="section.title" 
-        class="nav-section"
-        :class="{ 'section-collapsed': collapsedSections.has(section.title) }"
-      >
-        <div 
-          class="section-header" 
-          v-show="!collapsed && section.showTitle"
-          @click="toggleSection(section.title)"
-        >
-          <div class="section-titles">
-            <span class="section-title">{{ section.title }}</span>
-          </div>
-          <span class="section-chevron">{{ collapsedSections.has(section.title) ? '⌃' : '⌄' }}</span>
-        </div>
-        
-        <div class="section-items-wrapper" v-show="!collapsedSections.has(section.title) || collapsed">
-          <RouterLink v-for="item in section.items" :key="item.path"
-            :to="item.path"
-            class="nav-link"
-            :class="{ active: isLinkActive(item.path) }"
-            :data-tooltip="collapsed ? item.label : undefined"
-            @click="$emit('close')"
-          >
-            <span class="nav-icon">{{ item.icon }}</span>
-            <span class="nav-label" v-show="!collapsed">{{ item.label }}</span>
-            <span 
-              class="nav-badge" 
-              v-if="item.badge && !collapsed"
-              :class="[
-                item.badge === 'CRITICAL' ? 'badge-critical' : '',
-                item.badge === 'ACTIVE' ? 'badge-active' : '',
-                item.badge === 'LIVE' ? 'badge-live' : ''
-              ]"
-            >
-              {{ item.badge }}
-            </span>
-          </RouterLink>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom actions -->
-    <div class="sidenav-bottom" v-show="!collapsed">
-      <div class="sidenav-footer">
-        <span 
-          class="muted" 
-          style="font-size: 0.75rem; cursor: pointer;" 
-          @click="(userStore.isAdmin || isDev) ? showTelemetryModal = true : null"
-          :title="(userStore.isAdmin || isDev) ? 'Open Telemetry' : ''"
-        >
-          v{{ version }} prototype
-        </span>
-      </div>
-    </div>
-
-    <Teleport to="body">
-      <TelemetryModal
-        v-if="showTelemetryModal"
-        :show="showTelemetryModal"
-        @close="showTelemetryModal = false"
-      />
-      <AuthModal 
-        v-if="showAuthModal" 
-        :initialMode="authMode" 
-        @close="showAuthModal = false"
-      />
-      <LogoutModal
-        v-if="showLogoutModal"
-        @close="showLogoutModal = false"
-      />
-      <!-- Admin/Dev Heart Refill -->
-      <div v-if="userStore.isAdmin" style="position: fixed; bottom: 20px; left: 240px; z-index: 999; pointer-events: auto;">
-        <button 
-          class="btn btn-xs btn-primary" 
-          @click="userStore.addXP(0); userStore.profile!.hearts = 5"
-          style="opacity: 0.5; font-size: 10px;"
-        >
-          ❤️ REFILL
-        </button>
-      </div>
-    </Teleport>
-  </nav>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
-import { useLibraryStore } from '../stores/libraryStore'
-import { useCoachStore } from '../stores/coachStore'
+import { useUiStore } from '../stores/uiStore'
+
+// --- COMPONENTS ---
+import UserCard from './board/UserCard.vue'
+import NavSectionComponent from './board/NavSection.vue'
 import AuthModal from './AuthModal.vue'
 import LogoutModal from './LogoutModal.vue'
-import TelemetryModal from './TelemetryModal.vue'
+
+// --- COMPOSABLES ---
+import { useNavigation } from '../composables/useNavigation'
 
 const props = defineProps<{
   mobileOpen?: boolean
@@ -145,12 +20,11 @@ const props = defineProps<{
 const emit = defineEmits(['toggle', 'close'])
 
 const userStore = useUserStore()
-const libraryStore = useLibraryStore()
-const coachStore = useCoachStore()
+const uiStore = useUiStore()
+const { collapsedSections, toggleSection, isLinkActive, navSections } = useNavigation()
 
 const showAuthModal = ref(false)
 const showLogoutModal = ref(false)
-const showTelemetryModal = ref(false)
 const authMode = ref<'login' | 'signup'>('login')
 
 function handleLogin() {
@@ -180,110 +54,85 @@ onUnmounted(() => {
   document.removeEventListener('open-auth', handleOpenAuth)
 })
 
-const route = useRoute()
 const version = __APP_VERSION__
 const isDev = import.meta.env.DEV
-const collapsed = ref(false)
-
-/**
- * Determines if a navigation link should be highlighted as active.
- * Handles sub-routes (like Lessons under Academy) and query params (Soul Mapping).
- */
-function isLinkActive(path: string) {
-  const currentPath = route.path
-  
-  // Normalize path for comparison (strip query for base checks)
-  const [basePath, queryStr] = path.split('?')
-  
-  // 1. Academy sub-route mapping (Lessons are part of the Academy context)
-  if (basePath === '/academy' && currentPath.startsWith('/lesson')) return true
-  
-  // 2. Query Parameter logic (Soul Mapping vs War Room)
-  if (queryStr === 'tab=dna') {
-    return currentPath === '/profile' && route.query.tab === 'dna'
-  }
-  
-  // 3. War Room (Profile) should only be active if NOT on the DNA tab
-  if (path === '/profile') {
-    return currentPath === '/profile' && route.query.tab !== 'dna'
-  }
-
-  // 4. Standard path matching
-  return currentPath === basePath
-}
-
-// Accordion State
-const collapsedSections = ref(new Set<string>())
-
-function toggleSection(title: string) {
-  if (collapsedSections.value.has(title)) {
-    collapsedSections.value.delete(title)
-  } else {
-    collapsedSections.value.add(title)
-  }
-}
-
-// Auto-expand sections when navigating
-const ensureSectionExpanded = () => {
-  const activeSection = navSections.value.find(s => 
-    s.items.some(i => i.path === route.path)
-  )
-  if (activeSection) {
-    collapsedSections.value.delete(activeSection.title)
-  }
-}
-
-onMounted(() => {
-  ensureSectionExpanded()
-})
-
-const navSections = computed(() => {
-  const dnaRx = coachStore.dnaPrescriptions || []
-  const openingRx = coachStore.openingPrescriptions || []
-
-  const critRx = dnaRx.filter((r: any) => r.severity === 'critical').length +
-                 openingRx.filter((r: any) => r.severity === 'critical').length
-  
-  const warnRx = dnaRx.filter((r: any) => r.severity === 'warning').length +
-                 openingRx.filter((r: any) => r.severity === 'warning').length
-
-  return [
-    {
-      title: 'Command',
-      showTitle: true,
-      items: [
-        { path: '/profile', icon: '⬡', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
-        { path: '/profile?tab=dna', icon: '🧬', label: 'Soul Mapping', badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true },
-      ].filter(i => !i.auth || !!userStore.session)
-    },
-    {
-      title: 'Training',
-      showTitle: true,
-      items: [
-        { path: '/academy', icon: '⚔️', label: "Knight's Path", badge: 'ACTIVE', auth: true },
-        { path: '/puzzles', icon: '⚡', label: 'Siege Trials', badge: 'NEW', auth: false },
-        { path: '/gauntlet', icon: '🔥', label: 'The Great Gauntlet', badge: null, auth: true },
-      ].filter(i => !i.auth || !!userStore.session)
-    },
-    {
-      title: 'Combat',
-      showTitle: true,
-      items: [
-        { path: '/play', icon: '♟', label: 'Direct Combat', badge: 'LIVE', auth: false },
-      ].filter(i => !i.auth || !!userStore.session)
-    },
-    {
-      title: 'Intelligence',
-      showTitle: true,
-      items: [
-        { path: '/analysis', icon: '🔬', label: "Oracle's Review", badge: null, auth: true },
-        { path: '/opening-lab', icon: '📖', label: 'Stratagem Forge', badge: null, auth: true },
-        { path: '/settings', icon: '⚙️', label: 'Codex of Rites', badge: null, auth: false },
-      ].filter(i => !i.auth || !!userStore.session)
-    }
-  ]
-})
 </script>
+
+<template>
+  <nav class="sidenav" :class="{ collapsed: uiStore.isSidebarCollapsed, open: mobileOpen }">
+    <!-- Logo -->
+    <div class="sidenav-header">
+      <RouterLink to="/" class="sidenav-logo" aria-label="Knightfall Home">
+        <div class="logo-icon logo-glow" aria-hidden="true">♞</div>
+        <span class="logo-text" v-show="!uiStore.isSidebarCollapsed">Knightfall</span>
+      </RouterLink>
+      <button 
+        class="btn btn-icon collapse-btn" 
+        @click.prevent.stop="uiStore.toggleSidebar()" 
+        :aria-label="uiStore.isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :title="uiStore.isSidebarCollapsed ? 'Expand' : 'Collapse'"
+      >
+        {{ uiStore.isSidebarCollapsed ? '›' : '‹' }}
+      </button>
+    </div>
+
+    <!-- User Section -->
+    <UserCard 
+      @login="handleLogin" 
+      @signup="handleSignup" 
+      @logout="handleLogout" 
+    />
+    
+    <!-- Navigation sections -->
+    <div class="sidenav-sections custom-scroll">
+      <NavSectionComponent 
+        v-for="section in navSections" 
+        :key="section.title"
+        :section="section"
+        :isCollapsed="collapsedSections.has(section.title)"
+        :isLinkActive="isLinkActive"
+        @toggle="toggleSection"
+        @close="$emit('close')"
+      />
+    </div>
+
+    <!-- Bottom actions -->
+    <div class="sidenav-bottom" v-show="!uiStore.isSidebarCollapsed">
+      <div class="sidenav-footer">
+        <button 
+          class="telemetry-trigger muted" 
+          @click="(userStore.isAdmin || isDev) ? uiStore.isTelemetryOpen = true : null"
+          :title="(userStore.isAdmin || isDev) ? 'Open Telemetry' : ''"
+          :disabled="!(userStore.isAdmin || isDev)"
+        >
+          v{{ version }} prototype
+        </button>
+      </div>
+    </div>
+
+    <Teleport to="body">
+      <AuthModal 
+        v-if="showAuthModal" 
+        :initialMode="authMode" 
+        @close="showAuthModal = false"
+      />
+      <LogoutModal
+        v-if="showLogoutModal"
+        @close="showLogoutModal = false"
+      />
+      <!-- Admin/Dev Heart Refill -->
+      <div v-if="userStore.isAdmin" style="position: fixed; bottom: 20px; left: 240px; z-index: 999; pointer-events: auto;">
+        <button 
+          class="btn btn-xs btn-primary" 
+          @click="userStore.addXP(0); userStore.profile!.hearts = 5"
+          style="opacity: 0.5; font-size: 10px;"
+        >
+          ❤️ REFILL
+        </button>
+      </div>
+    </Teleport>
+  </nav>
+</template>
 
 <style scoped>
 .sidenav {
@@ -304,20 +153,58 @@ const navSections = computed(() => {
 }
 .sidenav.collapsed { width: 72px; }
 
-.sidenav-logo {
+/* Mobile logic */
+@media (max-width: 1024px) {
+  .sidenav {
+    transform: translateX(-100%);
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+  }
+  .sidenav.open {
+    transform: translateX(0);
+  }
+}
+
+.sidenav-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   padding-bottom: var(--space-5);
   border-bottom: 1px solid var(--border);
   position: relative;
   flex-shrink: 0;
 }
-.sidenav.collapsed .sidenav-logo { justify-content: center; }
+
+.sidenav-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+  min-width: 44px; /* Ensure solid hit box */
+  min-height: 44px;
+  padding: 0 4px;
+}
+.sidenav.collapsed .sidenav-logo {
+  width: 100%;
+  justify-content: center;
+}
+.sidenav.collapsed .sidenav-header { justify-content: flex-start; padding-left: 14px; }
+
 .logo-icon {
   font-size: 1.8rem;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 8px var(--accent));
+  background: linear-gradient(135deg, var(--accent-bright), var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.4));
+  font-weight: 900;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-glow {
+  text-shadow: 0 0 15px rgba(167, 139, 250, 0.6);
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4));
 }
 .logo-text {
   font-size: 1.25rem;
@@ -332,16 +219,22 @@ const navSections = computed(() => {
   margin-left: auto;
   font-size: 1.2rem;
   flex-shrink: 0;
+  min-width: 44px; /* Hardened for touch targets */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .sidenav.collapsed .collapse-btn {
   position: absolute;
-  right: -12px;
+  right: -32px; /* Pushed further out to prevent target collision */
   top: var(--space-5);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+  transform: translateX(16px); /* Shifted to prevent logo overlap in collapsed mode */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,189 +242,39 @@ const navSections = computed(() => {
   z-index: 10;
 }
 
-.sidenav-user, .avatar-collapsed {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-shrink: 0;
-}
-.avatar-collapsed { justify-content: center; }
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #7c3aed);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.9rem;
-  position: relative;
-  flex-shrink: 0;
-}
-.online-dot {
-  position: absolute;
-  bottom: 1px;
-  right: 1px;
-  width: 9px;
-  height: 9px;
-  background: var(--green);
-  border-radius: 50%;
-  border: 2px solid var(--bg-surface);
-}
-.user-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
-
 .sidenav-sections {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
   flex: 1;
   overflow-y: auto;
   padding-right: 4px;
 }
-.sidenav-sections::-webkit-scrollbar { width: 4px; }
-.sidenav-sections::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-.nav-section { display: flex; flex-direction: column; gap: 2px; }
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-right: var(--space-3);
-  cursor: pointer;
-  user-select: none;
-  margin-bottom: var(--space-1);
-}
-.section-header:hover .section-title { color: var(--text-primary); }
-.section-header:hover .section-chevron { color: var(--accent-bright); }
-
-.section-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-left: var(--space-2);
-}
-
-.section-title {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  transition: color 0.2s;
-  opacity: 0.8;
-}
-.section-chevron {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  transition: all 0.2s;
-  font-weight: 800;
-}
-
-.section-items-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.9rem;
-  transition: all var(--duration) var(--ease);
-  white-space: nowrap;
-  position: relative;
-}
-.sidenav.collapsed .nav-link {
-  justify-content: center;
-  padding: var(--space-3) 0;
-}
-.nav-link:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-.nav-link.active {
-  background: var(--accent-dim);
-  color: var(--accent-bright);
-}
-.nav-link.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 16px;
-  background: var(--accent);
-  border-radius: 0 4px 4px 0;
-}
-.sidenav.collapsed .nav-link.active::before { display: none; }
-
-.nav-icon { 
-  font-size: 1.2rem; 
-  flex-shrink: 0; 
-  width: 24px; 
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sidenav.collapsed .nav-icon { margin: 0; }
-.nav-label { flex: 1; }
-.nav-badge {
-  font-size: 0.6rem;
-  font-weight: 800;
-  padding: 2px 6px;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  border-radius: var(--radius-full);
-  letter-spacing: 0.05em;
-  border: 1px solid var(--border);
-}
-.nav-link:hover .nav-badge { border-color: var(--accent-dim); }
-.nav-link.active .nav-badge { background: var(--accent); color: white; border-color: transparent; }
-
-/* Intelligence Overrides */
-.badge-critical { background: var(--rose) !important; color: white !important; border-color: transparent !important; box-shadow: 0 0 10px var(--rose-dim); }
-.badge-active { background: var(--teal) !important; color: white !important; border-color: transparent !important; }
-.badge-live { background: var(--green) !important; color: white !important; border-color: transparent !important; }
-
 
 .sidenav-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
 }
+
 .sidenav-footer {
-  text-align: center;
-  padding-top: var(--space-2);
+  display: flex;
+  justify-content: center;
 }
 
-@media (max-width: 900px) {
-  .sidenav {
-    transform: translateX(-100%);
-    width: 280px;
-    box-shadow: 20px 0 60px rgba(0,0,0,0.8);
-    background: rgba(10, 10, 15, 0.95);
-    backdrop-filter: blur(20px);
-  }
-  .sidenav.open {
-    transform: translateX(0);
-  }
-  .sidenav.collapsed { width: 280px; } /* Don't allow collapse on mobile */
-  .collapse-btn { display: none; }
+.telemetry-trigger {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  padding: var(--space-1);
+  transition: opacity 0.2s;
 }
 
-.user-info { cursor: pointer; }
-.user-rating { display: flex; gap: var(--space-2); margin-top: 2px; }
-.info-icon { margin-left: 4px; opacity: 0.7; }
+.telemetry-trigger:not(:disabled):hover {
+  opacity: 1;
+  color: var(--accent-bright);
+}
+
+.telemetry-trigger:disabled {
+  cursor: default;
+}
 </style>

@@ -22,6 +22,8 @@
   --rose-dim:       rgba(244,63,94,0.15);
   --green:          #10b981;
   --green-dim:      rgba(16,185,129,0.15);
+  --brilliant:      #b5e853;
+  --excellent:      #34d399;
 
   --accent-gradient: linear-gradient(135deg, var(--accent), #7c3aed);
 
@@ -35,7 +37,7 @@
 
   --text-primary:   #f1f0ff;
   --text-secondary: #a0a0c0;
-  --text-muted:     #8c8cae;
+  --text-muted:     #a0a0c0;
 
   /* Chess board */
   --sq-light:       #e8d5b7;
@@ -110,7 +112,7 @@ body {
 
 .main-content {
   flex: 1;
-  margin-left: 240px;
+  margin-left: var(--sidebar-width, 240px);
   min-height: 100vh;
   transition: margin-left var(--duration) var(--ease);
 }
@@ -348,7 +350,7 @@ h4 { font-size: 1rem; font-weight: 600; }
 /* ─── PAGE WRAPPER ─── */
 .page {
   padding: var(--space-8);
-  max-width: 1280px;
+  max-width: 2200px;
   margin: 0 auto;
   animation: fadeIn 0.35s var(--ease) both;
 }
