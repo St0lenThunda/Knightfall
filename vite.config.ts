@@ -5,9 +5,10 @@ import { readFileSync } from 'fs'
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
-// https://vitejs.dev/config/
+  // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  cacheDir: 'node_modules/.vite', // Explicitly use node_modules to avoid root-level lock noise
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -27,6 +28,13 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
+    setupFiles: ['./src/tests/vitest.setup.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
+    // Optimization: Avoid UI lockups during test runs
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      }
+    }
   },
 })

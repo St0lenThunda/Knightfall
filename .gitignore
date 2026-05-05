@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 src-tauri/*
+# Vite
+.vite-temp
+node_modules/.vite
 node_modules
 dist
 dist-ssr

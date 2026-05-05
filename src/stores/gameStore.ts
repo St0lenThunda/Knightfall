@@ -97,7 +97,7 @@ export const useGameStore = defineStore('game', () => {
 
   function newGame(newMode: GameMode, color: 'w' | 'b' = 'w', tc?: any) {
     mode.value = newMode
-    boardLogic.playerColor.value = color
+    playerColor.value = color
     boardLogic.loadPosition('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'live')
     if (tc) clock.setTimeControl(tc)
     startMatch()
