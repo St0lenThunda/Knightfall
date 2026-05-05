@@ -1,5 +1,6 @@
 import { type Ref, type ShallowRef } from 'vue'
 import type { LibraryGame } from '../libraryStore'
+import { logger } from '../../utils/logger'
 
 /**
  * useLibraryIdb: Local persistence pillar for the Neural Vault.
@@ -41,6 +42,20 @@ export function useLibraryIdb(
       const transaction = activeDb.transaction(['games'], 'readonly')
       const store = transaction.objectStore('games')
       const request = store.getAll()
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Fetches a specific game by ID from the vault.
+   */
+  async function getGame(id: string): Promise<LibraryGame | undefined> {
+    const activeDb = await initDb()
+    return new Promise((resolve, reject) => {
+      const transaction = activeDb.transaction(['games'], 'readonly')
+      const store = transaction.objectStore('games')
+      const request = store.get(id)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -151,11 +166,54 @@ export function useLibraryIdb(
     games.value = games.value.filter(g => !ids.includes(g.id))
   }
 
-  async function persistGameUpdate(game: LibraryGame) {
+  /**
+   * Persists a game update to the local vault.
+   * Supports two signatures:
+   * 1. (game: LibraryGame) - Overwrites the entire record
+   * 2. (id: string, updates: Partial<LibraryGame>) - Merges partial updates into the existing record
+   */
+  async function persistGameUpdate(gameOrId: LibraryGame | string, updates?: Partial<LibraryGame>) {
     const activeDb = await initDb()
     const transaction = activeDb.transaction(['games'], 'readwrite')
     const store = transaction.objectStore('games')
-    store.put(JSON.parse(JSON.stringify(game)))
+    
+    let finalGame: LibraryGame
+
+    if (typeof gameOrId === 'string') {
+      const id = gameOrId
+      if (!updates) {
+        logger.error(`[LibraryIDB] Partial update for ${id} requires an updates object.`)
+        return
+      }
+
+      // 1. Fetch existing record from IDB
+      const existing: LibraryGame | undefined = await new Promise((resolve, reject) => {
+        const req = store.get(id)
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+
+      if (!existing) {
+        logger.warn(`[LibraryIDB] Cannot update game ${id}: Not found in vault.`)
+        return
+      }
+
+      // 2. Merge updates
+      finalGame = { ...existing, ...updates }
+    } else {
+      finalGame = gameOrId
+    }
+
+    // 3. Save to IDB
+    store.put(JSON.parse(JSON.stringify(finalGame)))
+
+    // 4. Update reactive memory state immediately
+    const idx = games.value.findIndex(g => g.id === finalGame.id)
+    if (idx !== -1) {
+      const updatedGames = [...games.value]
+      updatedGames[idx] = finalGame
+      games.value = updatedGames
+    }
   }
 
   async function resetLibrary() {
@@ -228,6 +286,7 @@ export function useLibraryIdb(
   return {
     initDb,
     loadGames,
+    getGame,
     getGameCount,
     loadGamesPaged,
     deleteGame,

@@ -26,7 +26,13 @@ export function useBoardLogic() {
 
   // --- COMPUTED ---
   const fen = computed(() => { boardTrigger.value; return chess.value.fen() })
-  const pgn = computed(() => { boardTrigger.value; return chess.value.pgn() })
+  const pgn = computed(() => { 
+    boardTrigger.value; 
+    // If we have an original PGN (e.g. in Analysis mode), use it as the source of truth
+    // so that navigation doesn't wipe the moves from telemetry snapshots.
+    if (originalPgn.value) return originalPgn.value;
+    return chess.value.pgn(); 
+  })
   const turn = computed(() => { boardTrigger.value; return chess.value.turn() as Color })
   const board = computed(() => { boardTrigger.value; return chess.value.board() })
   const isCheck = computed(() => { boardTrigger.value; return chess.value.isCheck() })
@@ -41,6 +47,17 @@ export function useBoardLogic() {
   function goToMove(index: number) {
     if (index < -1 || index >= moveHistory.value.length) return
     viewIndex.value = index
+    
+    // Preserve headers across loads
+    let headers = chess.value.header()
+    
+    // Fallback: If headers are empty but we have an original PGN, extract them from there
+    if (Object.keys(headers).length === 0 && originalPgn.value) {
+      const temp = new Chess()
+      safeLoadPgn(temp, originalPgn.value)
+      headers = temp.header()
+    }
+    
     if (index === -1) {
       // Starting Position
       if (originalPgn.value) {
@@ -55,6 +72,12 @@ export function useBoardLogic() {
     } else {
       chess.value.load(moveHistory.value[index].fen)
     }
+
+    // Re-apply headers
+    for (const [k, v] of Object.entries(headers)) {
+      chess.value.header(k, v as string)
+    }
+    
     boardTrigger.value++
   }
 
@@ -93,7 +116,9 @@ export function useBoardLogic() {
       
       if (mode === 'analysis') {
         originalPgn.value = pgn
-        goToMove(-1) // Start at the beginning
+        // Start at the end of the game for analysis, rather than rewinding to -1
+        const finalIdx = moveHistory.value.length - 1
+        goToMove(finalIdx)
       } else {
         viewIndex.value = moveHistory.value.length - 1
         boardTrigger.value++
@@ -199,7 +224,8 @@ export function useBoardLogic() {
     drillSolution.value = []
     drillIndex.value = 0
     mistakeCount.value = 0
-    playerColor.value = fen.split(' ')[1] as Color
+    playerColor.value = mode === 'live' ? playerColor.value : (fen.split(' ')[1] as Color)
+    isThinking.value = false
     if (mode !== 'analysis') originalPgn.value = ''
   }
 

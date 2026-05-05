@@ -7,6 +7,7 @@ import { useUiStore } from '../stores/uiStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { getMoveQuality } from '../utils/analysisUtils'
 import { Storage, StorageKey } from '../utils/storage'
+import { logger } from '../utils/logger'
 
 /**
  * Orchestrates the Analysis Session life-cycle.
@@ -97,12 +98,16 @@ export function useAnalysisSession() {
 
     const queryFen = route.query.fen as string
     if (queryId) {
-      const targetGame = libraryStore.gamesMap.get(queryId)
+      let targetGame = libraryStore.gamesMap.get(queryId)
+      
+      // Fallback: If not in memory (due to paging), fetch from IDB
+      if (!targetGame) {
+        targetGame = await libraryStore.getGame(queryId)
+      }
+
       if (targetGame) {
         store.loadPgn(targetGame.pgn, 'analysis', targetGame.id, { 
           evals: targetGame.evals,
-          // Extract tags from analysis if they exist as a flat array mapped to moves
-          // In Knightfall, tags are often stored in the analysis pass.
         })
         gameLoaded = true
       }
@@ -129,10 +134,38 @@ export function useAnalysisSession() {
       }
     }
 
+    // Determine if we should restore the index from a previous session
+    const savedIdBefore = Storage.get<string | null>(StorageKey.LAST_ANALYSIS_ID, null)
+    const savedIndex = Storage.get<number | null>(StorageKey.LAST_ANALYSIS_VIEW_INDEX, null)
+
     if (gameLoaded) {
-      store.goToMove(-1)
+      // Only restore index if we are loading the SAME game as last time
+      if (savedIdBefore === store.loadedGameId && savedIndex !== null) {
+        store.goToMove(savedIndex)
+        logger.info(`[AnalysisSession] Restored index ${savedIndex} for game ${store.loadedGameId}`)
+      } else {
+        store.goToMove(-1) // Default to end for new games
+        logger.info(`[AnalysisSession] New game or no index saved. Jumping to end.`)
+      }
     }
   }
+
+  // --- PERSISTENCE WATCHERS ---
+  
+  // Bridge the current view index to storage so refreshes don't "rewind" the game
+  watch(() => store.viewIndex, (newIdx) => {
+    if (store.mode === 'analysis') {
+      Storage.set(StorageKey.LAST_ANALYSIS_VIEW_INDEX, newIdx)
+    }
+  })
+
+  // Sync Analysis Session with URL changes
+  watch(() => route.query.id, (newId) => {
+    if (newId) {
+      logger.info(`[AnalysisSession] ID change detected: ${newId}. Re-initializing...`)
+      initializeSession()
+    }
+  })
 
   // Live Synthesis: Watch for engine evals and store them in the history
   watch(() => engineStore.evalNumber, (newEval) => {

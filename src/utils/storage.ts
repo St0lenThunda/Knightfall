@@ -14,6 +14,7 @@ export const StorageKey = {
   USER_PROFILE: 'kf_user_profile',
   LAST_ANALYSIS_PGN: 'kf_last_analysis_pgn',
   LAST_ANALYSIS_ID: 'kf_last_analysis_id',
+  LAST_ANALYSIS_VIEW_INDEX: 'kf_last_analysis_view_index',
   SETTINGS: 'kf_settings',
   GAME_HISTORY: 'kf_game_history',
   DISCLAIMER_ACCEPTED: 'kf_disclaimer_accepted',
@@ -41,6 +42,11 @@ export const StorageKey = {
   COACH_PERSONALITY: 'coachPersonality',
   SHOW_BEST_MOVE_ARROW: 'showBestMoveArrow',
   SHOW_THREAT_ARROW: 'showThreatArrow',
+  ANALYSIS_SHOW_SUGGESTIONS: 'kf_analysis_show_suggestions',
+  ANALYSIS_SHOW_COACH: 'kf_analysis_show_coach',
+  ANALYSIS_SHOW_POSITIONAL_HEALTH: 'kf_analysis_show_positional_health',
+  ANALYSIS_SHOW_CRITICAL_LINES: 'kf_analysis_show_critical_lines',
+  ANALYSIS_SHOW_EVAL_BAR: 'kf_analysis_show_eval_bar',
 } as const;
 
 export type StorageKeyType = typeof StorageKey[keyof typeof StorageKey];

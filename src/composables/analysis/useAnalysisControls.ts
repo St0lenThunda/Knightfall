@@ -27,13 +27,6 @@ export function useAnalysisControls() {
     store.loadPgn(pgn, 'analysis')
   }
 
-  /**
-   * Prompts the user for a PGN and imports it.
-   */
-  function importPgn() {
-    const pgn = prompt('Paste your PGN text here:')
-    if (pgn) importPgnStr(pgn)
-  }
 
   /**
    * Loads a predefined demo sequence for the Academy/Analysis showcase.
@@ -44,7 +37,7 @@ export function useAnalysisControls() {
 
   return {
     goToEnd,
-    importPgn,
+    importPgnStr,
     loadDemo
   }
 }

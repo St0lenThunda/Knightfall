@@ -6,6 +6,9 @@
  * Handles tab switching and the positional health footer.
  */
 import { ref } from 'vue'
+import { useSettingsStore } from '../../stores/settingsStore'
+
+const settings = useSettingsStore()
 
 interface HealthMetrics {
   material: number
@@ -63,7 +66,7 @@ const tabs = [
       </div>
 
       <!-- Positional Health Footer -->
-      <footer class="sidebar-footer glass-sm">
+      <footer v-if="settings.analysisShowPositionalHealth" class="sidebar-footer glass-sm">
         <div class="footer-header" @click="emit('showLegend')">
           <span class="title">POSITIONAL HEALTH</span>
           <span class="info-icon">ⓘ</span>

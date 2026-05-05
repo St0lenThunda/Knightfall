@@ -15,6 +15,10 @@ export function useAnalysisCloud() {
   const engineStore = useEngineStore()
   const uiStore = useUiStore()
   const isCloudScanning = ref(false)
+  const hasCloudData = ref(false)
+
+  // Track the last FEN we checked to avoid redundant pings
+  let lastCheckedFen = ''
 
   /**
    * Fetches evaluation data from the Lichess Cloud API and injects it 
@@ -54,8 +58,24 @@ export function useAnalysisCloud() {
     }
   }
 
+  /**
+   * Quietly checks if cloud data is available for the current FEN.
+   * We run this automatically to determine if the "Deep Scan" button should show.
+   */
+  async function checkAvailability() {
+    const fen = store.fen
+    if (fen === lastCheckedFen) return
+    lastCheckedFen = fen
+
+    // If it's already in our cache (including nulls from previous 404s), use that
+    const cached = await fetchCloudEval(fen)
+    hasCloudData.value = !!cached
+  }
+
   return {
     isCloudScanning,
-    deepCloudScan
+    hasCloudData,
+    deepCloudScan,
+    checkAvailability
   }
 }

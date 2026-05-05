@@ -10,6 +10,7 @@ import { useGameClock } from './game/useGameClock'
 import { useBotEngine } from './game/useBotEngine'
 import { useGameAnalysis } from './game/useGameAnalysis'
 import { useEngineStore } from './engineStore'
+import { useUserStore } from './userStore'
 import { BOTS } from './game/useBotEngine'
 import { TIME_CONTROLS, type TimeControl } from './game/useGameClock'
 
@@ -28,6 +29,7 @@ export const useGameStore = defineStore('game', () => {
   const antiCheat = useAntiCheat()
   
   // --- PILLARS ---
+  const userStore = useUserStore()
   const boardLogic = useBoardLogic()
   const clock = useGameClock()
   const bots = useBotEngine()
@@ -42,6 +44,15 @@ export const useGameStore = defineStore('game', () => {
   const playerColor = ref<'w' | 'b'>('w')
   const sessionStartTime = ref(Date.now())
   const lastMoveDuration = ref(0)
+
+  // --- DEBUG WATCHERS ---
+  watch(mode, (newMode) => {
+    logger.info(`[GameStore] Mode changed: ${newMode}`)
+  })
+  
+  watch(loadedGameId, (newId) => {
+    logger.info(`[GameStore] LoadedGameId changed: ${newId || 'N/A'}`)
+  })
 
   // Sync playerColor with boardLogic
   watch(playerColor, (newColor) => {
@@ -72,12 +83,14 @@ export const useGameStore = defineStore('game', () => {
   const isGameOver = computed(() => boardLogic.isGameOver.value || forceGameOver.value)
 
   const gameResult = computed(() => {
-    if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0 (Resignation)' : '0-1 (Resignation)'
-    if (clock.timeOutWinner.value) return clock.timeOutWinner.value === 'w' ? '1-0 (Timeout)' : '0-1 (Timeout)'
-    if (!isGameOver.value) return null
-    if (boardLogic.chess.value.isCheckmate()) return boardLogic.turn.value === 'w' ? '0-1 (Checkmate)' : '1-0 (Checkmate)'
-    if (boardLogic.chess.value.isDraw() || boardLogic.chess.value.isStalemate()) return '½-½ (Draw)'
-    return 'Game over'
+    if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0' : '0-1'
+    if (clock.timeOutWinner.value) return clock.timeOutWinner.value === 'w' ? '1-0' : '0-1'
+    if (!isGameOver.value) return '*'
+    
+    if (boardLogic.chess.value.isCheckmate()) return boardLogic.turn.value === 'w' ? '0-1' : '1-0'
+    if (boardLogic.chess.value.isDraw() || boardLogic.chess.value.isStalemate()) return '1/2-1/2'
+    
+    return '*'
   })
 
   // --- ACTIONS ---
@@ -162,6 +175,11 @@ export const useGameStore = defineStore('game', () => {
     
     // Actually, the simplest way is to only gate the UI entry point: selectSquare.
 
+    // If the player makes a move while the engine was thinking (e.g. for eval bar), stop it
+    if (engineStore.isAnalyzing) {
+      engineStore.stop()
+    }
+
     const move = boardLogic.makeMove(fromOrUci, to, promotion)
     if (move && typeof move === 'object') {
       // 1. Record move timing for rhythm analysis
@@ -229,6 +247,19 @@ export const useGameStore = defineStore('game', () => {
     }
   })
 
+  // SAFETY: If the engine stops analyzing for ANY reason (crash, stop) 
+  // but we are still "thinking", reset the UI state.
+  watch(() => engineStore.isAnalyzing, (isAnalyzing) => {
+    if (!isAnalyzing && boardLogic.isThinking.value) {
+      // Small delay to allow bestMove watcher to fire first if it was a success
+      setTimeout(() => {
+        if (!engineStore.isAnalyzing) {
+          boardLogic.isThinking.value = false
+        }
+      }, 50)
+    }
+  })
+
   function handleFlag(loser: 'w' | 'b') {
     clock.timeOutWinner.value = loser === 'w' ? 'b' : 'w'
     forceGameOver.value = true
@@ -241,16 +272,116 @@ export const useGameStore = defineStore('game', () => {
     boardLogic.boardTrigger.value++
   }
 
-  async function saveGame() {
-    const telemetry = {
-      antiCheat: {
-        blurCount: antiCheat.blurCount.value,
-        suspicionScore: antiCheat.suspicionScore.value
+   /**
+    * Populates the Chess.js instance with standard PGN headers based on current match context.
+    */
+   function injectPgnHeaders() {
+     const isWhite = playerColor.value === 'w'
+     const pName = userStore.profile?.username || 'Guest'
+     const oName = mode.value === 'vs-computer' ? bots.activeBot.value.name : 'Player 2'
+     
+     const defaultHeaders: Record<string, string> = {
+       'Event': mode.value === 'vs-computer' ? `Match vs ${oName}` : 'Local Match',
+       'Site': 'Knightfall',
+       'Date': new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+       'White': (mode.value === 'local' || isWhite) ? pName : oName,
+       'Black': (mode.value === 'local' || isWhite) ? oName : pName,
+       'Result': gameResult.value || '*',
+       'WhiteElo': String((mode.value === 'local' || isWhite) ? (userStore.profile?.rating || 1200) : bots.activeBot.value.rating),
+       'BlackElo': String((mode.value === 'local' || isWhite) ? bots.activeBot.value.rating : (userStore.profile?.rating || 1200)),
+     }
+     
+     const currentHeaders = boardLogic.chess.value.header()
+     
+     Object.entries(defaultHeaders).forEach(([k, v]) => {
+       const current = currentHeaders[k]
+       // Only inject if the current header is missing, '?', or 'Unknown'
+       if (!current || current === '?' || current === 'Unknown') {
+         boardLogic.chess.value.header(k, v)
+       }
+     })
+     boardLogic.boardTrigger.value++
+   }
+
+   /**
+    * Manually updates a specific PGN header.
+    */
+   function updateHeader(key: string, value: string) {
+     boardLogic.chess.value.header(key, value)
+     boardLogic.boardTrigger.value++
+   }
+
+   /**
+    * Batch updates multiple PGN headers.
+    */
+    /**
+     * Batch updates multiple PGN headers.
+     * If the game is currently loaded from the library, this will also trigger a library update.
+     */
+    async function setHeaders(headers: Record<string, string>) {
+      Object.entries(headers).forEach(([k, v]) => {
+        boardLogic.chess.value.header(k, v)
+      })
+      boardLogic.boardTrigger.value++
+
+      // PERSISTENCE BRIDGE: If we are in analysis mode and have a loaded ID, 
+      // we sync back to the library immediately.
+      if (mode.value === 'analysis' && loadedGameId.value) {
+        const libraryStore = (await import('./libraryStore')).useLibraryStore()
+        const game = libraryStore.gamesMap.get(loadedGameId.value)
+        if (game) {
+          const updatedPgn = boardLogic.chess.value.pgn()
+          await libraryStore.persistGameUpdate(loadedGameId.value, { 
+            pgn: updatedPgn,
+            white: headers.White || game.white,
+            black: headers.Black || game.black,
+            whiteElo: headers.WhiteElo || game.whiteElo,
+            blackElo: headers.BlackElo || game.blackElo,
+            event: headers.Event || game.event,
+            date: headers.Date || game.date
+          })
+          logger.info(`[GameStore] Metadata synced to library for game ${loadedGameId.value}`)
+        }
       }
     }
+
+  async function saveGame() {
+    // A. Ensure headers are baked in (without overwriting manual edits)
+    injectPgnHeaders()
+
+    // B. Collect Telemetry
+    const telemetry = {
+      blurCount: antiCheat.blurCount.value,
+      suspicionScore: antiCheat.suspicionScore.value,
+      isBusted: antiCheat.isCheaterBusted.value
+    }
     const tags = mode.value === 'vs-computer' ? ['Bot Match', 'My Games'] : ['Local', 'My Games']
-    await analysis.saveMatch(boardLogic.fen.value, tags, telemetry)
+    
+    // C. Persist to Library
+    if (loadedGameId.value) {
+      // Update existing
+      const libraryStore = (await import('./libraryStore')).useLibraryStore()
+      await libraryStore.persistGameUpdate(loadedGameId.value, { 
+        pgn: boardLogic.pgn.value,
+        telemetry 
+      })
+      logger.info(`[GameStore] Game updated in library: ${loadedGameId.value}`)
+    } else {
+      // Create new
+      await analysis.saveMatch(boardLogic.pgn.value, tags, telemetry)
+    }
   }
+
+  // --- AUTO-ARCHIVE WATCHER ---
+  watch(isGameOver, (isOver) => {
+    // We only auto-archive matches that have actually started and progressed
+    if (isOver && gameStarted.value && boardLogic.moveHistory.value.length > 0) {
+      if (mode.value === 'vs-computer' || mode.value === 'local') {
+        logger.info('[GameStore] Game over. Executing silent archival...')
+        saveGame()
+      }
+    }
+  })
 
   // --- PERSISTENCE WATCHER ---
   watch(() => boardLogic.boardTrigger.value, () => {
@@ -260,6 +391,10 @@ export const useGameStore = defineStore('game', () => {
   })
 
   return {
+    // Actions first to avoid spread collisions
+    setHeaders,
+    updateHeader,
+
     // Expose Pillars
     ...boardLogic,
     ...clock,
@@ -288,9 +423,31 @@ export const useGameStore = defineStore('game', () => {
     resign,
     isGameOver,
     saveGame,
+    loadPgn(pgn: string, newMode: GameMode = 'live', id?: string, extra?: any) {
+      logger.info(`[GameStore] Loading PGN. Mode: ${newMode}, ID: ${id}`)
+      mode.value = newMode
+      loadedGameId.value = id || null
+      
+      const success = boardLogic.loadPgn(pgn, newMode as any, id, extra)
+      
+      if (success) {
+        gameStarted.value = true
+        forceGameOver.value = false
+        resignationWinner.value = null
+        boardLogic.viewIndex.value = -1
+        
+        // Cache the ID and PGN for session restoration
+        if (id) {
+          Storage.set(StorageKey.LAST_ANALYSIS_ID, id)
+        }
+        Storage.set(StorageKey.LAST_ANALYSIS_PGN, pgn)
+      }
+      return success
+    },
     loadPosition(fen: string, newMode: GameMode = 'live') {
       logger.info(`[GameStore] Loading position. Mode: ${newMode}, FEN: ${fen}`)
       mode.value = newMode
+      loadedGameId.value = null // Position load is always unsaved
       boardLogic.loadPosition(fen, newMode as any)
       
       // CRITICAL: Synchronize the store's playerColor with the board's turn
@@ -349,3 +506,4 @@ export const useGameStore = defineStore('game', () => {
     lastMoveDuration
   }
 })
+// HMR trigger

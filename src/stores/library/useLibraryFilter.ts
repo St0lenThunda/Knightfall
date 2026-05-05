@@ -37,9 +37,6 @@ export function useLibraryFilter(
     const isLoggedIn = !!userStore.session
 
     let result = games.value.filter(g => {
-      // 0. AUTH GUARD: Anonymous users ONLY see curated content
-      if (!isLoggedIn && !g.isCurated) return false
-
       // 1. Search Query
       const matchesSearch = !sq || 
         (g.white?.toLowerCase().includes(sq)) ||

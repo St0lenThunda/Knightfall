@@ -150,7 +150,8 @@ export class TaggingService {
     }
     // Normalize FEN to ignore move counts/en passant for better cache hits
     const normalizedFen = fen.split(' ').slice(0, 4).join(' ')
-    const msg = `${normalizedFen}|${theme}|${severity}|${playerName}`
+    const version = 'v3' // v3: Score interpretation and perspective hardening
+    const msg = `${version}|${normalizedFen}|${theme}|${severity}|${playerName}`
     
     const encoder = new TextEncoder()
     const data = encoder.encode(msg)

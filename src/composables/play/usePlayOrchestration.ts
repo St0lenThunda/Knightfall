@@ -39,12 +39,12 @@ export function usePlayOrchestration(
     store.startClock()
     
     if (selectedMode === 'vs-computer') {
-      engineStore.analyze(store.fen, 14)
       if (selectedColor === 'b') {
         flipped.value = true
         store.computerMove()
       } else {
         flipped.value = false
+        engineStore.analyze(store.fen, 14)
       }
     } else {
       flipped.value = false
@@ -64,22 +64,15 @@ export function usePlayOrchestration(
    */
   async function reviewGame(selectedMode: GameMode) {
     isReviewing.value = true
-    const isWhite = store.playerColor === 'w'
-    const pName = userStore.profile?.username || 'Guest'
-    const oName = selectedMode === 'vs-computer' ? store.activeBot.name : 'Player 2'
-    
-    const headers: Record<string, string> = {
-      'Event': selectedMode === 'vs-computer' ? `Match vs ${oName}` : 'Local Match',
-      'Site': 'Knightfall',
-      'Date': new Date().toISOString().split('T')[0].replace(/-/g, '.'),
-      'White': (selectedMode === 'local' || isWhite) ? pName : oName,
-      'Black': (selectedMode === 'local' || isWhite) ? oName : pName,
-      'Result': store.gameResult || '*',
-      'WhiteElo': String((selectedMode === 'local' || isWhite) ? (userStore.profile?.rating || 1200) : store.activeBot.rating),
-      'BlackElo': String((selectedMode === 'local' || isWhite) ? store.activeBot.rating : (userStore.profile?.rating || 1200)),
+    // A. Hard Save to Library (Essential for Vault visibility)
+    // This now internally handles header injection and standard result formatting.
+    try {
+      await store.saveGame()
+    } catch (saveErr) {
+      logger.error('[Orchestration] Failed to save game before review', saveErr)
     }
-    
-    Object.entries(headers).forEach(([k, v]) => store.chess.setHeader(k, v))
+
+    // C. Transition to Analysis
     store.mode = 'analysis'
     store.viewIndex = -1
     router.push('/analysis')

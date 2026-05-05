@@ -21,6 +21,13 @@ export const useSettingsStore = defineStore('settings', () => {
   const showBestMoveArrow = ref<boolean>(Storage.get(StorageKey.SHOW_BEST_MOVE_ARROW, true))
   const showThreatArrow = ref<boolean>(Storage.get(StorageKey.SHOW_THREAT_ARROW, true))
 
+  // Analysis Visibility
+  const analysisShowSuggestions = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, true))
+  const analysisShowCoach = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_COACH, true))
+  const analysisShowPositionalHealth = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_POSITIONAL_HEALTH, true))
+  const analysisShowCriticalLines = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_CRITICAL_LINES, true))
+  const analysisShowEvalBar = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_EVAL_BAR, true))
+
   watch(boardTheme, (newTheme) => {
     Storage.set(StorageKey.BOARD_THEME, newTheme)
     document.documentElement.setAttribute('data-board-theme', newTheme)
@@ -34,10 +41,17 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(coachPersonality, (newVal) => Storage.set(StorageKey.COACH_PERSONALITY, newVal))
   watch(showBestMoveArrow, (newVal) => Storage.set(StorageKey.SHOW_BEST_MOVE_ARROW, newVal))
   watch(showThreatArrow, (newVal) => Storage.set(StorageKey.SHOW_THREAT_ARROW, newVal))
+  watch(analysisShowSuggestions, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, newVal))
+  watch(analysisShowCoach, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_COACH, newVal))
+  watch(analysisShowPositionalHealth, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_POSITIONAL_HEALTH, newVal))
+  watch(analysisShowCriticalLines, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_CRITICAL_LINES, newVal))
+  watch(analysisShowEvalBar, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_EVAL_BAR, newVal))
 
   return { 
     boardTheme, pieceTheme, soundEnabled, 
     engineMultiPv, analysisDepth, 
-    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow
+    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow,
+    analysisShowSuggestions, analysisShowCoach, analysisShowPositionalHealth,
+    analysisShowCriticalLines, analysisShowEvalBar
   }
 })

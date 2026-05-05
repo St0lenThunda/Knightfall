@@ -51,31 +51,45 @@ export function getMoveQuality(move: any, idx: number, allMoves?: any[]): MoveQu
       const moveEval = typeof move.eval === 'string' ? (move.eval.startsWith('M') ? (move.eval.startsWith('-M') ? -100 : 100) : parseFloat(move.eval)) : move.eval
       const prevEval = typeof prevMove.eval === 'string' ? (prevMove.eval.startsWith('M') ? (prevMove.eval.startsWith('-M') ? -100 : 100) : parseFloat(prevMove.eval)) : prevMove.eval
       
-      const evalDelta = moveEval - prevEval
+      // PERSPECTIVE: Engine evals are always from White's POV.
+      // If it's Black's turn, a decrease in eval (more negative) is GOOD for them.
+      let evalDelta = moveEval - prevEval
+      if (move.color === 'b') evalDelta = -evalDelta
+      
       const absDelta = Math.abs(evalDelta)
       
       // BRILLIANT: Big positive jump (over 2.0 pawns)
       if (evalDelta >= 2.0) return QUALITIES.find(q => q.id === 'brilliant')!
 
+      // NEGATIVE DELTAS (Mistakes)
       if (evalDelta <= -2.5) return QUALITIES.find(q => q.id === 'blunder')!
       if (evalDelta <= -1.0) return QUALITIES.find(q => q.id === 'mistake')!
       if (evalDelta <= -0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
       
-      // Positive deltas (Engine approval)
+      // POSITIVE DELTAS (Engine approval)
       if (absDelta <= 0.05) return QUALITIES.find(q => q.id === 'best')!
       if (absDelta <= 0.15) return QUALITIES.find(q => q.id === 'excellent')!
       if (absDelta <= 0.3) return QUALITIES.find(q => q.id === 'good')!
       
-      return QUALITIES.find(q => q.id === 'book')!
+      // DEFAULT: If the move didn't change the eval much and is within "Book" range (e.g. 15 moves)
+      if (idx < 30 && Math.abs(moveEval) < 1.2) {
+        return QUALITIES.find(q => q.id === 'book')!
+      }
+      
+      return QUALITIES.find(q => q.id === 'good')!
     }
   }
 
   // Priority 3: First move baseline (no previous eval to compare against)
   if (idx === 0 && move.eval !== undefined) {
-    const delta = Math.abs(move.eval - 0.2) // Compare to starting position
-    if (delta >= 2.5) return QUALITIES.find(q => q.id === 'blunder')!
-    if (delta >= 1.0) return QUALITIES.find(q => q.id === 'mistake')!
-    if (delta >= 0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
+    const baseline = move.color === 'w' ? 0.3 : 0.2 // Slightly different baseline for White vs Black starting moves
+    let delta = move.eval - baseline
+    if (move.color === 'b') delta = -delta
+    
+    const absDelta = Math.abs(delta)
+    if (absDelta >= 2.5) return QUALITIES.find(q => q.id === 'blunder')!
+    if (absDelta >= 1.0) return QUALITIES.find(q => q.id === 'mistake')!
+    if (absDelta >= 0.4) return QUALITIES.find(q => q.id === 'inaccuracy')!
     return QUALITIES.find(q => q.id === 'book')!
   }
 

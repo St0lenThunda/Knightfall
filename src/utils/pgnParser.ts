@@ -56,11 +56,36 @@ export function safeLoadPgn(chess: Chess, pgn: string): void {
         chess.loadPgn(clean) 
       } catch (e) {
         // Absolute surrender: try to at least load the headers
-        try {
-          const headerMatch = clean.match(/(\[[^\]]+\]\s*)+/)
-          if (headerMatch) chess.loadPgn(headerMatch[0])
-        } catch { /* Final death */ }
       }
     }
   }
+}
+
+/**
+ * Inject or update headers in a PGN string WITHOUT parsing/stripping moves.
+ * This is crucial for maintaining clock data and annotations that chess.js might strip.
+ * 
+ * @param pgn - The raw PGN string
+ * @param headers - A key-value map of headers to inject (e.g. { WhiteElo: '2400' })
+ * @returns string - The updated PGN string
+ */
+export function injectPgnHeaders(pgn: string, headers: Record<string, string | undefined>): string {
+  let result = pgn.trim()
+  
+  for (const [key, val] of Object.entries(headers)) {
+    if (val === undefined || val === null) continue
+    
+    const tag = `[${key} "${val}"]`
+    const regex = new RegExp(`\\[${key}\\s+"[^"]*"\\]`, 'i')
+    
+    if (regex.test(result)) {
+      // Update existing tag
+      result = result.replace(regex, tag)
+    } else {
+      // Prepend new tag
+      result = `${tag}\n${result}`
+    }
+  }
+  
+  return result
 }

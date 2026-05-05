@@ -52,6 +52,9 @@ describe('CoachStore (The Brain)', () => {
         { id: '1', white: 'Player1', black: 'Bot', result: '0-1', eco: 'B01', pgn: '', date: '', event: '', movesCount: 20, addedAt: 0 },
         { id: '2', white: 'Player1', black: 'Bot', result: '0-1', eco: 'C50', pgn: '', date: '', event: '', movesCount: 20, addedAt: 0 }
       ] as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
 
       const coachStore = useCoachStore()
       const report = coachStore.archetypeReport
@@ -72,6 +75,9 @@ describe('CoachStore (The Brain)', () => {
         { id: 'w1', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 40, addedAt: 0, pgn: '' },
         { id: 'b1', white: 'Bot', black: 'Thunda', result: '0-1', movesCount: 40, addedAt: 0, pgn: '' }
       ] as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
 
       const coachStore = useCoachStore()
       const rx = coachStore.dnaPrescriptions
@@ -87,6 +93,9 @@ describe('CoachStore (The Brain)', () => {
         { id: '1', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 15, addedAt: 0, pgn: '' },
         { id: '2', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 10, addedAt: 0, pgn: '' }
       ] as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
 
       const coachStore = useCoachStore()
       const rx = coachStore.dnaPrescriptions
@@ -101,6 +110,9 @@ describe('CoachStore (The Brain)', () => {
       libraryStore.games = [
         { id: '1', white: 'Thunda', black: 'Bot', result: '0-1', movesCount: 65, addedAt: 0, pgn: '' }
       ] as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
 
       const coachStore = useCoachStore()
       const rx = coachStore.dnaPrescriptions
@@ -143,7 +155,11 @@ describe('CoachStore (The Brain)', () => {
       userStore.isMe = vi.fn(() => true)
       
       // 20 decisive games (0 draws)
-      libraryStore.games = new Array(20).fill({ result: '1-0', movesCount: 30 }) as any
+      libraryStore.games = new Array(20).fill({ white: 'Me', black: 'Bot', result: '1-0', movesCount: 30 }) as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
+      userStore.profile = { username: 'Me' } as any
 
       const coachStore = useCoachStore()
       const narrative = coachStore.playstyleNarrative
@@ -157,9 +173,13 @@ describe('CoachStore (The Brain)', () => {
       
       // 10 decisive, 10 draws (50% draws)
       libraryStore.games = [
-        ...new Array(10).fill({ result: '1-0', movesCount: 30 }),
-        ...new Array(10).fill({ result: '1/2-1/2', movesCount: 30 })
+        ...new Array(10).fill({ white: 'Me', black: 'Bot', result: '1-0', movesCount: 30 }),
+        ...new Array(10).fill({ white: 'Me', black: 'Bot', result: '1/2-1/2', movesCount: 30 })
       ] as any
+      // @ts-ignore
+      libraryStore.personalGames = libraryStore.games
+      userStore.session = { user: { id: 'test-id' } } as any
+      userStore.profile = { username: 'Me' } as any
 
       const coachStore = useCoachStore()
       const narrative = coachStore.playstyleNarrative

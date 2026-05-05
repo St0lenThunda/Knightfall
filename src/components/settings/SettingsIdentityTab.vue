@@ -26,6 +26,7 @@ const emit = defineEmits([
   'update:lichessHandle',
   'save',
   'sync',
+  'deleteAccount',
   'signOut',
   'signIn'
 ])
@@ -121,6 +122,16 @@ const emit = defineEmits([
         <button class="btn btn-ghost btn-sm" @click="emit('signOut')">Sign Out</button>
       </div>
     </div>
+
+    <div class="setting-row danger-zone" v-if="userStore.profile">
+      <div class="setting-info">
+        <div class="label text-danger">The Rite of Oblivion</div>
+        <div class="desc">Permanently delete your account and purge all associated DNA and library data.</div>
+      </div>
+      <div class="setting-action">
+        <button class="btn btn-outline-danger btn-sm" @click="emit('deleteAccount')">Purge Identity</button>
+      </div>
+    </div>
     <div class="setting-row" v-else>
       <div class="setting-info">
         <div class="label">Guest Mode</div>
@@ -168,6 +179,30 @@ const emit = defineEmits([
   transition: all 0.2s;
 }
 .custom-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+
+.danger-zone {
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.text-danger { color: var(--rose); }
+
+.btn-outline-danger {
+  background: transparent;
+  border: 1px solid var(--rose);
+  color: var(--rose);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-outline-danger:hover {
+  background: var(--rose);
+  color: white;
+  box-shadow: var(--glow-rose);
+  transform: translateY(-1px);
+}
 
 .settings-actions {
   display: flex;

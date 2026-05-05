@@ -3,7 +3,7 @@
     CoachPanel: Extracts the LLM AI coaching UI and logic from AnalysisView.
     Handles caching, debounced API calls to Gemini, and markdown rendering.
   -->
-  <div class="coaching-section">
+  <div v-if="settings.analysisShowCoach" class="coaching-section">
     <!-- Level 1 Deterministic Tag removed from here, emitted to parent instead -->
 
     <div v-if="isCoachThinking" class="coach-thinking-compact animated-fade-in">
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useSettingsStore } from '../stores/settingsStore'
 import { useGameStore } from '../stores/gameStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useEngineStore } from '../stores/engineStore'
@@ -35,10 +36,19 @@ import { TaggingService, type TaggedMistake } from '../services/taggingService'
 import { useAdminStore } from '../stores/adminStore'
 import { useUserStore } from '../stores/userStore'
 
+import { useAnalysisPlayers } from '../composables/useAnalysisPlayers'
+
 const store = useGameStore()
 const libraryStore = useLibraryStore()
 const engineStore = useEngineStore()
 const userStore = useUserStore()
+const { resolvedPlayers } = useAnalysisPlayers()
+const settings = useSettingsStore()
+
+const currentGame = computed(() => {
+  if (!store.loadedGameId) return null
+  return libraryStore.gamesMap.get(store.loadedGameId) || null
+})
 
 const emit = defineEmits(['update:tag'])
 
@@ -48,35 +58,16 @@ const deterministicTag = ref<TaggedMistake | null>(null)
 
 const renderedCoach = computed(() => renderMarkdown(coachResponse.value))
 
-const currentGame = computed(() => {
-  if (!store.loadedGameId) return null
-  return libraryStore.gamesMap.get(store.loadedGameId) || null
-})
-
-const playerNames = computed(() => {
-  const headers = store.chess.header()
-  let w = (headers.White && headers.White !== '?') ? headers.White : 'White'
-  let b = (headers.Black && headers.Black !== '?') ? headers.Black : 'Black'
-
-  // 1. Prioritize Library Game metadata (more stable than PGN headers)
-  if (currentGame.value) {
-    if (w === 'White' || w === 'Unknown' || w === '?') w = currentGame.value.white
-    if (b === 'Black' || b === 'Unknown' || b === '?') b = currentGame.value.black
-  }
-
-  // 2. Resolve 'White'/'Black' to the user's name if authenticated
-  const myUsername = userStore.profile?.username || userStore.displayName
-  if ((w === 'White' || w === 'Unknown') && userStore.isAuthenticated) w = myUsername
-  if ((b === 'Black' || b === 'Unknown') && userStore.isAuthenticated) b = myUsername
-  
-  return { white: w, black: b }
-})
+const playerNames = computed(() => ({
+  white: resolvedPlayers.value.white.name,
+  black: resolvedPlayers.value.black.name
+}))
 
 const userSide = computed(() => {
   const myUsername = userStore.profile?.username
   if (!myUsername) return 'White' // Default for guests
-  if (playerNames.value.white === myUsername) return 'White'
-  if (playerNames.value.black === myUsername) return 'Black'
+  if (resolvedPlayers.value.white.name === myUsername) return 'White'
+  if (resolvedPlayers.value.black.name === myUsername) return 'Black'
   return 'White' // Default fallback
 })
 
@@ -168,6 +159,13 @@ const hasGame = computed(() => store.moveHistory.length > 0)
 async function askCoach() {
   const currentViewIndex = store.viewIndex
   logger.info(`[Coach] Interaction started for move idx: ${currentViewIndex}`)
+
+  if (!settings.analysisShowCoach) {
+    logger.info(`[Coach] Visibility disabled. Skipping LLM call.`)
+    coachResponse.value = null
+    isCoachThinking.value = false
+    return
+  }
 
   if (!hasGame.value || !comparisonData.value) {
     logger.info(`[Coach] Aborting: No game or comparison data.`)

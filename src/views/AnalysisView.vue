@@ -3,7 +3,8 @@
     <AnalysisHeader 
       :isAuthenticated="userStore.isAuthenticated"
       @loadDemo="loadDemo"
-      @importPgn="importPgn"
+      @importPgn="showImportModal = true"
+      @editInfo="showMetadataEditor = true"
     />
 
     <!-- Loading overlay -->
@@ -32,7 +33,7 @@
           />
         </div>
         <div v-else class="board-container empty-board" key="empty-board">
-          <AnalysisEmptyState @importPgn="importPgn" />
+          <AnalysisEmptyState @importPgn="showImportModal = true" />
         </div>
       </Transition>
 
@@ -52,6 +53,7 @@
               <AnalysisControls 
                 :currentDepth="engineStore.currentDepth"
                 :isCloudScanning="isCloudScanning"
+                :hasCloudData="hasCloudData"
                 :isPlaying="isPlaying"
                 :pauseReason="pauseReason"
                 :selectedMoveLabel="selectedMoveLabel"
@@ -68,10 +70,19 @@
 
               <!-- Scrollable Body -->
               <div class="sidebar-scrollable-content neon-scroll">
-                <CoachPanel @update:tag="handleTagUpdate" />
-                <div class="history-integration mt-4">
-                  <div class="label px-4 mb-2">GAME HISTORY</div>
-                  <MoveHistory hideHeader />
+                <div class="sticky-coach-wrap glass-sm">
+                  <CoachPanel @update:tag="handleTagUpdate" />
+                </div>
+
+                <div class="analysis-details-wrap p-4">
+                  <CriticalLines :multiPvs="engineStore.multiPvs" />
+                </div>
+                
+                <div class="analysis-details-wrap p-4">
+                  <div class="history-integration">
+                    <div class="label mb-2">GAME HISTORY</div>
+                    <MoveHistory hideHeader />
+                  </div>
                 </div>
               </div>
             </div>
@@ -123,6 +134,19 @@
       @close="showHealthLegend = false"
     />
 
+    <!-- Metadata Editor Modal -->
+    <MetadataEditorModal 
+      :show="showMetadataEditor"
+      @close="showMetadataEditor = false"
+    />
+
+    <!-- Import PGN Modal -->
+    <ImportPgnModal 
+      :show="showImportModal"
+      @close="showImportModal = false"
+      @import="importPgnStr"
+    />
+
     <!-- Deterministic Tag Popup (Oracle's Insight) -->
     <OracleInsightModal 
       :show="showTagPopup"
@@ -155,8 +179,11 @@ import MortalGraph from '../components/analysis/MortalGraph.vue'
 import OracleInsightModal from '../components/analysis/OracleInsightModal.vue'
 import HealthLegendModal from '../components/analysis/HealthLegendModal.vue'
 import AnalysisEmptyState from '../components/analysis/AnalysisEmptyState.vue'
+import CriticalLines from '../components/analysis/CriticalLines.vue'
 import AnalysisLoadingOverlay from '../components/analysis/AnalysisLoadingOverlay.vue'
 import AnalysisHeader from '../components/analysis/AnalysisHeader.vue'
+import MetadataEditorModal from '../components/analysis/MetadataEditorModal.vue'
+import ImportPgnModal from '../components/analysis/ImportPgnModal.vue'
 
 // Pillar Composables
 import { useAnalysisArrows } from '../composables/analysis/useAnalysisArrows'
@@ -172,23 +199,31 @@ const userStore = useUserStore()
 // Base UI State
 const isLoading = ref(true)
 const showHealthLegend = ref(false)
+const showMetadataEditor = ref(false)
+const showImportModal = ref(false)
 const isSidebarCollapsed = ref(false)
 const showTagPopup = ref(false)
 const currentTag = ref<TaggedMistake | null>(null)
 
 // Initialize Pillar Logic
 const { engineArrows } = useAnalysisArrows()
-const { isCloudScanning, deepCloudScan } = useAnalysisCloud()
+const { isCloudScanning, hasCloudData, deepCloudScan, checkAvailability } = useAnalysisCloud()
+const { isCloudScanning: isScanning, deepCloudScan: runScan } = { isCloudScanning, deepCloudScan } // Keep aliases if needed, but we can just use the new ones
 const { currentViewedMove, currentMoveQuality, selectedMoveLabel } = useAnalysisMoveContext()
-const { goToEnd, importPgn, loadDemo } = useAnalysisControls()
+const { goToEnd, importPgnStr, loadDemo } = useAnalysisControls()
 
 // Domain Logic Composables
 const { metrics, diagnosis } = usePositionalHealth(() => store.fen, () => engineStore.evalNumber)
 const { resolvedPlayers, playerNames } = useAnalysisPlayers()
 const { isPlaying, pauseReason, togglePlayback, initializeSession } = useAnalysisSession()
 
-// Derived Data
-const hasGame = computed(() => store.moveHistory.length > 0)
+// Watch for FEN changes to update cloud availability
+watch(() => store.fen, () => {
+  checkAvailability()
+}, { immediate: true })
+
+// Derived Data: In analysis, we always show the board if a session is initialized
+const hasGame = computed(() => store.moveHistory.length > 0 || store.mode === 'analysis')
 const evalNum = computed(() => engineStore.evalNumber)
 const evalPercent = computed(() => engineStore.evalPercent)
 
@@ -254,7 +289,25 @@ onUnmounted(() => {
 .history-integration .label { padding: 0 var(--space-4); margin-bottom: var(--space-2); font-size: 0.65rem; color: var(--text-muted); font-weight: 800; }
 
 .tab-pane-content { height: 100%; display: flex; flex-direction: column; }
-.sidebar-scrollable-content { flex: 1; overflow-y: auto; }
+.sidebar-scrollable-content { flex: 1; overflow-y: auto; position: relative; }
+
+.sticky-coach-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: var(--space-4);
+  background: rgba(10, 10, 12, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.analysis-details-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .review-pane-padding { padding: var(--space-4); }
 
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }

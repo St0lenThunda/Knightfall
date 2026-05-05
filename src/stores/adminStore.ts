@@ -20,6 +20,7 @@ export const useAdminStore = defineStore('admin', () => {
   const engineNps = ref(0)
   const engineThreads = ref(navigator.hardwareConcurrency || 4)
   const engineMemory = ref(0) // MB
+  const engineReboots = ref(0)
 
   // --- API METRICS ---
   const lastApiLatency = ref(0) // ms
@@ -153,6 +154,10 @@ export const useAdminStore = defineStore('admin', () => {
     if (ttfrMs > 0) ttfr.value = ttfrMs
   }
 
+  function recordEngineReboot() {
+    engineReboots.value++
+  }
+
   function recordSuspicion(score: number, isBlur = false) {
     const prevScore = suspicionPeak.value
     if (score > suspicionPeak.value) suspicionPeak.value = score
@@ -202,6 +207,8 @@ export const useAdminStore = defineStore('admin', () => {
     movesPlayed,
     movesAnalyzed,
     analysisToPlayRatio,
-    recordMovePlayed
+    recordMovePlayed,
+    engineReboots,
+    recordEngineReboot
   }
 })

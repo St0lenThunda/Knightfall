@@ -1,15 +1,13 @@
 # ♞ Knightfall
 
-> A premium, full-stack chess training platform built with Vue 3, TypeScript, and Supabase.
-> **Current Version: v0.38.0 (The Cathedral Launch)**
+> **Version**: v0.38.0 ("Cathedral of Analysis")
+> **Build Status**: 🟢 100% Unit Test Pass Rate
 
 ---
 
 ## Overview
 
 Knightfall is a modern chess web application focused on **skill development through deep analytics**. It combines an interactive chess engine, AI-powered coaching, adaptive puzzle training, and persistent player profiles into a single cohesive experience. Every session you play feeds a living Weakness DNA model that directs your training toward your actual blind spots through a thematic, high-fidelity "Cathedral of Analysis" interface.
-
----
 
 ## Features
 

@@ -20,6 +20,10 @@
       <button class="btn btn-ghost btn-sm" @click="$emit('importPgn')" title="Analyze an external PGN string">
         📂 Import PGN
       </button>
+
+      <button class="btn btn-ghost btn-sm" @click="$emit('editInfo')" title="Edit game metadata">
+        ✍️ Edit Info
+      </button>
     </div>
   </div>
 </template>
@@ -39,6 +43,7 @@ defineProps<{
 defineEmits<{
   (e: 'loadDemo'): void
   (e: 'importPgn'): void
+  (e: 'editInfo'): void
 }>()
 </script>
 

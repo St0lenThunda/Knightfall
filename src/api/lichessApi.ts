@@ -131,13 +131,19 @@ export async function fetchCloudEval(fen: string): Promise<any> {
 
   const response = await fetchWithRetry(`https://lichess.org/api/cloud-eval?fen=${encodeURIComponent(fen)}`)
   
-  if (!response || !response.ok) return null
+  if (!response || !response.ok) {
+    // Cache the "missing" state to prevent redundant 404s in the same session
+    cloudEvalCache.set(fen, null)
+    return null
+  }
+
   try {
     const data = await response.json()
     // 2. Cache successful results
-    if (data) cloudEvalCache.set(fen, data)
+    cloudEvalCache.set(fen, data)
     return data
   } catch (e) {
+    cloudEvalCache.set(fen, null)
     return null
   }
 }

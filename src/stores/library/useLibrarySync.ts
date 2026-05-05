@@ -221,12 +221,74 @@ export function useLibrarySync(
   }
 
   /**
+   * Internal helper to push a single game to Supabase.
+   * This is used by both bulk migration and immediate analysis sync.
+   */
+  async function pushSingleGameToCloud(game: LibraryGame): Promise<boolean> {
+    const userStore = useUserStore()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return false
+
+    try {
+      const chess = new Chess()
+      let white = game.white
+      let black = game.black
+      
+      // Ensure we have correct names for the payload
+      if (white === 'Unknown' || black === 'Unknown' || !white || !black) {
+        try {
+          safeLoadPgn(chess, game.pgn)
+          const headers = chess.header()
+          white = headers['White'] || white || 'Unknown'
+          black = headers['Black'] || black || 'Unknown'
+          game.white = white
+          game.black = black
+        } catch (e) {}
+      }
+
+      const isWhite = userStore.isMe(white) || (game.tags || []).map(t => t.toLowerCase()).includes('my games')
+      
+      const { data, error } = await supabase
+        .from('matches')
+        .insert({
+          pgn: game.pgn,
+          result: game.result,
+          white_id: isWhite ? session.user.id : null,
+          black_id: !isWhite ? session.user.id : null,
+          metadata: {
+            white: white,
+            black: black,
+            eco: game.eco || null,
+            opening: game.event || null,
+            acpl: game.acpl,
+            missedWins: game.missedWins,
+            theoreticalAccuracy: game.theoreticalAccuracy
+          }
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        game.cloudId = data.id
+        const db = await initDb()
+        const tx = db.transaction(['games'], 'readwrite')
+        tx.objectStore('games').put(JSON.parse(JSON.stringify(game)))
+        return true
+      }
+    } catch (e) {
+      logger.error(`[Sync] Failed to push game ${game.id} to cloud`, e)
+    }
+    return false
+  }
+
+  /**
    * Pushes all local games missing a cloudId to Supabase.
    * This is essential for migrating locally imported PGNs to the cloud.
    */
   async function pushLocalGamesToCloud() {
     const uiStore = useUiStore()
-    const userStore = useUserStore()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       uiStore.addToast('Please log in to push games to the cloud.', 'error')
@@ -245,58 +307,12 @@ export function useLibrarySync(
     integrityMessage.value = `Migrating ${unlinkedGames.length} games to cloud...`
 
     let successCount = 0
-    const db = await initDb()
-
     for (const game of unlinkedGames) {
-      try {
-        const chess = new Chess()
-        let white = game.white
-        let black = game.black
-        
-        if (white === 'Unknown' || black === 'Unknown' || !white || !black) {
-          try {
-            safeLoadPgn(chess, game.pgn)
-            const headers = chess.header()
-            white = headers['White'] || white || 'Unknown'
-            black = headers['Black'] || black || 'Unknown'
-            game.white = white
-            game.black = black
-          } catch (e) {}
-        }
-
-        const isWhite = userStore.isMe(white) || (game.tags || []).map(t => t.toLowerCase()).includes('my games')
-        
-        const { data, error } = await supabase
-          .from('matches')
-          .insert({
-            pgn: game.pgn,
-            result: game.result,
-            white_id: isWhite ? session.user.id : null,
-            black_id: !isWhite ? session.user.id : null,
-            metadata: {
-              white: white,
-              black: black,
-              eco: game.eco || null,
-              opening: game.event || null,
-              acpl: game.acpl,
-              missedWins: game.missedWins,
-              theoreticalAccuracy: game.theoreticalAccuracy
-            }
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-
-        if (data) {
-          game.cloudId = data.id
-          const tx = db.transaction(['games'], 'readwrite')
-          tx.objectStore('games').put(JSON.parse(JSON.stringify(game)))
-          successCount++
-        }
-      } catch (e) {
-        logger.error(`[Sync] Failed to push game ${game.id}`, e)
-      }
+      const success = await pushSingleGameToCloud(game)
+      if (success) successCount++
+      
+      // Throttled update to keep UI alive
+      integrityProgress.value = Math.round((successCount / unlinkedGames.length) * 100)
     }
 
     if (successCount > 0) {
@@ -329,16 +345,17 @@ export function useLibrarySync(
 
   /**
    * Pushes a game's synthesis results (ACPL, Missed Wins, etc.) to the cloud.
+   * If the game isn't in the cloud yet, it pushes the whole game first.
    */
   async function pushGameAnalysis(game: LibraryGame) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
-    // We only push analysis for personal games (where user is white or black)
-    // Curated master collections are read-only DNA.
+    // If no cloudId, we must first "onboard" this game to Supabase
     if (!game.cloudId) {
-      logger.info('[Sync] Skipping cloud push - game not linked to Supabase record:', game.id)
-      return
+      logger.info('[Sync] Game not in cloud. Performing initial upload before analysis push...', game.id)
+      const success = await pushSingleGameToCloud(game)
+      if (!success || !game.cloudId) return 
     }
 
     const metadata = {
@@ -346,6 +363,7 @@ export function useLibrarySync(
       missed_wins: game.missedWins,
       theory_accuracy: game.theoreticalAccuracy,
       evals: game.evals,
+      move_tags: game.moveTags,
       analyzed_at: new Date().toISOString()
     }
 

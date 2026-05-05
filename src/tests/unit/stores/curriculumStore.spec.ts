@@ -24,6 +24,10 @@ vi.mock('../../../api/supabaseClient', () => ({
   }
 }))
 
+vi.mock('../../../api/puzzleApi', () => ({
+  fetchPuzzleBatch: vi.fn().mockResolvedValue([])
+}))
+
 describe('Curriculum Store - Shadow Realm Intelligence', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -38,16 +42,15 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     // Best: e2e4
     const mockGame = {
       id: 'test-game-123',
-      pgn: '1. e3 e5',
+      pgn: '1. e4 f6',
       whiteElo: '1500',
       event: 'Test Open',
-      // The analysisCache contains the coach's explanation for the FEN BEFORE the mistake
       analysisCache: {
-        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1': 'You played e3, but e4 is the primary theoretical move controlling the center.'
+        'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1': 'You played f6, but e5 is the standard response to e4.'
       },
-      // Evals contains the engine's bestMove for each ply
       evals: [
-        { score: 30, isMate: false, bestMove: 'e2e4' }, // Ply 0: e2e4 was best
+        { score: 0.4, bestMove: 'e5' }, // After 1. e4, Black should play e5
+        { score: 3.5, bestMove: 'd4' }, // After 1... f6, White is much better
       ]
     }
 
@@ -64,8 +67,8 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     const puzzle = curriculum.personalPuzzles[0]
     
     expect(puzzle.id).toContain('personal-test-game-123')
-    expect(puzzle.solution).toContain('e2e4') // Should be the best move
-    expect(puzzle.explanation).toContain('e2e3')
+    expect(puzzle.solution).toContain('e5') // Best move for Black
+    expect(puzzle.explanation).toContain('f6')
     expect(puzzle.category).toBe('Personal Mistake')
   })
 

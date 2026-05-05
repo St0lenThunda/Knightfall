@@ -10,7 +10,8 @@ describe('useLibraryFilter', () => {
   ] as any
 
   const mockUserStore = {
-    profile: { username: 'Knight' }
+    profile: { username: 'Knight' },
+    session: { user: { id: 'test-user-id' } }
   }
 
   let games: any

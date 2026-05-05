@@ -56,6 +56,7 @@
               :saveSuccess="saveSuccess"
               @save="saveIdentity"
               @sync="syncAllIntelligence"
+              @deleteAccount="deleteAccount"
               @signOut="handleSignOut"
               @signIn="handleSignIn"
             />
@@ -90,7 +91,7 @@ const { activeTab, tabs } = useSettingsNavigation()
 const { 
   editUsername, editLocation, editChessComUser, editLichessUser,
   isSaving, isSyncing, saveError, saveSuccess,
-  saveIdentity, syncAllIntelligence 
+  saveIdentity, syncAllIntelligence, deleteAccount
 } = useSettingsIdentity()
 
 /**

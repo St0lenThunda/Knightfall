@@ -23,20 +23,15 @@ export interface CoachingRequest {
  * This fires when no Gemini API key is available. Instead of generic filler,
  * it uses the actual position data (eval, best move, move number, side) to
  * produce context-aware coaching insights.
- * 
- * Design: The engine classifies the move into a "quality tier" based on
- * the eval delta, then selects from tier-specific response pools that
- * reference the actual moves and numbers.
  */
 function generateMockCoaching(req: CoachingRequest): string {
   const move = req.moveSan || '??'
   const best = req.bestMove || 'unknown'
-  const player = req.playerName || 'Player'
-  const opponent = req.opponentName || 'Opponent'
+  const isUser = req.isUserMove
+  const player = isUser ? "You" : (req.playerName || 'The opponent')
+  const opponent = isUser ? (req.opponentName || 'The opponent') : "you"
   const evalAbs = Math.abs(req.evalNumber)
   const evalStr = `${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(1)}`
-  const isUser = req.isUserMove
-  const your = isUser ? 'your' : `${player}'s`
   const moveNum = req.moveNumber || 0
 
   // Classify the move quality based on eval context
@@ -45,68 +40,44 @@ function generateMockCoaching(req: CoachingRequest): string {
   const isGood = !isBestMove && evalAbs < 0.8
   const isInaccuracy = !isBestMove && evalAbs >= 0.8 && evalAbs < 2.0
 
-  // Phase detection based on move number
+  // Phase detection
   const phase = moveNum <= 10 ? 'opening' : moveNum <= 30 ? 'middlegame' : 'endgame'
-
   const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
 
   // --- EXCELLENT / BEST MOVE ---
   if (isExcellent) {
     return pick([
-      `**${move}** matches the engine's top choice. ${isUser ? 'You' : player} found the strongest continuation here — the position remains at **${evalStr}** with no concessions made.`,
-
-      `Strong play! **${move}** is precisely what Stockfish recommends. ${isUser ? 'Your' : `${player}'s`} piece coordination after this move keeps the initiative firmly in hand.`,
-
-      `**${move}** is the principal variation. ${isUser ? 'You' : player} maintained optimal piece placement — the eval holds steady at **${evalStr}**. This is the kind of move that separates intermediate players from advanced ones.`,
-
-      `Textbook ${phase} play. **${move}** keeps the evaluation at **${evalStr}** and doesn't give ${opponent} any counterplay. ${isUser ? 'You' : player} correctly prioritized ${phase === 'opening' ? 'development and central control' : phase === 'middlegame' ? 'piece activity and king safety' : 'pawn advancement and piece coordination'}.`,
-
-      `**${move}** — no complaints from the engine here (${evalStr}). ${isUser ? 'You' : player} ${pick(['found the most precise continuation', 'maintained the tension correctly', 'chose the most principled response', 'navigated this position accurately'])}.`,
+      `**${move}** is the engine's top choice. ${isUser ? "You've found" : `${player} found`} the strongest continuation — the evaluation remains at **${evalStr}**.`,
+      `Strong play! **${move}** is precisely what Stockfish recommends. ${isUser ? "Your" : `${player}'s`} piece coordination keeps the initiative firmly in hand.`,
+      `**${move}** — textbook ${phase} play. ${isUser ? "You" : player} correctly prioritized ${phase === 'opening' ? 'development' : 'activity'}.`,
     ])
   }
 
   // --- GOOD BUT NOT BEST ---
   if (isGood) {
     return pick([
-      `**${move}** is a reasonable choice (${evalStr}), though the engine slightly prefers **${best}**. The difference is subtle — **${best}** ${pick(['controls more central squares', 'activates a key piece faster', 'creates a more flexible pawn structure', 'puts immediate pressure on a weak point'])}. Still, ${your} position remains solid.`,
-
-      `Not the engine's top pick, but **${move}** is perfectly playable. Stockfish recommends **${best}** to ${pick(['maintain greater flexibility', 'keep the opponent under more pressure', 'prevent a future tactical resource', 'optimize piece coordination'])}. The eval shift is minimal — this is a "second-best" move, not a mistake.`,
-
-      `**${move}** vs **${best}** — the difference is about ${evalAbs.toFixed(1)} pawns. ${isUser ? 'You' : player} chose a safe continuation, while **${best}** ${pick(['fights for the initiative more aggressively', 'exploits a temporary weakness in the position', 'prepares a stronger long-term plan', 'takes advantage of an awkward piece placement by ' + opponent])}. A fine practical choice.`,
-
-      `The engine's preference for **${best}** over **${move}** comes down to ${pick(['tempo — the engine line develops a key piece one move faster', 'structure — the engine avoids a slight pawn weakness', 'activity — the recommended move targets multiple weaknesses simultaneously', 'prophylaxis — the engine line prevents a key defensive resource for ' + opponent])}. At eval ${evalStr}, this is a nuance, not a problem.`,
+      `**${move}** is a solid choice (${evalStr}), though the engine prefers **${best}**. ${isUser ? "You" : player} kept the position stable, but **${best}** was a slightly sharper path.`,
+      `Not the top pick, but **${move}** is perfectly playable. Stockfish suggests **${best}** for ${isUser ? "you" : player} to maintain more pressure.`,
     ])
   }
 
-  // --- INACCURACY ---
+  // --- INACCURACY / MISTAKE ---
   if (isInaccuracy) {
     return pick([
-      `**${move}** is an inaccuracy (${evalStr}). The engine strongly prefers **${best}** here because it ${pick([`exploits a tactical vulnerability on ${opponent}'s ${pick(['kingside', 'queenside', 'central structure'])}`, `activates a dormant piece that was needed for the upcoming ${phase} complications`, `prevents ${opponent} from consolidating their position with a key defensive move`, `fights for a critical outpost that controls the flow of the position`])}. This is a learning moment — ${isUser ? 'try to' : player + ' should'} look for the most *forcing* continuation before settling on natural-looking moves.`,
-
-      `A missed opportunity. **${move}** allows ${opponent} to equalize, while **${best}** would have maintained a clear edge. The key idea: **${best}** ${pick(['attacks a pinned piece', 'opens a critical file for the rooks', 'creates a passed pawn', 'exploits a back-rank weakness', 'wins a tempo by attacking a hanging piece'])}. At **${evalStr}**, this inaccuracy is recoverable but costly.`,
-
-      `**${move}** lets some pressure slip (${evalStr}). In this ${phase} structure, **${best}** was stronger because it ${pick(['creates dual threats that are hard to meet', 'improves the worst-placed piece', `restricts ${opponent}'s counterplay before it starts`, 'follows the principle of "most active piece first"'])}. ${isUser ? 'When you' : 'When players'} have an advantage, look for moves that *increase* the opponent's problems, not maintain the status quo.`,
-
-      `The eval drops to **${evalStr}** after **${move}** — the engine wanted **${best}**. Why? Because **${best}** ${pick([`targets the weak ${pick(['e-pawn', 'd-pawn', 'f-pawn', 'c-pawn'])} in ${opponent}'s camp`, `improves the ${pick(['knight', 'bishop', 'rook'])} to a dominant square`, `creates immediate tactical pressure that ${opponent} cannot easily defuse`, `follows the principle of centralization before launching an attack`])}. Watch for these concrete improvements before each move.`,
+      `**${move}** is an inaccuracy (${evalStr}). The engine prefers **${best}**. ${isUser ? "You missed" : `${player} missed`} the chance to ${pick([`exploit a tactical vulnerability`, `activate a key piece` ])}.`,
+      `A missed opportunity. **${move}** allows ${isUser ? "the opponent" : "you"} to equalize. The key idea was **${best}**, which ${pick(['attacks a pinned piece', 'opens a critical file'])}.`,
     ])
   }
 
   // --- BLUNDER ---
   return pick([
-    `**${move}** is a serious mistake — the eval swings to **${evalStr}**. The engine's **${best}** was critical here because it ${pick([`prevents a devastating tactical sequence starting with ${opponent}'s next move`, 'defends against an immediate threat while maintaining counterplay', `wins material through a forcing combination`, `creates an unstoppable passed pawn`])}. ${isUser ? 'Take a breath before each move and ask: "What is my opponent threatening?"' : `${player} missed a critical defensive/attacking resource here.`}`,
-
-    `This is the turning point. **${move}** drops **${evalAbs.toFixed(1)}** pawns of evaluation. **${best}** was essential — it ${pick([`keeps the position defensible`, `maintains material equality while fighting for the initiative`, `creates counter-threats that force ${opponent} to respond`, `addresses the primary positional weakness before it becomes fatal`])}. ${isUser ? 'In critical positions, calculate one move deeper — the right move is often the one that asks your opponent the hardest question.' : `A costly oversight by ${player}.`}`,
-
-    `**${move}** (${evalStr}) is where the game slips away. Stockfish insists on **${best}**, which ${pick([`solves the position tactically`, `maintains the delicate balance of the position`, `prevents ${opponent} from breaking through on the critical diagonal/file`, `creates dual threats that would have kept ${opponent} on the defensive`])}. ${isUser ? 'The lesson here: when the position feels tense, trust concrete calculation over intuition. Look for checks, captures, and threats — in that order.' : `${player} will need to fight hard to recover from this.`}`,
-
-    `A **${evalAbs.toFixed(1)}-pawn** swing. **${move}** overlooks what **${best}** achieves: ${pick([`a decisive tactical blow`, `protection of a critical weakness`, `a forcing sequence that wins material`, `a prophylactic move that stops ${opponent}'s main plan cold`])}. ${isUser ? 'Blunders often happen when we stop asking "why is this square important?" — rebuild your checklist: king safety, hanging pieces, tactical motifs.' : `This will be a difficult position for ${player} going forward.`}`,
+    `**${move}** is a serious mistake — the eval swings to **${evalStr}**. ${isUser ? "You" : player} missed **${best}**, which was critical to ${pick([`prevent a tactical sequence`, 'defend against a threat'])}.`,
+    `This is the turning point. **${move}** drops **${evalAbs.toFixed(1)}** pawns. ${isUser ? "You" : player} needed **${best}** to stay competitive.`,
   ])
 }
 
 /**
  * Shared helper to call the Gemini API and parse the response text.
- * @param prompt The complete LLM prompt
- * @param apiKey The Gemini API Key
  */
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -155,28 +126,38 @@ export async function generateCoaching(req: CoachingRequest): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
   if (!apiKey) {
-    // Artificial delay to feel "real"
     await new Promise( resolve => setTimeout( resolve, 600 + Math.random() * 600 ) )
     return generateMockCoaching( req )
   }
 
-  const prompt = `You are an elite Chess Coach and Narratorial Analyst. 
-Perspective: ${req.isUserMove 
-    ? 'This is a PRIVATE LESSON. Your student MADE this move. Speak directly to them in the second person ("You", "Your").' 
-    : `You are NARRATING an observed game for a student. The move was made by ${req.playerName}. Speak in the third person as an expert analyst ("Player 1's choice...", "${req.playerName} decided to...", etc.).`}
+  const sideLong = req.side === 'White' || req.side === 'w' ? 'White' : 'Black'
+  
+  const prompt = `You are an elite Chess Coach giving a PRIVATE LESSON to your student.
+  
+PERSPECTIVE RULES:
+1. Always speak DIRECTLY to your student in the second person ("You", "Your").
+2. The student ("You") is playing as ${sideLong}.
+3. The opponent is ${req.isUserMove ? req.opponentName : req.playerName}.
+4. NARATION LOGIC (CRITICAL):
+   - If req.isUserMove is true: It was the student's turn. Use "You played ${req.moveSan}", "Your move...", etc.
+   - If req.isUserMove is false: It was the opponent's turn. Use "The opponent played ${req.moveSan}", "They chose...", etc.
+5. NO HYPOTHETICALS: Use "You played", "The opponent played", "You missed", "They missed". Do NOT say "You should have" or "It would have been better if". Be direct.
+6. If the opponent (${req.isUserMove ? req.opponentName : req.playerName}) just moved, explain to the student how it affects THEIR position.
 
-Position (FEN) before the move: ${req.fen}
-Move played by ${req.playerName}: ${req.moveSan}
-The engine's best recommendation was: ${req.bestMove ?? 'unknown'}
-Engine's recommended line: ${req.pv.slice(0, 5).join(' ')}
-Evaluation shift: ${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed( 2 )}
-Context: This is a ${severity} categorized as ${theme}.
+SITUATION:
+- Move: **${req.moveSan}** by ${req.isUserMove ? 'the student (You)' : 'the opponent'}.
+- Student Color: ${sideLong}
+- FEN: ${req.fen}
+- Engine Best Move: ${req.bestMove ?? 'unknown'}
+- Engine Recommendation: ${req.pv.slice(0, 5).join(' ')}
+- Evaluation: ${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(2)}
+- Quality: This move is a ${severity} (${theme}).
 
-In 2-3 high-impact, actionable sentences:
-1. If isUserMove is true: Address the student directly as if in a private lesson. Use "You" and their name (${req.playerName}).
-2. If isUserMove is false: Act as a narrator explaining the game to a student. Refer to ${req.playerName} and ${req.opponentName} by their names in the third person.
-3. Explain the "Why" — what does the engine's move (${req.bestMove}) achieve that ${req.playerName}'s choice misses?
-4. Mention ${req.opponentName}'s likely response to make it feel like a real game analysis.`
+INSTRUCTIONS:
+In 2-3 actionable sentences, mentor the student. 
+- If the student moved, explain the quality of their choice.
+- If the opponent moved, explain the threat they created or the opportunity they gave the student.
+- Evaluation Interpretation: ${sideLong === 'White' ? 'Positive score (+) means you (White) are winning.' : 'Negative score (-) means you (Black) are winning.'} Speak accordingly.`
 
   try {
     logger.info( `LLM API Request: ${prompt}` )
@@ -199,8 +180,6 @@ In 2-3 high-impact, actionable sentences:
   } catch (err: any) {
     logger.error("LLM Generation failed:", err)
     
-    // 503 Fallback: If Gemini is overloaded, use the deterministic mock engine
-    // to keep the UI alive with a high-quality "fallback" response.
     if (err.message && err.message.includes('503')) {
       logger.info("[LLM API] Gemini 503 detected. Falling back to deterministic mock.")
       return generateMockCoaching(req)
@@ -209,8 +188,6 @@ In 2-3 high-impact, actionable sentences:
     return "The AI coach is currently unavailable. Focus on developing your pieces toward active squares and keeping your king safe!"
   }
 }
-
-// --- Live Play Coaching (Phase 2 & 3) ---
 
 export async function generateBlunderAlert(fen: string, moveSan: string, evalBefore: number, evalAfter: number, bestMove: string): Promise<string> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY

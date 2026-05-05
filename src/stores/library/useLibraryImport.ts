@@ -3,7 +3,7 @@ import { Chess } from 'chess.js'
 import JSZip from 'jszip'
 import type { LibraryGame } from './types'
 import { useUserStore } from '../userStore'
-import { safeLoadPgn } from '../../utils/pgnParser'
+import { safeLoadPgn, injectPgnHeaders } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
 import { logger } from '../../utils/logger'
 
@@ -87,14 +87,27 @@ export function useLibraryImport(
           continue
         }
 
+        // --- METADATA ENRICHMENT ---
+        // We inject the extracted metadata back into the PGN string to ensure 
+        // it persists even if the source PGN was missing tags.
+        const enrichedPgn = injectPgnHeaders(raw, {
+          White: white,
+          Black: black,
+          WhiteElo: headers['WhiteElo'] || undefined,
+          BlackElo: headers['BlackElo'] || undefined,
+          Event: event || 'Local Game',
+          Date: headers['Date'] || '?',
+          Result: result
+        })
+
         const game: LibraryGame = {
           id,
-          pgn: raw,
+          pgn: enrichedPgn,
           white,
           black,
           result,
           date: headers['Date'] || '?',
-          event: headers['Event'] || 'Local Game',
+          event: event || 'Local Game',
           eco: headers['ECO'] || '',
           openingName: headers['Opening'] || undefined,
           termination: headers['Termination'] || undefined,
@@ -102,6 +115,8 @@ export function useLibraryImport(
           addedAt: Date.now(),
           isCurated,
           userSide,
+          whiteElo: headers['WhiteElo'] || undefined,
+          blackElo: headers['BlackElo'] || undefined,
           tags: [...new Set([...(extraTags.length > 0 ? extraTags : ['Imported']), ...autoTags])]
         }
         newGames.push(game)
@@ -194,14 +209,26 @@ export function useLibraryImport(
       if (games.value.some(g => g.id === stableId)) return
       
       const userStore = useUserStore()
+      
+      // Enrich the PGN before saving
+      const enrichedPgn = injectPgnHeaders(pgn, {
+        White: white,
+        Black: black,
+        WhiteElo: headers['WhiteElo'] || undefined,
+        BlackElo: headers['BlackElo'] || undefined,
+        Event: headers['Event'] || 'Knightfall Match',
+        Date: headers['Date'] || new Date().toISOString().split('T')[0],
+        Result: cleanResult
+      })
+
       const game: LibraryGame = {
         id: stableId,
-        pgn: pgn,
+        pgn: enrichedPgn,
         white,
         black,
         result: cleanResult,
         date: headers['Date'] || new Date().toISOString().split('T')[0],
-        event: headers['Event'] || 'Local Game',
+        event: headers['Event'] || 'Knightfall Match',
         eco: headers['ECO'] || '',
         openingName: headers['Opening'] || undefined,
         termination: headers['Termination'] || undefined,

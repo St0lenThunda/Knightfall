@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useGameStore } from '../../stores/gameStore'
+import { useEngineStore } from '../../stores/engineStore'
 
 /**
  * Pillar Composable: usePlayAntiCheat
@@ -9,19 +10,23 @@ import { useGameStore } from '../../stores/gameStore'
  */
 export function usePlayAntiCheat() {
   const store = useGameStore()
+  const engine = useEngineStore()
 
   /**
-   * Registers a window blur event, which contributes to the suspicion score.
-   * Only fires if a game is currently active to avoid false positives in menus.
+   * Registers a visibility violation, which contributes to the suspicion score.
+   * Only fires if a game is currently active and the tab is actually hidden.
+   * This avoids false positives when interacting with the browser console.
    */
-  function handleWindowBlur() {
-    if (store.gameActive) {
+  function handleVisibilityChange() {
+    // SECURITY: Only track blurs if a game is active and NOT in analysis mode.
+    // Analysis mode allows tab-switching for study (databases, theory, etc).
+    if (document.hidden && store.gameActive && store.mode !== 'analysis' && !engine.isRebooting) {
       store.registerBlur()
     }
   }
 
   onMounted(() => {
-    window.addEventListener('blur', handleWindowBlur)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     
     // Playwright exposure for automated testing
     if (!!(window as any).Playwright || navigator.userAgent.includes('Playwright')) {
@@ -30,7 +35,7 @@ export function usePlayAntiCheat() {
   })
 
   onUnmounted(() => {
-    window.removeEventListener('blur', handleWindowBlur)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
   /**

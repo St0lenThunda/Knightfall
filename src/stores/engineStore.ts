@@ -25,6 +25,7 @@ export interface EngineInfo {
 export const useEngineStore = defineStore('engine', () => {
   const isReady = ref(false)
   const isAnalyzing = ref(false)
+  const isRebooting = ref(false)
   
   // Evaluation values
   const evalScoreCp = ref(0) // Centipawns. Positive = white advantage
@@ -57,6 +58,10 @@ export const useEngineStore = defineStore('engine', () => {
    */
   function sendCommand(cmd: string) {
     if (!worker) init()
+    
+    // Optimization: Don't queue multiple 'isready' commands
+    if (cmd === 'isready' && messageQueue.includes('isready')) return
+
     if (isReadyForCommand) {
       worker?.postMessage(cmd)
       // If we ask 'isready', we must wait for 'readyok' before next move
@@ -97,11 +102,15 @@ export const useEngineStore = defineStore('engine', () => {
       
       if (msg === 'uciok') {
         isReady.value = true
-        sendCommand('isready')
         
+        // Apply initial configuration
         const settings = useSettingsStore()
         sendCommand(`setoption name MultiPV value ${settings.engineMultiPv}`)
-        sendCommand('setoption name Hash value 16')
+        sendCommand('setoption name Hash value 8')
+        sendCommand('setoption name Threads value 1')
+        
+        // Signal that initialization is complete
+        sendCommand('isready')
       } else if (msg === 'readyok') {
         isReadyForCommand = true
         // Flush the queue
@@ -139,7 +148,7 @@ export const useEngineStore = defineStore('engine', () => {
   }
 
   function reboot() {
-    if (rebootCount > 5) {
+    if (rebootCount > 3) {
         logger.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.');
         isAnalyzing.value = false;
         return;
@@ -153,10 +162,12 @@ export const useEngineStore = defineStore('engine', () => {
 
     rebootCount++;
     if (rebootResetTimer) clearTimeout(rebootResetTimer);
-    rebootResetTimer = setTimeout(() => { rebootCount = 0 }, 10000);
+    rebootResetTimer = setTimeout(() => { rebootCount = 0 }, 30000); // 30s reset window
 
     logger.warn(`[Engine] Rebooting worker (Attempt ${rebootCount})...`);
     if (worker) {
+        worker.onmessage = null;
+        worker.onerror = null;
         worker.terminate();
         worker = null;
     }
@@ -169,15 +180,29 @@ export const useEngineStore = defineStore('engine', () => {
     isAnalyzing.value = false;
     isReadyForCommand = true;
     messageQueue = [];
+    isRebooting.value = true;
+    
+    // Track reboot in admin store
+    try {
+      const admin = useAdminStore();
+      admin.recordEngineReboot();
+    } catch (e) {
+      logger.warn('[Engine] Could not record reboot in adminStore (Store not ready)');
+    }
     
     init();
 
     // If we were analyzing, resume after a short delay to allow init to finish
-    // We reduce depth slightly to avoid hitting the same memory/stack limit
+    // We reduce depth significantly to avoid hitting the same memory/stack limit
     if (wasAnalyzing && lastFen) {
       setTimeout(() => {
-        analyze(lastFen, Math.max(10, lastDepth - 2), lastBot);
-      }, 500);
+        isRebooting.value = false;
+        analyze(lastFen, Math.max(10, lastDepth - 4), lastBot);
+      }, 3000); // 3s breathing room for recovery
+    } else {
+      setTimeout(() => {
+        isRebooting.value = false;
+      }, 3000);
     }
   }
   
@@ -367,6 +392,11 @@ export const useEngineStore = defineStore('engine', () => {
       depth = bot.depth || depth
     }
     
+    // 1. Idempotency Check: Don't re-analyze the same thing
+    if (lastAnalyzedFen === fen && lastAnalyzedDepth === depth && !isRebooting.value) {
+      return
+    }
+
     lastAnalyzedFen = fen;
     lastAnalyzedDepth = depth;
     lastAnalyzedBot = bot;
@@ -377,7 +407,7 @@ export const useEngineStore = defineStore('engine', () => {
     const parts = fen.split(' ')
     
     // Basic FEN validation: check for 6 fields and move turn
-    if (parts.length < 4) {
+    if (parts.length < 2) {
         logger.warn('[Engine] Invalid FEN passed to analyze:', fen)
         return
     }
@@ -395,9 +425,17 @@ export const useEngineStore = defineStore('engine', () => {
     multiPvs.value = []
     analysisStartTime = Date.now()
     
+    // Performance: Only send ucinewgame on starting position to preserve hash between moves
+    if (fen.includes('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')) {
+      sendCommand('ucinewgame')
+    }
+    
     sendCommand('isready') 
     sendCommand(`position fen ${fen}`)
-    sendCommand(`go depth ${depth}`)
+    
+    // Safety: Cap depth at 24 to prevent stack overflows in WASM
+    const safeDepth = Math.min(depth, 24)
+    sendCommand(`go depth ${safeDepth}`)
   }
 
   // Derived eval values for UI
@@ -433,6 +471,7 @@ export const useEngineStore = defineStore('engine', () => {
     evalNumber, evalPercent,
     init, analyze, stop,
     setMortalArchetype,
-    activeArchetype
+    activeArchetype,
+    isRebooting
   }
 })

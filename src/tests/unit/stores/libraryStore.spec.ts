@@ -25,6 +25,7 @@ vi.mock('chess.js', () => ({
 vi.mock('../../../stores/userStore', () => ({
   useUserStore: vi.fn(() => ({
     profile: { username: 'Guest' },
+    session: { user: { id: 'test-user-id' } },
     isMe: vi.fn((name) => name === 'Thunda')
   }))
 }))
@@ -51,6 +52,7 @@ vi.mock('../../../utils/storage', () => ({
 vi.mock('../../../stores/library/useLibraryIdb', () => ({
   useLibraryIdb: vi.fn((games) => ({
     loadGames: vi.fn(async () => []),
+    loadPersonalGames: vi.fn(async () => []),
     initDb: vi.fn(async () => ({
       transaction: vi.fn(() => ({
         objectStore: vi.fn(() => ({
@@ -61,6 +63,7 @@ vi.mock('../../../stores/library/useLibraryIdb', () => ({
     })),
     resetLibrary: vi.fn(),
     deleteGame: vi.fn(),
+    deleteGames: vi.fn(),
     persistGameUpdate: vi.fn(),
     purgeDuplicates: vi.fn(async () => {
       if (games && games.value) games.value = games.value.slice(0, 1)
@@ -71,7 +74,7 @@ vi.mock('../../../stores/library/useLibraryIdb', () => ({
     loadGamesPaged: vi.fn(async (limit, offset) => {
       return Array(limit).fill(null).map((_, i) => ({
         id: `paged-${offset + i}`,
-        pgn: '', white: '', black: '', result: '', date: '', event: '', eco: '', movesCount: 0, addedAt: 0
+        pgn: '1. e4 e5', white: 'W', black: 'B', result: '1-0', date: '2024', event: 'E', eco: 'C00', movesCount: 2, addedAt: 0
       }))
     })
   }))
@@ -138,7 +141,7 @@ describe('LibraryStore (Orchestrator)', () => {
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(1500)
       // @ts-ignore
-      libraryStore.idb.loadGames.mockResolvedValue(Array(1500).fill({}))
+      libraryStore.idb.loadGames.mockResolvedValue(Array(1500).fill(null).map((_, i) => ({ id: i.toString() })))
 
       await libraryStore.loadGames()
 
@@ -151,7 +154,7 @@ describe('LibraryStore (Orchestrator)', () => {
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(5000)
       // @ts-ignore
-      libraryStore.idb.loadGamesPaged.mockResolvedValue(Array(500).fill({}))
+      libraryStore.idb.loadGamesPaged.mockResolvedValue(Array(500).fill(null).map((_, i) => ({ id: i.toString() })))
       
       await libraryStore.loadGames()
 
@@ -165,7 +168,9 @@ describe('LibraryStore (Orchestrator)', () => {
       // @ts-ignore
       libraryStore.idb.getGameCount.mockResolvedValue(5000)
       // @ts-ignore
-      libraryStore.idb.loadGamesPaged.mockResolvedValue(Array(500).fill({}))
+      libraryStore.idb.loadGamesPaged.mockImplementation((limit, offset) => 
+        Promise.resolve(Array(limit).fill(null).map((_, i) => ({ id: (offset + i).toString() })))
+      )
       
       await libraryStore.loadGames()
       const initialCount = libraryStore.games.length

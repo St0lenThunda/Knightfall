@@ -115,6 +115,24 @@ export function useSettingsIdentity() {
     saveError,
     saveSuccess,
     saveIdentity,
-    syncAllIntelligence
+    syncAllIntelligence,
+    
+    /**
+     * Triggers the "Rite of Oblivion" with a premium confirmation modal.
+     */
+    async deleteAccount() {
+      uiStore.confirm(
+        'The Rite of Oblivion',
+        'This will permanently purge your profile, your entire game library, and all tactical ghosts. This action cannot be undone.',
+        async () => {
+          await userStore.deleteAccount()
+        },
+        { 
+          variant: 'danger', 
+          label: 'Purge Identity',
+          icon: '💀'
+        }
+      )
+    }
   }
 }

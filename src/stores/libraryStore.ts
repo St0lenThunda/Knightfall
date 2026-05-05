@@ -66,11 +66,6 @@ export const useLibraryStore = defineStore('library', () => {
     if (totalVaultGames.value < 2000) {
       let all = await idb.loadGames()
       
-      // AUTH GUARD: Anonymous users ONLY see curated content
-      if (!isLoggedIn) {
-        all = all.filter(g => g.isCurated)
-      }
-
       // Deduplicate against personal set
       const uniqueMap = new Map()
       all.forEach(g => uniqueMap.set(g.id, g))
@@ -81,11 +76,6 @@ export const useLibraryStore = defineStore('library', () => {
       // Lazy load the first chunk for the 'All' view
       let pagedChunk = await idb.loadGamesPaged(VAULT_PAGE_SIZE, 0)
 
-      // AUTH GUARD: Anonymous users ONLY see curated content
-      if (!isLoggedIn) {
-        pagedChunk = pagedChunk.filter(g => g.isCurated)
-      }
-
       const uniqueMap = new Map()
       pagedChunk.forEach(g => uniqueMap.set(g.id, g))
       personal.forEach(g => uniqueMap.set(g.id, g))
@@ -94,6 +84,13 @@ export const useLibraryStore = defineStore('library', () => {
     }
     
     logger.info(`[Library] Vault loaded. Total: ${totalVaultGames.value}, Displaying: ${games.value.length}`)
+
+    // D. Auto-Sync Cloud Updates (Silent background task)
+    // This ensures we have the latest games without manual intervention
+    if (isLoggedIn) {
+      // We don't await this to keep the UI responsive, let it run in the background
+      cloud.syncCloudGames()
+    }
   }
 
   // --- PILLAR INITIALIZATION ---
@@ -146,7 +143,16 @@ export const useLibraryStore = defineStore('library', () => {
   )
   
   // 6. Intelligence Layer (Engine Analysis)
-  const intel = useLibraryAnalysis(games, idb.persistGameUpdate)
+  const intel = useLibraryAnalysis(games, async (game: LibraryGame) => {
+    // A. Persist to Local Layer (IDB) for instant UI feedback
+    await idb.persistGameUpdate(game)
+    
+    // B. Push to Cloud Layer (Supabase) immediately if logged in
+    // This ensures "Synthesis" results are backed up right away
+    if (userStore.session && game.cloudId) {
+      await cloud.pushGameAnalysis(game)
+    }
+  })
   
   // 7. Import Layer (PGN/Lichess/Zips)
   const importer = useLibraryImport(games, isImporting, importProgress, idb.initDb)
@@ -279,6 +285,7 @@ export const useLibraryStore = defineStore('library', () => {
     // Core Actions
     loadGames, 
     loadMoreGames, 
+    getGame: idb.getGame,
     fetchWardenReport: integrity.fetchWardenReport,
     persistGameUpdate: idb.persistGameUpdate, 
     

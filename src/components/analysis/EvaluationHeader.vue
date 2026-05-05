@@ -6,6 +6,9 @@
  * This component is a pure UI layer that reacts to engine and game state.
  */
 import { computed } from 'vue'
+import { useSettingsStore } from '../../stores/settingsStore'
+
+const settings = useSettingsStore()
 
 interface PlayerNames {
   white: string
@@ -48,28 +51,32 @@ const emit = defineEmits(['badge-click'])
       </div>
 
       <!-- Quality Indicator (High Visibility) -->
-      <div v-if="moveQuality" 
-           class="quality-badge animated-pop-in" 
-           :class="{ 'is-tactical': ['inaccuracy', 'mistake', 'blunder'].includes(moveQuality.id) }"
-           :style="{ '--q-color': moveQuality.color }" 
-           @click="emit('badge-click')"
-      >
-          <span class="q-icon">{{ moveQuality.icon }}</span>
-          <span class="q-label">{{ moveQuality.label }}</span>
-      </div>
+      <Transition name="fade">
+        <div v-if="moveQuality" 
+             class="quality-badge animated-pop-in" 
+             :class="{ 'is-tactical': ['inaccuracy', 'mistake', 'blunder'].includes(moveQuality.id) }"
+             :style="{ '--q-color': moveQuality.color }" 
+             @click="emit('badge-click')"
+        >
+            <span class="q-icon">{{ moveQuality.icon }}</span>
+            <span class="q-label">{{ moveQuality.label }}</span>
+        </div>
+      </Transition>
     </div>
 
     <!-- Evaluation Bar Control -->
-    <div class="eval-bar-horizontal glass-sm">
-      <div class="eval-label">♔</div>
-      <div class="eval-track">
-        <div class="eval-fill" :style="{ width: evalPercent + '%' }"></div>
+    <Transition name="slide-up">
+      <div v-if="settings.analysisShowEvalBar" class="eval-bar-horizontal glass-sm">
+        <div class="eval-label">♔</div>
+        <div class="eval-track">
+          <div class="eval-fill" :style="{ width: evalPercent + '%' }"></div>
+        </div>
+        <div class="eval-label">♚</div>
+        <div class="eval-num" :class="evalColorClass">
+          {{ formattedEval }}
+        </div>
       </div>
-      <div class="eval-label">♚</div>
-      <div class="eval-num" :class="evalColorClass">
-        {{ formattedEval }}
-      </div>
-    </div>
+    </Transition>
   </header>
 </template>
 
@@ -201,5 +208,13 @@ const emit = defineEmits(['badge-click'])
 
 .animated-pop-in {
   animation: animated-pop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.slide-up-enter-active, .slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-up-enter-from, .slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

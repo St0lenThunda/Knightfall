@@ -354,6 +354,38 @@ export const useUserStore = defineStore('user', () => {
       uiStore.addToast(`Global Intelligence Updated: Synced with ${platforms}.`, 'success')
     }
   }
+  /**
+   * THE RITE OF OBLIVION
+   * Deletes all user-associated data from the database and signs out.
+   */
+  async function deleteAccount() {
+    if (!session.value) return
+    const userId = session.value.user.id
+    const uiStore = useUiStore()
+
+    try {
+      logger.warn(`[UserStore] Initiating Oblivion for user ${userId}...`)
+
+      // Delete associated records manually to ensure a clean sweep
+      // Profiles is the root; other tables should be deleted first if no FK cascade is set
+      await Promise.all([
+        supabase.from('matches').delete().or(`white_id.eq.${userId},black_id.eq.${userId}`),
+        supabase.from('puzzle_attempts').delete().eq('user_id', userId),
+        supabase.from('profiles').delete().eq('id', userId)
+      ])
+
+      // Finalize: Sign Out
+      await supabase.auth.signOut()
+      
+      uiStore.addToast('Account and all associated DNA have been purged.', 'success')
+      
+      // Hard reload to clear all in-memory states
+      window.location.href = '/'
+    } catch (e) {
+      logger.error('[UserStore] Oblivion failed:', e)
+      uiStore.addToast('The Rite of Oblivion failed. Please contact the High Archivists.', 'error')
+    }
+  }
 
   // --- PUBLIC API ---
   return {
@@ -383,6 +415,7 @@ export const useUserStore = defineStore('user', () => {
     updateProfile,
     submitGauntletResult,
     syncGlobalIntelligence,
+    deleteAccount,
     
     // Global Computed (Bridge between stats and identity)
     rating: ratingSystem.currentRating,

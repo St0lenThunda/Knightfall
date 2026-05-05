@@ -18,6 +18,10 @@ export function useAnalysisPlayers() {
   const userStore = useUserStore()
 
   const resolvedPlayers = computed(() => {
+    // Accessing boardTrigger ensures this computed property re-evaluates
+    // whenever the board state or headers are mutated (e.g. during loadPgn)
+    store.boardTrigger
+
     const headers = store.chess.header()
     const wHeader = headers.White
     const bHeader = headers.Black
@@ -33,7 +37,6 @@ export function useAnalysisPlayers() {
 
     const myUsername = userStore.profile?.username || userStore.displayName
     
-    // IDENTITY RESOLUTION: Only assign myUsername if we have evidence or a userSide hint
     if (libraryGame?.userSide === 'white') {
        if (w === 'White' || w === 'Unknown' || w === '?') w = myUsername
     } else if (libraryGame?.userSide === 'black') {
@@ -42,15 +45,19 @@ export function useAnalysisPlayers() {
       const wIsMe = userStore.isMe(w)
       const bIsMe = userStore.isMe(b)
       
-      // If both match (e.g. both are generic 'White'/'Black' and user is Guest),
-      // we don't want to claim both.
-      if (wIsMe && bIsMe) {
-        if (w.toLowerCase() === myUsername.toLowerCase()) w = myUsername
-        else if (b.toLowerCase() === myUsername.toLowerCase()) b = myUsername
-        // Otherwise keep generic names
-      } else {
-        if (wIsMe) w = myUsername
-        if (bIsMe) b = myUsername
+      const isGenericWhite = w.toLowerCase() === 'white'
+      const isGenericBlack = b.toLowerCase() === 'black'
+
+      // If w is generic 'White' and we are logged in, and black is a known bot or someone else,
+      // we assume white is us (standard analysis assumption for Knightfall).
+      // We also check store.playerColor as a hint for which side the user is currently "viewing" as.
+      if (wIsMe || (isGenericWhite && !bIsMe && store.playerColor === 'w')) {
+        w = myUsername
+      } else if (bIsMe || (isGenericBlack && !wIsMe && store.playerColor === 'b')) {
+        b = myUsername
+      } else if (isGenericWhite && !bIsMe && !wIsMe) {
+        // Ultimate fallback: if both are generic and no hint, default to White for the user
+        w = myUsername
       }
     }
 
@@ -59,9 +66,17 @@ export function useAnalysisPlayers() {
     const blackBot = findBot(b)
 
     const getPlayerRating = (header: any, bot: any, isUser: boolean, libraryElo?: string) => {
-      if (isUser && userStore.profile?.rating) return userStore.profile.rating
-      if (header && header !== '?' && header !== '0') return header
+      // 1. If we have a concrete header value (not generic), use it first.
+      // This respects manual edits in the Metadata Editor.
+      if (header && header !== '?' && header !== '0' && header !== 'Unknown') return header
+
+      // 2. Fallback to library metadata if available
       if (libraryElo && libraryElo !== '?' && libraryElo !== '0') return libraryElo
+
+      // 3. Fallback to user profile if it's the user and they have a rating
+      if (isUser && userStore.profile?.rating) return userStore.profile.rating
+      
+      // 4. Ultimate fallback to bot rating or default
       return bot?.rating || '1200'
     }
 
