@@ -10,6 +10,7 @@ import { useGameClock } from './game/useGameClock'
 import { useBotEngine } from './game/useBotEngine'
 import { useGameAnalysis } from './game/useGameAnalysis'
 import { useEngineStore } from './engineStore'
+import { useUiStore } from './uiStore'
 import { useUserStore } from './userStore'
 import { BOTS } from './game/useBotEngine'
 import { TIME_CONTROLS, type TimeControl } from './game/useGameClock'
@@ -45,25 +46,16 @@ export const useGameStore = defineStore('game', () => {
   const sessionStartTime = ref(Date.now())
   const lastMoveDuration = ref(0)
 
-  // --- DEBUG WATCHERS ---
-  watch(mode, (newMode) => {
-    logger.info(`[GameStore] Mode changed: ${newMode}`)
-  })
-  
-  watch(loadedGameId, (newId) => {
-    logger.info(`[GameStore] LoadedGameId changed: ${newId || 'N/A'}`)
-  })
-
-  // Sync playerColor with boardLogic
-  watch(playerColor, (newColor) => {
-    boardLogic.playerColor.value = newColor
-  })
   const gameActive = computed(() => {
     const active = gameStarted.value && !forceGameOver.value && !boardLogic.isGameOver.value
     if (!active && gameStarted.value) {
       logger.warn(`[GameStore] Game inactive! Started: ${gameStarted.value}, ForceGameOver: ${forceGameOver.value}, BoardGameOver: ${boardLogic.isGameOver.value}, FEN: ${boardLogic.fen.value}`)
     }
     return active
+  })
+
+  const isBotTurn = computed(() => {
+    return mode.value === 'vs-computer' && boardLogic.turn.value !== boardLogic.playerColor.value
   })
 
   const isPlayersTurn = computed(() => {
@@ -83,14 +75,34 @@ export const useGameStore = defineStore('game', () => {
   const isGameOver = computed(() => boardLogic.isGameOver.value || forceGameOver.value)
 
   const gameResult = computed(() => {
+    // 1. Resignation/Timeout take priority
     if (resignationWinner.value) return resignationWinner.value === 'w' ? '1-0' : '0-1'
     if (clock.timeOutWinner.value) return clock.timeOutWinner.value === 'w' ? '1-0' : '0-1'
-    if (!isGameOver.value) return '*'
     
-    if (boardLogic.chess.value.isCheckmate()) return boardLogic.turn.value === 'w' ? '0-1' : '1-0'
-    if (boardLogic.chess.value.isDraw() || boardLogic.chess.value.isStalemate()) return '1/2-1/2'
+    // 2. Board-level terminal states
+    if (boardLogic.isGameOver.value) {
+      if (boardLogic.isCheckmate.value) {
+        // If it's White's turn and they are in checkmate, Black won (0-1)
+        return boardLogic.turn.value === 'w' ? '0-1' : '1-0'
+      }
+      if (boardLogic.isDraw.value || boardLogic.isStalemate.value) return '1/2-1/2'
+    }
     
     return '*'
+  })
+
+  // --- DEBUG WATCHERS ---
+  watch(mode, (newMode) => {
+    logger.info(`[GameStore] Mode changed: ${newMode}`)
+  })
+  
+  watch(loadedGameId, (newId) => {
+    logger.info(`[GameStore] LoadedGameId changed: ${newId || 'N/A'}`)
+  })
+
+  // Sync playerColor with boardLogic
+  watch(playerColor, (newColor) => {
+    boardLogic.playerColor.value = newColor
   })
 
   // --- ACTIONS ---
@@ -98,6 +110,9 @@ export const useGameStore = defineStore('game', () => {
   function newGame(newMode: GameMode, color: 'w' | 'b' = 'w', tc?: any) {
     mode.value = newMode
     playerColor.value = color
+    // CRITICAL: Synchronize color immediately to prevent async watcher races
+    boardLogic.playerColor.value = color
+    
     boardLogic.loadPosition('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'live')
     if (tc) clock.setTimeControl(tc)
     startMatch()
@@ -139,6 +154,41 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'vs-computer' && boardLogic.playerColor.value === 'b') {
       triggerBotMove()
     }
+  }
+
+  /**
+   * Emergency Resuscitation
+   * 
+   * This is a "Big Red Button" for the gameplay engine. If a race condition or
+   * state desync occurs (e.g. Stockfish worker crashes or gets stuck in a handshake),
+   * this method forces a hard reboot of the engine and re-evaluates the board state.
+   * 
+   * It provides user feedback via toasts so they know the system is self-healing.
+   */
+  function resuscitate() {
+    const uiStore = useUiStore()
+    const engineStore = useEngineStore()
+    
+    uiStore.addToast('Emergency Resuscitation: Re-syncing engine state...', 'info')
+    
+    // Reboot engine if vs computer
+    if (mode.value === 'vs-computer') {
+      engineStore.resetRebootCount()
+      engineStore.reboot(true) // Force reboot even if count is high
+    }
+    
+    // Hard reset of flags
+    gameStarted.value = true
+    forceGameOver.value = false
+    
+    // Force turn evaluation after a short delay to allow reboot
+    setTimeout(() => {
+      if (isBotTurn.value) {
+        triggerBotMove()
+      } else {
+        uiStore.addToast('Resuscitation Complete: Player turn active.', 'success')
+      }
+    }, 1000)
   }
 
   /**
@@ -261,14 +311,17 @@ export const useGameStore = defineStore('game', () => {
   })
 
   function handleFlag(loser: 'w' | 'b') {
+    logger.warn(`[GameStore] Time out! Loser: ${loser}`)
     clock.timeOutWinner.value = loser === 'w' ? 'b' : 'w'
     forceGameOver.value = true
+    injectPgnHeaders() // Force result update
     boardLogic.boardTrigger.value++
   }
 
   function resign(loser: 'w' | 'b') {
     resignationWinner.value = loser === 'w' ? 'b' : 'w'
     forceGameOver.value = true
+    injectPgnHeaders() // Immediately update result in PGN
     boardLogic.boardTrigger.value++
   }
 
@@ -295,8 +348,12 @@ export const useGameStore = defineStore('game', () => {
      
      Object.entries(defaultHeaders).forEach(([k, v]) => {
        const current = currentHeaders[k]
+       // Force overwrite the Result if the game is definitively over
+       if (k === 'Result' && v !== '*') {
+         boardLogic.chess.value.header(k, v)
+       }
        // Only inject if the current header is missing, '?', or 'Unknown'
-       if (!current || current === '?' || current === 'Unknown') {
+       else if (!current || current === '?' || current === 'Unknown') {
          boardLogic.chess.value.header(k, v)
        }
      })
@@ -345,7 +402,7 @@ export const useGameStore = defineStore('game', () => {
       }
     }
 
-  async function saveGame() {
+  async function saveGame(forceSave: boolean = false) {
     // A. Ensure headers are baked in (without overwriting manual edits)
     injectPgnHeaders()
 
@@ -366,9 +423,15 @@ export const useGameStore = defineStore('game', () => {
         telemetry 
       })
       logger.info(`[GameStore] Game updated in library: ${loadedGameId.value}`)
+      return loadedGameId.value
     } else {
       // Create new
-      await analysis.saveMatch(boardLogic.pgn.value, tags, telemetry)
+      const savedGame = await analysis.saveMatch(boardLogic.pgn.value, tags, telemetry, forceSave)
+      if (savedGame) {
+        loadedGameId.value = savedGame.id
+        return savedGame.id
+      }
+      return null
     }
   }
 
@@ -401,7 +464,7 @@ export const useGameStore = defineStore('game', () => {
     ...bots,
     ...analysis,
 
-    // Orchestration
+    // Orchestration State
     mode,
     gameStarted,
     forceGameOver,
@@ -409,7 +472,10 @@ export const useGameStore = defineStore('game', () => {
     loadedGameId,
     gameActive,
     isPlayersTurn,
+    isBotTurn,
     gameResult,
+
+    // Orchestration Actions
     newGame,
     startClock,
     stopClock,
@@ -417,6 +483,7 @@ export const useGameStore = defineStore('game', () => {
     resumeClock,
     computerMove,
     startMatch,
+    resuscitate,
     makeMove,
     handleMove,
     handleFlag,

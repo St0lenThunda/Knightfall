@@ -14,12 +14,12 @@ export function useGameAnalysis() {
   /**
    * Saves the current match to the user's library with full headers and telemetry.
    */
-  async function saveMatch(pgn: string, tags: string[], telemetry: any) {
+  async function saveMatch(pgn: string, tags: string[], telemetry: any, forceSave: boolean = false) {
     const library = useLibraryStore()
     const uiStore = useUiStore()
     
     try {
-      const savedGame = await library.saveGameToLibrary(pgn, tags, telemetry)
+      const savedGame = await library.saveGameToLibrary(pgn, tags, telemetry, forceSave)
       logger.info('[Analysis] Match saved to library.')
       
       if (savedGame) {
@@ -94,6 +94,7 @@ export function useGameAnalysis() {
          } else {
             worker.terminate()
             game.evals = evals
+            game.isSynthesized = true
             if (evals.length > 5) {
                 game.theoreticalAccuracy = Math.round(75 + (Math.random() * 20))
             }

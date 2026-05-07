@@ -147,6 +147,14 @@ export function useAnalysisSession() {
         store.goToMove(-1) // Default to end for new games
         logger.info(`[AnalysisSession] New game or no index saved. Jumping to end.`)
       }
+
+      // --- AUTO-SYNTHESIS TRIGGER ---
+      // If the game has not been fully analyzed (e.g. fresh live match), trigger background synthesis.
+      const targetGame = libraryStore.gamesMap.get(store.loadedGameId || '')
+      if (targetGame && !targetGame.isSynthesized) {
+        logger.info(`[AnalysisSession] Game ${targetGame.id} is not synthesized. Triggering auto-analysis...`)
+        libraryStore.analyzeGame(targetGame.id)
+      }
     }
   }
 

@@ -42,7 +42,7 @@ const gameStore = useGameStore()
         </p>
         <button 
           class="btn btn-sm btn-critical w-full"
-          @click="gameStore.startMatch()"
+          @click="gameStore.resuscitate()"
           style="width: 100%; justify-content: center; background: var(--rose-dim); border: 1px solid var(--rose);"
         >
           ☢️ FORCE_RESUSCITATE

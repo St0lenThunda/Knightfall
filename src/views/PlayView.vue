@@ -64,7 +64,7 @@
               :result="store.gameResult"
               :isReviewing="isReviewing"
               @newGame="showNewGameModal = true"
-              @review="reviewGame(selectedMode)"
+              @review="reviewGame()"
             />
           </Transition>
 

@@ -185,7 +185,7 @@ export function useLibraryImport(
       suspicionScore: number
       isBusted: boolean
     }
-  }) {
+  }, forceSave: boolean = false) {
     const chess = new Chess()
     try {
       safeLoadPgn(chess, pgn)
@@ -196,8 +196,8 @@ export function useLibraryImport(
       else if (cleanResult.startsWith('0-1')) cleanResult = '0-1'
       else if (cleanResult.startsWith('1/2-1/2') || cleanResult.includes('1/2') || cleanResult.includes('½')) cleanResult = '1/2-1/2'
 
-      // --- GUARD: Reject 'Unfinished' games ---
-      if (cleanResult === '*' || cleanResult === '?' || !cleanResult || cleanResult === '1/2') {
+      // --- GUARD: Reject 'Unfinished' games unless forceSave is true ---
+      if (!forceSave && (cleanResult === '*' || cleanResult === '?' || !cleanResult || cleanResult === '1/2')) {
         logger.info('[Import] Skipping unfinished live game.')
         return null
       }
@@ -206,7 +206,8 @@ export function useLibraryImport(
       const black = headers['Black'] || 'Unknown'
       const stableId = generateGameFingerprint(white, black, pgn)
 
-      if (games.value.some(g => g.id === stableId)) return
+      const existing = games.value.find(g => g.id === stableId)
+      if (existing) return existing
       
       const userStore = useUserStore()
       

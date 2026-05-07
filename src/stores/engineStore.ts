@@ -63,17 +63,37 @@ export const useEngineStore = defineStore('engine', () => {
     if (cmd === 'isready' && messageQueue.includes('isready')) return
 
     if (isReadyForCommand) {
+      // logger.debug(`[Engine] > ${cmd}`) // Excessive for NPS
       worker?.postMessage(cmd)
       // If we ask 'isready', we must wait for 'readyok' before next move
-      if (cmd === 'isready') isReadyForCommand = false
+      if (cmd === 'isready') {
+        isReadyForCommand = false
+        // Safety timeout to prevent permanent lock if readyok never arrives
+        setTimeout(() => {
+          if (!isReadyForCommand) {
+            logger.warn('[Engine] readyok timeout! Force-unlocking command queue.')
+            isReadyForCommand = true
+            flushQueue()
+          }
+        }, 2000)
+      }
     } else {
       messageQueue.push(cmd)
+    }
+  }
+
+  function flushQueue() {
+    while (messageQueue.length > 0 && isReadyForCommand) {
+      const next = messageQueue.shift()
+      if (next) sendCommand(next)
     }
   }
 
   // Mortal Pillar
   const mortal = useMortalLogic()
   const activeArchetype = ref<string | null>(null)
+  const activeBot = ref<any>(null)
+  const isMortalThinking = ref(false)
 
   function init() {
     if (worker) return
@@ -113,42 +133,46 @@ export const useEngineStore = defineStore('engine', () => {
         sendCommand('isready')
       } else if (msg === 'readyok') {
         isReadyForCommand = true
-        // Flush the queue
-        while (messageQueue.length > 0 && isReadyForCommand) {
-          const next = messageQueue.shift()
-          if (next) sendCommand(next)
-        }
+        flushQueue()
       } else if (msg.startsWith('info ')) {
         throttledParseInfo(msg)
       } else if (msg.startsWith('bestmove')) {
         const parts = msg.split(' ')
         if (parts[1]) {
-          // If in Mortal Mode, we might override the bestmove with a practical one
-          if (activeArchetype.value && multiPvs.value.length > 1 && mortal.shouldBlunder(activeArchetype.value)) {
-            // Pick a move from the MultiPV list that isn't the absolute best
-            const practicalMove = multiPvs.value[1]?.moves[0]
-            if (practicalMove) {
-              logger.info(`[Mortal] Intentionally blundering: ${parts[1]} -> ${practicalMove}`)
-              bestMove.value = practicalMove
-            } else {
-              bestMove.value = parts[1]
+          // Handle "Mortal" play styles (deliberate blunders)
+          if (activeBot.value) {
+            // Only apply Mortal logic if we have multiple moves to choose from
+            // and the archetype decides to blunder.
+            if (activeArchetype.value && multiPvs.value.length > 1 && mortal.shouldBlunder(activeArchetype.value)) {
+              isMortalThinking.value = true
+              
+              // Simulate "thinking time" for realism
+              setTimeout(() => {
+                const practicalMove = mortal.getPracticalMove(parts[1], multiPvs.value)
+                bestMove.value = practicalMove
+                isMortalThinking.value = false
+                isAnalyzing.value = false
+              }, Math.random() * 2000 + 500)
+              
+              return // Exit early, the timeout will handle the rest
             }
-          } else {
-            bestMove.value = parts[1]
           }
+          
+          // Default: Perfect play or single move available
+          bestMove.value = parts[1]
         }
         isAnalyzing.value = false
-        if (pendingInfo) {
+      }
+      if (pendingInfo) {
           applyInfo(pendingInfo)
           pendingInfo = null
-        }
       }
     }
     sendCommand('uci')
   }
 
-  function reboot() {
-    if (rebootCount > 3) {
+  function reboot(force: boolean = false) {
+    if (!force && rebootCount > 3) {
         logger.error('[Engine] Critical: Too many reboots. Engine disabled to prevent browser freeze.');
         isAnalyzing.value = false;
         return;
@@ -189,7 +213,7 @@ export const useEngineStore = defineStore('engine', () => {
     } catch (e) {
       logger.warn('[Engine] Could not record reboot in adminStore (Store not ready)');
     }
-    
+
     init();
 
     // If we were analyzing, resume after a short delay to allow init to finish
@@ -204,6 +228,12 @@ export const useEngineStore = defineStore('engine', () => {
         isRebooting.value = false;
       }, 3000);
     }
+  }
+
+  function resetRebootCount() {
+    rebootCount = 0
+    if (rebootResetTimer) clearTimeout(rebootResetTimer)
+    logger.info('[Engine] Reboot count reset.')
   }
   
   function throttledParseInfo(msg: string) {
@@ -355,20 +385,7 @@ export const useEngineStore = defineStore('engine', () => {
     pendingInfo = null
   }
 
-  function setBotOptions(bot: any) {
-    if (!worker) init()
-    
-    // Reset to defaults or apply bot specifics
-    sendCommand(`setoption name Skill Level value ${bot.skillLevel ?? 20}`)
-    
-    if (bot.elo) {
-      sendCommand('setoption name UCI_LimitStrength value true')
-      sendCommand(`setoption name UCI_Elo value ${bot.elo}`)
-    } else {
-      sendCommand('setoption name UCI_LimitStrength value false')
-    }
-    
-  }
+
 
   /**
    * Configures the engine to use a specific Mortal personality.
@@ -387,53 +404,47 @@ export const useEngineStore = defineStore('engine', () => {
   function analyze(fen: string, depth = 15, bot?: any) {
     if (!worker) init()
     
-    if (bot) {
-      setBotOptions(bot)
-      depth = bot.depth || depth
-    }
+    activeBot.value = bot
+
+    logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     
-    // 1. Idempotency Check: Don't re-analyze the same thing
+    // 1. Idempotency Check: Don't re-analyze exactly the same state
     if (lastAnalyzedFen === fen && lastAnalyzedDepth === depth && !isRebooting.value) {
       return
     }
 
-    lastAnalyzedFen = fen;
-    lastAnalyzedDepth = depth;
-    lastAnalyzedBot = bot;
-
-    logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
-    
-    // Parse turn from FEN to normalize evaluation later
-    const parts = fen.split(' ')
-    
-    // Basic FEN validation: check for 6 fields and move turn
-    if (parts.length < 2) {
-        logger.warn('[Engine] Invalid FEN passed to analyze:', fen)
-        return
+    // 2. Stop ongoing analysis and clear state
+    if (isAnalyzing.value) {
+      stop()
     }
-
-    stop() // Stop any ongoing analysis
     
-    activeTurn = (parts[1] === 'b') ? 'b' : 'w'
-    
-    isAnalyzing.value = true
-    currentDepth.value = 0
-    evalScoreCp.value = 0
-    evalMate.value = null
+    // Reset bestMove and ensure reactivity by clearing it
     bestMove.value = ''
-    pv.value = []
+    lastAnalyzedFen = fen
+    lastAnalyzedDepth = depth
     multiPvs.value = []
-    analysisStartTime = Date.now()
     
-    // Performance: Only send ucinewgame on starting position to preserve hash between moves
-    if (fen.includes('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')) {
-      sendCommand('ucinewgame')
+    // 3. Set standard UCI options
+    sendCommand('setoption name UCI_AnalyseMode value true')
+    sendCommand(`setoption name Skill Level value ${bot?.skillLevel ?? 20}`)
+    
+    // Apply ELO if specified
+    if (bot?.elo) {
+      sendCommand('setoption name UCI_LimitStrength value true')
+      sendCommand(`setoption name UCI_Elo value ${bot.elo}`)
+    } else {
+      sendCommand('setoption name UCI_LimitStrength value false')
     }
-    
+
+    if (bot?.contempt !== undefined) {
+      sendCommand(`setoption name Contempt value ${bot.contempt}`)
+    }
+
+    // 4. Start analysis
+    isAnalyzing.value = true
     sendCommand('isready') 
     sendCommand(`position fen ${fen}`)
     
-    // Safety: Cap depth at 24 to prevent stack overflows in WASM
     const safeDepth = Math.min(depth, 24)
     sendCommand(`go depth ${safeDepth}`)
   }
@@ -469,9 +480,11 @@ export const useEngineStore = defineStore('engine', () => {
   return {
     isReady, isAnalyzing, evalScoreCp, evalMate, bestMove, suggestedMove, currentDepth, pv, multiPvs,
     evalNumber, evalPercent,
-    init, analyze, stop,
+    init, analyze, stop, reboot, resetRebootCount,
     setMortalArchetype,
     activeArchetype,
+    activeBot,
+    isMortalThinking,
     isRebooting
   }
 })

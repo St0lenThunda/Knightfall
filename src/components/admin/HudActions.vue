@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { useGameStore } from '../../stores/gameStore'
-import { useUiStore } from '../../stores/uiStore'
 import { logger } from '../../utils/logger'
 
 const gameStore = useGameStore()
-const uiStore = useUiStore()
 
 const handleRescue = () => {
   logger.warn('[Admin] Manual rescue triggered. Force-resetting engine state.')
-  gameStore.startMatch()
-  uiStore.addToast('Engine resuscitated. Interactivity restored.', 'info')
+  gameStore.resuscitate()
 }
 </script>
 

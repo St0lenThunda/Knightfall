@@ -110,9 +110,34 @@ export function useMortalLogic() {
     return Math.random() < archetype.blunderRate
   }
 
+  /**
+   * Simulates a human blunder by selecting a sub-optimal move from the MultiPV analysis.
+   * 
+   * @param bestMove - The objectively best move found by the engine
+   * @param multiPvs - Array of alternative lines evaluated by the engine
+   */
+  function getPracticalMove(bestMove: string, multiPvs: any[]): string {
+    if (!multiPvs || multiPvs.length < 2) return bestMove
+    
+    // Pick the 2nd or 3rd best move to simulate a "human" miscalculation
+    const blunderIndex = Math.min(
+      Math.floor(Math.random() * (multiPvs.length - 1)) + 1, 
+      2 // Don't pick worse than the 3rd best move to avoid playing literal nonsense
+    )
+    
+    const chosenPv = multiPvs[blunderIndex]
+    if (chosenPv && chosenPv.moves && chosenPv.moves.length > 0) {
+      logger.info(`[Mortal] Simulated blunder: Selected PV ${blunderIndex + 1} instead of PV 1.`)
+      return chosenPv.moves[0]
+    }
+    
+    return bestMove
+  }
+
   return {
     ARCHETYPES: MORTAL_ARCHETYPES,
     getUciCommands,
-    shouldBlunder
+    shouldBlunder,
+    getPracticalMove
   }
 }
