@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
 import AnalysisControls from '../../../components/analysis/AnalysisControls.vue'
-import { useSettingsStore } from '../../../stores/settingsStore'
 
 describe('AnalysisControls Component', () => {
   const defaultProps = {

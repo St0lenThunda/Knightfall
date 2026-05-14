@@ -52,10 +52,17 @@ describe('EvaluationHeader Component', () => {
   })
 
   it('updates bar width based on evalPercent', () => {
+    // We must seed `analysisShowEvalBar: true` because the eval bar is wrapped in
+    // `v-if="settings.analysisShowEvalBar"`. Without it, `createTestingPinia`
+    // defaults the value to `undefined`, hiding `.eval-bar-horizontal` and its
+    // child `.eval-fill` before we ever get to inspect the style binding.
     const wrapper = mount(EvaluationHeader, { 
       props: { ...defaultProps, evalPercent: 75 },
       global: {
-        plugins: [createTestingPinia({ createSpy: vi.fn })]
+        plugins: [createTestingPinia({ 
+          createSpy: vi.fn,
+          initialState: { settings: { analysisShowEvalBar: true } }
+        })]
       }
     })
     const fill = wrapper.find('.eval-fill')
