@@ -104,8 +104,13 @@ export function useAnalysisPlayers() {
     }
   })
 
+  const isUserBlack = computed(() => {
+    return userStore.isMe(resolvedPlayers.value.black.name) && !userStore.isMe(resolvedPlayers.value.white.name)
+  })
+
   return {
     resolvedPlayers,
-    playerNames
+    playerNames,
+    isUserBlack
   }
 }
