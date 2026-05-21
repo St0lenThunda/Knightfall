@@ -8,6 +8,9 @@ test.describe('Puzzle Trials', () => {
     await expect(page.locator('.puzzle-card')).toBeVisible();
     await expect(page.locator('.chess-board')).toBeVisible();
 
+    // Dismiss intro overlay
+    await page.getByRole('button', { name: /Enter the Shadow Realm/i }).click();
+
     // Check hint functionality
     const hintBtn = page.locator('button:has-text("Hint")');
     await expect(hintBtn).toBeEnabled();
@@ -24,6 +27,9 @@ test.describe('Puzzle Trials', () => {
     
     const initialId = await page.locator('.label:has-text("Puzzle #")').textContent();
     
+    // Dismiss intro overlay
+    await page.getByRole('button', { name: /Enter the Shadow Realm/i }).click();
+
     await page.click('button:has-text("Skip")');
     
     // Wait for next puzzle
