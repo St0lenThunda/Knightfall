@@ -113,10 +113,10 @@ test.describe('Gameplay to Analysis Pipeline', () => {
     // Verify analysis sidebar is active
     await expect(page.locator('.analysis-sidebar')).toBeVisible();
     
-    // Verify that the moves from the game are present in the history
+    // Verify game moves were loaded into analysis (2 moves were played)
     // Note: analysis-page might have slightly different classes if it's a different MoveHistory instance
     const analysisMoves = page.locator('.analysis-page .moves-list .move-btn');
-    await expect(analysisMoves).toHaveCount(6, { timeout: 30000 });
+    await expect(analysisMoves).toHaveCount(2, { timeout: 30000 });
 
     console.log('[E2E] In Analysis view. Checking AI coach...');
 
