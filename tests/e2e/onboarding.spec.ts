@@ -43,10 +43,8 @@ test.describe('New Game Onboarding Flow', () => {
     
     // Test Carousel Navigation
     await page.click('button.nav-arrow.right');
-    // Give it a moment for the transition
-    await page.waitForTimeout(500); 
-    const nextBotName = await botName.textContent();
-    expect(initialBotName).not.toBe(nextBotName);
+    // Wait for the text to change to anything but the initial bot name
+    await expect(botName).not.toHaveText(initialBotName || '', { timeout: 5000 });
 
     // Test Educational Tooltips
     // Hover the 'ⓘ' next to DEPTH
