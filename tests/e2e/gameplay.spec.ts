@@ -21,9 +21,9 @@ test.describe('Gameplay Mechanics', () => {
     await page.getByRole('button', { name: /Show Intel/ }).click();
     await expect(page.locator('.side-panel')).toBeVisible();
 
-    await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.locator('.piece-wrapper[data-square="e2"]').click();
     await page.waitForTimeout(500);
-    await page.locator('[data-square="e4"]').first().click({ force: true });
+    await page.locator('.board-square[data-square="e4"]').click();
     await page.waitForTimeout(500);
 
     // Verify move was made by checking move history
@@ -46,9 +46,9 @@ test.describe('Gameplay Mechanics', () => {
     await page.getByRole('button', { name: /Show Intel/ }).click();
     await expect(page.locator('.side-panel')).toBeVisible();
     
-    await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.locator('.piece-wrapper[data-square="e2"]').click();
     await page.waitForTimeout(500);
-    await page.locator('[data-square="e4"]').first().click({ force: true });
+    await page.locator('.board-square[data-square="e4"]').click();
     // The bot might respond instantly, so we check for >= 1 move
     const moveCount = await page.locator('.move-btn').count();
     expect(moveCount).toBeGreaterThanOrEqual(1);

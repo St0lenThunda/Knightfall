@@ -85,25 +85,25 @@ test.describe('Gameplay to Analysis Pipeline', () => {
 
     // --- STEP 2: PLAY A FEW MOVES (Ruy Lopez) ---
     // Move 1: e4
-    await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.locator('.piece-wrapper[data-square="e2"]').click();
     await page.waitForTimeout(300);
-    await page.locator('[data-square="e4"]').first().click({ force: true });
+    await page.locator('.board-square[data-square="e4"]').click();
 
     // Wait for move 1 (White e4) and move 2 (Black response)
     await expect(page.locator('.moves-list .move-btn')).toHaveCount(2, { timeout: 30000 });
 
     // Move 2: Nf3
-    await page.locator('[data-square="g1"]').first().click({ force: true });
+    await page.locator('.piece-wrapper[data-square="g1"]').click();
     await page.waitForTimeout(300);
-    await page.locator('[data-square="f3"]').first().click({ force: true });
+    await page.locator('.board-square[data-square="f3"]').click();
     
     // Wait for computer response (total 4 moves)
     await expect(page.locator('.moves-list .move-btn')).toHaveCount(4, { timeout: 30000 });
 
     // Move 3: Bb5
-    await page.locator('[data-square="f1"]').first().click({ force: true });
+    await page.locator('.piece-wrapper[data-square="f1"]').click();
     await page.waitForTimeout(300);
-    await page.locator('[data-square="b5"]').first().click({ force: true });
+    await page.locator('.board-square[data-square="b5"]').click();
     
     // Wait for computer response (total 6 moves)
     await expect(page.locator('.moves-list .move-btn')).toHaveCount(6, { timeout: 30000 });
