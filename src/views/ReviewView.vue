@@ -4,10 +4,12 @@ import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
 import { useEngineStore } from '../stores/engineStore'
 import { useReviewSession } from '../composables/useReviewSession'
+import { useAnalysisPlayers } from '../composables/useAnalysisPlayers'
 import ChessBoard from '../components/ChessBoard.vue'
 
 const store = useGameStore()
 const userStore = useUserStore()
+const { isUserBlack } = useAnalysisPlayers()
 const { 
   isActive, 
   currentMistake, 
@@ -104,7 +106,7 @@ async function handleMove() {
 
     <div v-if="isActive && currentMistake" class="review-layout">
       <div class="board-section">
-        <ChessBoard @move="handleMove" />
+        <ChessBoard :flipped="isUserBlack" @move="handleMove" />
         
         <div class="progress-bar-wrap">
           <div class="progress-bar-inner" :style="{ width: progress + '%' }"></div>

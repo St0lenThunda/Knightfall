@@ -24,7 +24,7 @@
           />
 
           <ChessBoard 
-            :flipped="false" 
+            :flipped="isUserBlack" 
             :interactive="false"
             :arrows="engineArrows" 
             :moveQuality="currentMoveQuality"
@@ -213,7 +213,7 @@ const { goToEnd, importPgnStr, loadDemo } = useAnalysisControls()
 
 // Domain Logic Composables
 const { metrics, diagnosis } = usePositionalHealth(() => store.fen, () => engineStore.evalNumber)
-const { resolvedPlayers, playerNames } = useAnalysisPlayers()
+const { resolvedPlayers, playerNames, isUserBlack } = useAnalysisPlayers()
 const { isPlaying, pauseReason, togglePlayback, initializeSession } = useAnalysisSession()
 
 // Watch for FEN changes to update cloud availability
