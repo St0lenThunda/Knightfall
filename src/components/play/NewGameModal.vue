@@ -25,7 +25,7 @@ const emit = defineEmits(['close', 'start'])
 // Local state for the workflow
 const step = ref(1) // 1: Mode, 2: Opponent, 3: Parameters
 const selectedMode = ref<GameMode>('vs-computer')
-const selectedColor = ref<Color>('w')
+const selectedColor = ref<Color | 'r'>('w')
 const selectedTc = ref<TimeControl>(TIME_CONTROLS[1]) // 10+5 as default
 const activeBotIndex = ref(0)
 
@@ -36,8 +36,9 @@ const modes: { id: GameMode; icon: string; label: string; desc: string }[] = [
   { id: 'vs-computer', icon: '🤖', label: 'vs Computer', desc: 'Challenge a silicon intelligence.' },
 ]
 
-const colors: { value: Color; icon: string; label: string }[] = [
+const colors: { value: Color | 'r'; icon: string; label: string }[] = [
   { value: 'w', icon: '♔', label: 'White side' },
+  { value: 'r', icon: '🎲', label: 'Random' },
   { value: 'b', icon: '♚', label: 'Black side' },
 ]
 
@@ -68,9 +69,13 @@ function cycleBot(direction: number) {
 }
 
 function finalize() {
+  const resolvedColor = selectedColor.value === 'r' 
+    ? (Math.random() < 0.5 ? 'w' : 'b') 
+    : selectedColor.value
+
   emit('start', {
     mode: selectedMode.value,
-    color: selectedColor.value,
+    color: resolvedColor,
     tc: selectedTc.value,
     bot: activeBot.value
   })
