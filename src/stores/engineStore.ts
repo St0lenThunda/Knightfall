@@ -47,7 +47,7 @@ export const useEngineStore = defineStore('engine', () => {
   // State persistence for self-healing reboots
   let lastAnalyzedFen = ''
   let lastAnalyzedDepth = 0
-  let lastAnalyzedBot = ''
+  let lastAnalyzedBot: Bot | null = null
 
   // Command Queue for stable worker handshaking
   let messageQueue: string[] = []
@@ -183,7 +183,6 @@ export const useEngineStore = defineStore('engine', () => {
     const wasAnalyzing = isAnalyzing.value;
     const lastFen = lastAnalyzedFen;
     const lastDepth = lastAnalyzedDepth;
-    const lastBot = lastAnalyzedBot;
 
     rebootCount++;
     if (rebootResetTimer) clearTimeout(rebootResetTimer);
@@ -222,7 +221,7 @@ export const useEngineStore = defineStore('engine', () => {
     if (wasAnalyzing && lastFen) {
       setTimeout(() => {
         isRebooting.value = false;
-        analyze(lastFen, Math.max(10, lastDepth - 4), lastBot);
+        analyze(lastFen, Math.max(10, lastDepth - 4), lastAnalyzedBot || undefined);
       }, 3000); // 3s breathing room for recovery
     } else {
       setTimeout(() => {
@@ -405,7 +404,7 @@ export const useEngineStore = defineStore('engine', () => {
   function analyze(fen: string, depth = 15, bot?: Bot) {
     if (!worker) init()
     
-    activeBot.value = bot
+    activeBot.value = bot || null
 
     logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
     

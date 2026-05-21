@@ -127,7 +127,7 @@ export function calculateRatingHistory(
         // Priority 1: Use persisted userSide if available
         // Priority 2: Use provided isMe predicate
         // Priority 3: Default to white
-        const isWhite = g.userSide === 'white' || (g.userSide === undefined && isMe && isMe(g.white)) || (g.userSide === undefined && !isMe);
+        const isWhite = (g as any).userSide === 'white' || ((g as any).userSide === undefined && isMe && isMe(g.white)) || ((g as any).userSide === undefined && !isMe);
 
         if (g.result === 'win' || g.result === '1-0') {
             resultValue = isWhite ? 1.0 : 0.0;
@@ -143,9 +143,9 @@ export function calculateRatingHistory(
         }
 
         // Resolve opponent rating (handles both UserStore and LibraryStore formats)
-        let oppRating = g.opponentRating;
+        let oppRating = (g as any).opponentRating;
         if (oppRating === undefined) {
-            const oppRatingStr = isWhite ? g.blackElo : g.whiteElo;
+            const oppRatingStr = isWhite ? (g as any).blackElo : (g as any).whiteElo;
             oppRating = oppRatingStr ? parseInt(oppRatingStr) : null;
         }
         

@@ -105,11 +105,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCurriculumStore } from '../stores/curriculumStore'
 import { useUserStore } from '../stores/userStore'
-import type { AssessmentResult } from '../stores/curriculum/useAssessmentEngine'
 import { logger } from '../utils/logger'
 
 import { useDnaFanfare } from '../composables/useDnaFanfare'
@@ -124,8 +122,6 @@ const progress = ref(0)
 const statusMessage = ref('Analyzing tactical floor...')
 
 const {
-  containerRef,
-  particleCanvas,
   eloIsRevealed,
   eloDisplayValue,
   computedElo,

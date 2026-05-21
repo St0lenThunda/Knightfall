@@ -1,6 +1,5 @@
 import { onMounted, onUnmounted, type Ref } from 'vue'
 import type { LibraryGame } from '../types'
-import { logger } from '../../../utils/logger'
 
 // Import Sub-Modules
 import { useAnalysisTelemetry } from './telemetry'
