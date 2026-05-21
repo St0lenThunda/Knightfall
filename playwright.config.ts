@@ -18,7 +18,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1, // Add a retry for flakiness
-  workers: 1, 
+  workers: process.env.CI ? 1 : undefined, 
   
   reporter: 'html',
   use: {
@@ -46,4 +46,12 @@ export default defineConfig({
       use: { ...devices['Desktop Safari'] },
     },
   ],
+
+  /* Spin up local dev server automatically during E2E testing */
+  webServer: {
+    command: 'VITE_CI=true CI=true npm run dev',
+    url: 'http://127.0.0.1:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 60 * 1000,
+  },
 });

@@ -62,6 +62,7 @@
             <PlayGameOverOverlay 
               v-if="store.isGameOver && !store.isCheaterBusted"
               :result="store.gameResult"
+              :reason="store.gameOverReason"
               :isReviewing="isReviewing"
               @newGame="showNewGameModal = true"
               @review="reviewGame()"

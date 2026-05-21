@@ -5,6 +5,7 @@ import App from './App.vue'
 import './style.css'
 
 import { supabase } from './api/supabaseClient'
+import { logger } from './utils/logger'
 
 /**
  * Route Configuration
@@ -35,7 +36,7 @@ const router = createRouter({
     { path: '/profile',  component: () => import('./views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/review',   component: () => import('./views/ReviewView.vue'),  meta: { requiresAuth: true } },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
-    { path: '/assessment', component: () => import('./views/AssessmentView.vue') },
+    { path: '/assessment', component: () => import('./views/OnboardingGauntlet.vue') },
     { path: '/dna-reveal', component: () => import('./views/DnaRevealView.vue') },
     { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue') },
   ],
@@ -49,11 +50,19 @@ const router = createRouter({
  * are redirected to the home page.
  */
 router.beforeEach(async (to) => {
-  if (to.meta.requiresAuth) {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return { path: '/' }
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // Redirect guest users with no DNA profile to the onboarding gauntlet
+  if (to.path === '/' && !session) {
+    const pendingDna = localStorage.getItem('knightfall_pending_dna')
+    if (!pendingDna) {
+      logger.info('[Router] Guest user has no cached DNA. Intercepting to /assessment.')
+      return { path: '/assessment' }
     }
+  }
+
+  if (to.meta.requiresAuth && !session) {
+    return { path: '/' }
   }
 })
 

@@ -10,9 +10,12 @@ test.describe('Gameplay Mechanics', () => {
   });
 
   test('should start a vs-computer game and make a move', async ({ page }) => {
-    await page.click('.mode-btn:has-text("vs Computer")');
-    await page.click('#start-game-btn');
-    await expect(page.locator('.setup-panel')).toBeHidden();
+    await page.click('button:has-text("START NEW GAME")');
+    await page.click('.mode-card:has-text("vs Computer")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("READY FOR BATTLE")');
+    await expect(page.locator('.setup-overlay')).toBeHidden();
     
     // Show Intel to see move list
     await page.getByRole('button', { name: /Show Intel/ }).click();
@@ -33,10 +36,11 @@ test.describe('Gameplay Mechanics', () => {
   });
 
   test('should allow undoing a move', async ({ page }) => {
-    await page.click('.mode-btn:has-text("Pass & Play")');
-    await page.waitForTimeout(200); // Allow state to update
-    await page.click('#start-game-btn');
-    await expect(page.locator('.setup-panel')).toBeHidden();
+    await page.click('button:has-text("START NEW GAME")');
+    await page.click('.mode-card:has-text("Pass & Play")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("READY FOR BATTLE")');
+    await expect(page.locator('.setup-overlay')).toBeHidden();
 
     // Show Intel to see move list
     await page.getByRole('button', { name: /Show Intel/ }).click();
@@ -54,9 +58,11 @@ test.describe('Gameplay Mechanics', () => {
   });
 
   test('should detect resignation', async ({ page }) => {
-    await page.click('.mode-btn:has-text("Pass & Play")');
-    await page.click('#start-game-btn');
-    await expect(page.locator('.setup-panel')).toBeHidden();
+    await page.click('button:has-text("START NEW GAME")');
+    await page.click('.mode-card:has-text("Pass & Play")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("READY FOR BATTLE")');
+    await expect(page.locator('.setup-overlay')).toBeHidden();
 
     // The Resign button should be visible now
     await page.click('button:has-text("Resign")');

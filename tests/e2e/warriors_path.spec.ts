@@ -47,10 +47,10 @@ test.describe("The Warrior's Path & Rite of Oblivion", () => {
     // Switch to Board Settings Tab
     await page.click('button:has-text("Board")');
     
-    // Change Board Theme
+    // Change Piece Set Theme
     const themeSelect = page.locator('select').first();
     const originalTheme = await themeSelect.inputValue();
-    const targetTheme = originalTheme === 'midnight' ? 'emerald' : 'midnight';
+    const targetTheme = originalTheme === 'classic' ? 'glass' : 'classic';
     
     await themeSelect.selectOption(targetTheme);
     
@@ -79,8 +79,8 @@ test.describe("The Warrior's Path & Rite of Oblivion", () => {
     const confirmPurgeBtn = confirmModal.locator('button:has-text("Purge Identity")');
     await confirmPurgeBtn.click();
 
-    // Verify Redirect to Home (Landing Page)
-    await expect(page).toHaveURL(/.*127\.0\.0\.1:5173\/?$/);
+    // Verify Redirect to Assessment Landing Page (as user is now logged out with no DNA)
+    await expect(page).toHaveURL(/.*\/assessment\/?$/);
     
     // Verify session is cleared (Login button should be visible again)
     await expect(page.locator('button:has-text("Login")')).toBeVisible({ timeout: 10000 });

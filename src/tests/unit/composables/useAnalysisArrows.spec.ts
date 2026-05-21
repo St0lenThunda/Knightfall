@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAnalysisArrows } from '../../../composables/analysis/useAnalysisArrows'
 import { useEngineStore } from '../../../stores/engineStore'
@@ -14,7 +14,7 @@ describe('useAnalysisArrows Composable', () => {
     const settings = useSettingsStore()
     
     settings.showBestMoveArrow = true
-    engineStore.suggestedMove = 'e2e4'
+    engineStore.bestMove = 'e2e4'
     
     const { engineArrows } = useAnalysisArrows()
     expect(engineArrows.value).toContainEqual({
@@ -29,7 +29,7 @@ describe('useAnalysisArrows Composable', () => {
     const settings = useSettingsStore()
     
     settings.showBestMoveArrow = false
-    engineStore.suggestedMove = 'e2e4'
+    engineStore.bestMove = 'e2e4'
     
     const { engineArrows } = useAnalysisArrows()
     expect(engineArrows.value.some(a => a.type === 'suggestion')).toBe(false)

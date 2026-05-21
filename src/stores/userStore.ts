@@ -216,6 +216,9 @@ export const useUserStore = defineStore('user', () => {
   /**
    * Promotes anonymous guest assessment data to the permanent user profile.
    * This is the "Bridge" that makes the Delayed Signup Gate work.
+   * 
+   * It synchronizes the calibrated archetype, rating, and puzzle rating from 
+   * the local storage assessment payload directly to Supabase.
    */
   async function promoteGuestData() {
     if (!profile.value) return
@@ -223,12 +226,22 @@ export const useUserStore = defineStore('user', () => {
     try {
       const pending = localStorage.getItem('knightfall_pending_dna')
       if (pending) {
-        const { archetype } = JSON.parse(pending)
-        logger.info(`[UserStore] Found guest DNA: ${archetype}. Promoting to profile...`)
+        const pendingData = JSON.parse(pending)
+        logger.info(`[UserStore] Found guest DNA for promotion:`, pendingData)
 
-        await updateProfile({
-          archetype: archetype
-        })
+        // Calibrate legacy members/new signups by saving both ELO rating and DNA archetype
+        const updates: Partial<UserProfile> = {
+          archetype: pendingData.archetype
+        }
+
+        if (pendingData.rating) {
+          updates.rating = pendingData.rating
+        }
+        if (pendingData.puzzle_rating) {
+          updates.puzzle_rating = pendingData.puzzle_rating
+        }
+
+        await updateProfile(updates)
 
         localStorage.removeItem('knightfall_pending_dna')
         
@@ -411,6 +424,7 @@ export const useUserStore = defineStore('user', () => {
 
     // Orchestration Actions
     fetchUserData,
+    promoteGuestData,
     submitPuzzleAttempt,
     updateProfile,
     submitGauntletResult,

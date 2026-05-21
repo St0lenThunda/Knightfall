@@ -91,14 +91,38 @@ export const useGameStore = defineStore('game', () => {
     return '*'
   })
 
+  /**
+   * Computes a human-readable reason for the match completion.
+   * Helps differentiate between resignation, timeout, checkmate, stalemate, and draw in overlays.
+   * 
+   * @returns string | null - Human-readable reason or null if match is active
+   */
+  const gameOverReason = computed(() => {
+    // Resignation takes priority over board logic end states
+    if (resignationWinner.value) return 'Resignation'
+    // Time out flags are tracked on the clock pillar
+    if (clock.timeOutWinner.value) return 'Time Out'
+    
+    // Fall back to specific chess rules checked by the board engine
+    if (boardLogic.isGameOver.value) {
+      if (boardLogic.isCheckmate.value) return 'Checkmate'
+      if (boardLogic.isStalemate.value) return 'Stalemate'
+      if (boardLogic.isDraw.value) return 'Draw'
+    }
+    
+    return null
+  })
+
   // --- DEBUG WATCHERS ---
-  watch(mode, (newMode) => {
-    logger.info(`[GameStore] Mode changed: ${newMode}`)
-  })
-  
-  watch(loadedGameId, (newId) => {
-    logger.info(`[GameStore] LoadedGameId changed: ${newId || 'N/A'}`)
-  })
+  if (import.meta.env.DEV) {
+    watch(mode, (newMode) => {
+      logger.info(`[GameStore] Mode changed: ${newMode}`)
+    })
+    
+    watch(loadedGameId, (newId) => {
+      logger.info(`[GameStore] LoadedGameId changed: ${newId || 'N/A'}`)
+    })
+  }
 
   // Sync playerColor with boardLogic
   watch(playerColor, (newColor) => {
@@ -474,6 +498,7 @@ export const useGameStore = defineStore('game', () => {
     isPlayersTurn,
     isBotTurn,
     gameResult,
+    gameOverReason,
 
     // Orchestration Actions
     newGame,

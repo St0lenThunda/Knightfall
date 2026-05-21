@@ -208,7 +208,6 @@ const currentTag = ref<TaggedMistake | null>(null)
 // Initialize Pillar Logic
 const { engineArrows } = useAnalysisArrows()
 const { isCloudScanning, hasCloudData, deepCloudScan, checkAvailability } = useAnalysisCloud()
-const { isCloudScanning: isScanning, deepCloudScan: runScan } = { isCloudScanning, deepCloudScan } // Keep aliases if needed, but we can just use the new ones
 const { currentViewedMove, currentMoveQuality, selectedMoveLabel } = useAnalysisMoveContext()
 const { goToEnd, importPgnStr, loadDemo } = useAnalysisControls()
 

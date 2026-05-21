@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { logger } from '../utils/logger'
 
 /**
  * Supabase Client Initialization
@@ -19,7 +20,11 @@ if (
   supabaseUrl.includes('mock')
 ) {
   // Never throw in CI/Test environments
-  const isCI = import.meta.env.PROD || !!import.meta.env.CI || !!import.meta.env.VITEST
+  const isCI =
+    import.meta.env.PROD ||
+    !!import.meta.env.CI ||
+    !!import.meta.env.VITEST ||
+    !!import.meta.env.VITE_CI
 
   if (import.meta.env.DEV && !isCI) {
     throw new Error(
@@ -28,7 +33,7 @@ if (
     )
   }
   // In production, warn but don't crash — the user may be offline
-  console.warn(
+  logger.warn(
     '[Knightfall] Supabase credentials are missing. Backend features will be unavailable.'
   )
 }

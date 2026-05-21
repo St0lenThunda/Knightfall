@@ -34,7 +34,7 @@ export function useLibraryFilter(
     const st = selectedTag.value
     const fp = filterPerspective.value
 
-    const isLoggedIn = !!userStore.session
+
 
     let result = games.value.filter(g => {
       // 1. Search Query

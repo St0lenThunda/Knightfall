@@ -122,6 +122,29 @@ export function useAntiCheat() {
     import('../stores/uiStore').then(({ useUiStore }) => {
       const ui = useUiStore()
       ui.addToast(`[WARDEN] Visibility Violation Detected. (Count: ${blurCount.value})`, 'warning', 6000)
+      
+      // Warning after the 3rd blur: educate user on security triggers, legitimate and illegitimate causes.
+      // We use the custom ConfirmModal/uiStore overlay to avoid using native browser alert/confirm calls,
+      // maintaining the premium glassmorphism UX of Knightfall.
+      if (blurCount.value === 3) {
+        ui.confirm(
+          'Security Warning: Window Defocus Detected',
+          'You have triggered a 3rd visibility violation. Repeatedly leaving the match screen during active gameplay is flagged as suspicious.\n\n' +
+          'Legitimate causes include:\n' +
+          '• Accidental clicks on other windows/monitors\n' +
+          '• OS notifications, system updates, or screenshots\n' +
+          '• Changing virtual desktops or workspaces\n\n' +
+          'Illegitimate causes include:\n' +
+          '• Consulting external chess engines or solvers\n' +
+          '• Reviewing chess databases/theory during play\n' +
+          '• Tab-switching to calculators or helper tools\n\n' +
+          'Please maintain focus on the board. A 4th violation will trigger automated security action and forfeit the match.',
+          () => {
+            // Dismiss warning, continue game
+          },
+          { icon: '⚠️', variant: 'danger', label: 'I Understand' }
+        )
+      }
     })
 
     import('../stores/adminStore').then(({ useAdminStore }) => {

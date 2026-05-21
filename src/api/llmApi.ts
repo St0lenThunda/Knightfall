@@ -29,7 +29,6 @@ function generateMockCoaching(req: CoachingRequest): string {
   const best = req.bestMove || 'unknown'
   const isUser = req.isUserMove
   const player = isUser ? "You" : (req.playerName || 'The opponent')
-  const opponent = isUser ? (req.opponentName || 'The opponent') : "you"
   const evalAbs = Math.abs(req.evalNumber)
   const evalStr = `${req.evalNumber > 0 ? '+' : ''}${req.evalNumber.toFixed(1)}`
   const moveNum = req.moveNumber || 0

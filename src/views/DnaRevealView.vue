@@ -1,5 +1,5 @@
 <template>
-  <div class="dna-reveal-container page" :class="!isSequencing ? 'theme-' + archetype.id : ''">
+  <div ref="containerRef" class="dna-reveal-container page" :class="!isSequencing ? 'theme-' + archetype.id : ''">
     <div v-if="isSequencing" class="sequencing-overlay">
       <div class="dna-helix-container">
         <div v-for="i in 20" :key="i" class="dna-dot" :style="{ '--i': i }"></div>
@@ -19,6 +19,52 @@
           <div class="dna-badge">ARCHETYPE IDENTIFIED</div>
           <h1 class="archetype-name">{{ archetype.name }}</h1>
           <div class="archetype-icon">{{ archetype.icon }}</div>
+
+          <!-- ── Elo Fanfare Badge ─────────────────────────────────────── -->
+          <!--
+            The badge starts as a sealed wax-stamp.
+            Clicking it triggers the full fanfare sequence:
+              1. Seal breaks open (CSS animation)
+              2. Number counts up from 0 to final Elo over 1.5s
+              3. Archetype-colored particles burst outward
+              4. Web Audio API rank-up chime plays
+              5. Tier label + percentile message fade in
+          -->
+          <!-- ── Elo Fanfare Badge ───────────────────────────── -->
+          <!--
+            Particle canvas is Teleported to <body> so it is never
+            subject to the archetype-card's overflow:hidden. It covers the
+            full viewport during the burst then self-clears.
+          -->
+          <Teleport to="body">
+            <canvas ref="particleCanvas" class="particle-canvas-global" aria-hidden="true" />
+          </Teleport>
+
+          <div
+            class="elo-fanfare-wrapper mt-4"
+            @click="triggerFanfare"
+            role="button"
+            aria-label="Tap to reveal your Oracle Rating"
+          >
+            <!-- SEALED STATE -->
+            <div v-if="!eloIsRevealed" class="wax-seal">
+              <span class="seal-icon">🔮</span>
+              <span class="seal-label">TAP TO REVEAL</span>
+            </div>
+
+            <!-- REVEALED STATE -->
+            <div v-else class="elo-revealed-card">
+              <span class="elo-label">ORACLE RATING</span>
+              <div class="elo-number-row">
+                <span class="elo-value">{{ eloDisplayValue }}</span>
+                <span class="elo-suffix">Elo</span>
+              </div>
+              <div class="elo-tier-group">
+                <span class="elo-tier-badge" :class="eloTier.id">{{ eloTier.label }}</span>
+                <p class="elo-percentile">{{ eloPercentile }}</p>
+              </div>
+            </div>
+          </div>
           
           <p class="archetype-description mt-4">
             {{ archetype.description }}
@@ -30,6 +76,17 @@
               <div class="stat-bar-bg">
                 <div class="stat-bar-fill" :style="{ width: (val * 100) + '%' }"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- Oracle Rating System Disclaimer: Educates user on official vs unofficial platforms -->
+          <div class="oracle-disclaimer glass-sm mt-6 mb-2">
+            <span class="disclaimer-icon">ℹ️</span>
+            <div class="disclaimer-content">
+              <strong class="disclaimer-title">Oracle Benchmark Notice</strong>
+              <p class="disclaimer-text">
+                The rating generated here is an internal skill benchmark designed for Knightfall's Spaced Repetition queue. It does not represent an official FIDE, USCF, Chess.com, or Lichess rating.
+              </p>
             </div>
           </div>
 
@@ -52,102 +109,74 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCurriculumStore } from '../stores/curriculumStore'
 import { useUserStore } from '../stores/userStore'
+import type { AssessmentResult } from '../stores/curriculum/useAssessmentEngine'
+import { logger } from '../utils/logger'
+
+import { useDnaFanfare } from '../composables/useDnaFanfare'
+import { useArchetypeStats } from '../composables/useArchetypeStats'
 
 // Initialize stores at the very top of setup
 const userStore = useUserStore()
 const router = useRouter()
-const curriculumStore = useCurriculumStore()
 
 const isSequencing = ref(true)
 const progress = ref(0)
 const statusMessage = ref('Analyzing tactical floor...')
 
-const archetypes = [
-  { 
-    id: 'storm', 
-    name: 'The Storm', 
-    icon: '⚡', 
-    description: 'A whirlwind of tactical energy. You rely on instinct and lightning-fast pattern recognition to overwhelm opponents before they can react.'
-  },
-  { 
-    id: 'oracle', 
-    name: 'The Oracle', 
-    icon: '👁️', 
-    description: 'A master of deep visualization. You see the board not as it is, but as it will be, calculating lines that others fear to tread.'
-  },
-  { 
-    id: 'technician', 
-    name: 'The Technician', 
-    icon: '⚙️', 
-    description: 'Precision personified. Your endgame technique and positional accuracy make you a grinder who converts the smallest advantages into victory.'
-  },
-  { 
-    id: 'rogue', 
-    name: 'The Rogue', 
-    icon: '🗡️', 
-    description: 'Unpredictable and sharp. You thrive in chaos, finding unconventional solutions and tactical swindles when your back is against the wall.'
-  },
-  {
-    id: 'student',
-    name: 'The Apprentice',
-    icon: '🌱',
-    description: 'A balanced seeker of wisdom. Your DNA is still forming, showing potential across all categories as you build your unique style.'
+const {
+  containerRef,
+  particleCanvas,
+  eloIsRevealed,
+  eloDisplayValue,
+  computedElo,
+  eloTier,
+  eloPercentile,
+  triggerFanfare
+} = useDnaFanfare()
+
+const { stats, archetype } = useArchetypeStats(computedElo)
+
+const proceedToWarRoom = async () => {
+  if (userStore.session) {
+    const existing = localStorage.getItem('knightfall_pending_dna')
+    let pendingDna: any = {}
+    if (existing) {
+      try {
+        pendingDna = JSON.parse(existing)
+      } catch (e) {
+        logger.error('Failed to parse pending DNA:', e)
+      }
+    }
+    
+    // Merge the detailed archetype and calculated stats into localStorage
+    pendingDna.archetype = archetype.value.id
+    pendingDna.stats = stats.value
+
+    localStorage.setItem('knightfall_pending_dna', JSON.stringify(pendingDna))
+    
+    // Promote and synchronize the guest DNA immediately for the logged-in legacy user
+    await userStore.promoteGuestData()
   }
-]
-
-const stats = computed(() => {
-  const res = curriculumStore.results
-  
-  /**
-   * Calculates a nuanced score for a stage.
-   * We add a tiny bit of "Neural Variance" (random noise) to make the
-   * results feel precisely calculated and unique to the user.
-   */
-  const getWeightedScore = (stageKey: string, timeWeight = 0.2) => {
-    const stage = res.find(r => r.stage === stageKey)
-    if (!stage) return 0.4 + (Math.random() * 0.1) // Baseline for skipped stages
-    
-    // Base accuracy is the foundation
-    const base = stage.accuracy
-    
-    // Time bonus: solving significantly faster than average (15s) gives a boost
-    const timeFactor = Math.max(0, (20 - stage.avgTime) / 20) * timeWeight
-    
-    // Add 1-3% "Neural Noise" for non-symmetrical feel
-    const noise = (Math.random() * 0.04) - 0.02
-    
-    return Math.min(0.98, Math.max(0.1, base + timeFactor + noise))
-  }
-
-  return {
-    tactics: getWeightedScore('tactics', 0.3), // Speed matters more here
-    calculation: getWeightedScore('calculation', 0.1), // Accuracy is king
-    endgame: getWeightedScore('endgame', 0.15),
-    strategy: getWeightedScore('strategy', 0.2),
-    speed: getWeightedScore('speed', 0.4) // Speed is the primary factor
-  }
-})
-
-const archetype = computed(() => {
-  const s = stats.value
-  // Weighted mapping for archetypes
-  if (s.tactics > 0.75 && s.speed > 0.75) return archetypes[0] // Storm
-  if (s.calculation > 0.75 && s.strategy > 0.7) return archetypes[1] // Oracle
-  if (s.endgame > 0.8) return archetypes[2] // Technician
-  if (s.tactics > 0.65) return archetypes[3] // Rogue
-  return archetypes[4] // Student
-})
-
-const proceedToWarRoom = () => {
   router.push('/')
 }
 
 const saveProfile = () => {
+  const existing = localStorage.getItem('knightfall_pending_dna')
+  let pendingDna: any = {}
+  if (existing) {
+    try {
+      pendingDna = JSON.parse(existing)
+    } catch (e) {
+      logger.error('Failed to parse pending DNA:', e)
+    }
+  }
+  
+  // Merge the detailed archetype and calculated stats into localStorage
+  pendingDna.archetype = archetype.value.id
+  pendingDna.stats = stats.value
+
   // Store results in localStorage temporarily so they survive the auth redirect/refresh
-  localStorage.setItem('knightfall_pending_dna', JSON.stringify({
-    archetype: archetype.value.id,
-    stats: stats.value
-  }))
+  localStorage.setItem('knightfall_pending_dna', JSON.stringify(pendingDna))
   document.dispatchEvent(new CustomEvent('open-auth', { detail: 'signup' }))
 }
 
@@ -349,4 +378,235 @@ onMounted(() => {
   opacity: 0;
   transform: scale(0.8) translateY(20px);
 }
+
+.oracle-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  margin-top: var(--space-6);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--text-muted);
+}
+.disclaimer-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.disclaimer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.disclaimer-title {
+  color: var(--text-secondary);
+  font-weight: 750;
+}
+.disclaimer-text {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Elo Fanfare
+   ══════════════════════════════════════════════════════════════════ */
+
+/*
+  All fanfare styles use :deep() to pierce Vue's scoped CSS boundary.
+  Without this, the generated [data-v-xxx] attribute doesn't match
+  the elements correctly when they are conditionally mounted via v-if.
+*/
+
+/* Clickable wrapper */
+:deep(.elo-fanfare-wrapper) {
+  cursor: pointer;
+  border-radius: 12px;
+  margin-top: 16px;
+  transition: filter 0.2s;
+}
+:deep(.elo-fanfare-wrapper:hover) { filter: brightness(1.12); }
+
+/* ── SEALED STATE ── */
+:deep(.wax-seal) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 36px;
+  border-radius: 12px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(139, 92, 246, 0.18) 0%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+  border: 2px solid rgba(139, 92, 246, 0.45);
+  animation: seal-ring-pulse 2.5s ease-in-out infinite;
+}
+
+/* The outer ring pulses to invite interaction */
+@keyframes seal-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1); }
+  50%       { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0.22); }
+}
+
+/* Crystal ball grows and shrinks gently */
+:deep(.seal-icon) {
+  font-size: 2.4rem;
+  display: inline-block;
+  animation: seal-orb-pulse 1.8s ease-in-out infinite;
+}
+@keyframes seal-orb-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.18); }
+}
+
+:deep(.seal-label) {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+/* ── REVEALED STATE ── */
+:deep(.elo-revealed-card) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 36px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  text-align: center;
+  animation: card-appear 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes card-appear {
+  from { opacity: 0; transform: scale(0.88) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Particle canvas — Teleported to <body>, covers full viewport */
+.particle-canvas-global {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Rating card layout ── */
+.elo-revealed-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-8);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  text-align: center;
+  /* No overflow:hidden — particles need to burst beyond this boundary */
+}
+
+/*
+  The canvas covers the entire wrapper so particles burst outward
+  across the full fanfare zone (not clipped by the inner card).
+  It's absolutely positioned relative to .elo-fanfare-wrapper
+  which has position:relative.
+*/
+.particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Clicks pass through to the card */
+  z-index: 2;           /* Above the card content so particles render on top */
+}
+
+.elo-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Number row: the big Elo number + suffix */
+.elo-number-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.elo-value {
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: var(--reveal-accent);
+  /* Glow matches the archetype accent */
+  text-shadow: 0 0 40px var(--reveal-accent), 0 0 80px var(--reveal-accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums; /* Prevent layout shifts during count-up */
+}
+
+.elo-suffix {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ── Post-reveal tier + percentile ── */
+.elo-tier-group {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Tier badge pill */
+.elo-tier-badge {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+
+/* Each tier has its own color token */
+.tier-beginner    { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+.tier-intermediate { color: #a78bfa; background: rgba(167, 139, 250, 0.1); }
+.tier-advanced    { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+.tier-master      { color: #f43f5e; background: rgba(244, 63, 94, 0.1); }
+
+.elo-percentile {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Tier block transitions in softly after count-up */
+.tier-fade-enter-active { transition: opacity 0.6s 1.4s, transform 0.6s 1.4s; }
+.tier-fade-enter-from   { opacity: 0; transform: translateY(6px); }
 </style>

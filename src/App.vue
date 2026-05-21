@@ -27,6 +27,7 @@ import ConfirmModal from './components/ConfirmModal.vue'
 import ArchetypeModal from './components/profile/modals/ArchetypeModal.vue'
 import AdminHud from './components/AdminHud.vue'
 import TelemetryModal from './components/TelemetryModal.vue'
+import { logger } from './utils/logger'
 import { useLibraryStore } from './stores/libraryStore'
 import { useUserStore } from './stores/userStore'
 import { useUiStore } from './stores/uiStore'
@@ -57,7 +58,7 @@ const init = async () => {
     // 2. Once identity is settled, load the tactical vault
     await libraryStore.loadGames()
   } catch (e) {
-    console.warn('[Knightfall] Initialization failed:', e)
+    logger.warn('[Knightfall] Initialization failed:', e)
   }
 }
 

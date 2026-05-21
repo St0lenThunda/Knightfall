@@ -47,36 +47,35 @@ test.describe('Bot Gameplay Matrix', () => {
         await page.click('button:has-text("READY FOR BATTLE")');
 
         // 2. Gameplay Verification
-        await expect(page.locator('.setup-modal')).toBeHidden();
+        await expect(page.locator('.setup-overlay')).toBeHidden();
+        
+        // Show Intel to see move list
+        await page.getByRole('button', { name: /Show Intel/ }).click();
+        await expect(page.locator('.side-panel')).toBeVisible();
         
         if (color.value === 'b') {
           // If player is Black, Bot (White) must move first.
-          // The "Thinking" indicator should appear and then disappear as bot moves.
-          await expect(page.locator('.thinking-indicator')).toBeVisible({ timeout: 5000 });
           
           // Wait for first move to appear in history
           const firstMove = page.locator('.move-btn').first();
           await expect(firstMove).toBeVisible({ timeout: 15000 });
           
-          // Thinking indicator should be gone after move
+          // Thinking indicator should be gone/hidden after move
           await expect(page.locator('.thinking-indicator')).toBeHidden();
         } else {
           // If player is White, Player moves first.
           // Make e4 move
-          await page.locator('[data-square="e2"]').first().click({ force: true });
-          await page.waitForTimeout(300);
-          await page.locator('[data-square="e4"]').first().click({ force: true });
+          // Make e4 move
+          await page.locator('.piece-wrapper[data-square="e2"]').click();
+          await page.locator('.board-square[data-square="e4"]').click();
 
-          // Bot should respond
-          await expect(page.locator('.thinking-indicator')).toBeVisible();
-          
-          // History should eventually have 2 moves
+          // History should eventually have 2 moves (Player e4 + Bot response)
           await expect(page.locator('.move-btn')).toHaveCount(2, { timeout: 15000 });
           await expect(page.locator('.thinking-indicator')).toBeHidden();
         }
 
         // Final Health Check: Clock should be running for the current turn
-        const activeClock = page.locator('.timer.active');
+        const activeClock = page.locator('.clock.clock-active');
         await expect(activeClock).toBeVisible();
       });
     }

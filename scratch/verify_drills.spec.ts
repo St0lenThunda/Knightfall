@@ -18,8 +18,9 @@ describe('Personalized Drills Verification', () => {
         black: 'Bot',
         result: '1-0',
         evals: [
-          ...new Array(16).fill({ score: 0.3, isMate: false }), // moves 1-8
-          { score: -2.5, isMate: false, bestMove: 'Bg3' }, // 9. Nxg5? (Blunder)
+          ...new Array(15).fill({ score: 0.3, isMate: false }), // moves 1-7 and half of 8
+          { score: 0.3, isMate: false, bestMove: 'Bg3' }, // position before 9. Nxg5? (Blunder)
+          { score: -2.5, isMate: false }, // position after 9. Nxg5?
         ],
         analysisCache: {}
       }

@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-import { WebStorage } from 'happy-dom'
 
 /**
  * Knightfall Vitest Global Setup
@@ -21,10 +20,16 @@ Object.defineProperty(global, 'indexedDB', {
   writable: true
 })
 
-// 2. Mock localStorage if needed (Happy-dom provides a basic one, but we harden it)
+// 2. Mock localStorage if needed
 if (!global.localStorage) {
+  const store: Record<string, string> = {}
   Object.defineProperty(global, 'localStorage', {
-    value: new WebStorage()
+    value: {
+      getItem: (key: string) => store[key] || null,
+      setItem: (key: string, value: string) => { store[key] = value },
+      removeItem: (key: string) => { delete store[key] },
+      clear: () => { for (const k in store) delete store[k] }
+    }
   })
 }
 

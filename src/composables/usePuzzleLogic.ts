@@ -46,7 +46,7 @@ export function usePuzzleLogic() {
   const queuePuzzles = ref<Puzzle[]>([])
   const activeCat = ref(route.query.personal ? 'Personal Mistake' : (coachStore.archetypeReport.category || 'mixed'))
 
-  let timerInterval: any = null
+  let timerInterval: ReturnType<typeof setInterval> | null = null
 
   // --- COMPUTED ---
   const puzzleColor = computed(() => {

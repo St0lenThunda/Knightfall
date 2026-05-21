@@ -247,6 +247,8 @@ import { ref, computed } from 'vue'
 import { Chess } from 'chess.js'
 import { useLibraryStore } from '../../stores/libraryStore'
 import { useUserStore } from '../../stores/userStore'
+import { useEngineStore } from '../../stores/engineStore'
+import { logger } from '../../utils/logger'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import StaticBoard from './StaticBoard.vue'
 
@@ -317,7 +319,7 @@ const finalFen = computed(() => {
         safeLoadPgn(c, props.game.pgn)
         return c.fen()
     } catch (e) {
-        console.warn('[GameDetailsModal] Failed to parse FEN from PGN:', e)
+        logger.warn('[GameDetailsModal] Failed to parse FEN from PGN:', e)
         return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     }
 })

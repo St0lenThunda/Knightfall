@@ -6,7 +6,11 @@
  * starting a new game or reviewing the session.
  */
 defineProps<{
+  /** The final score/result of the game, e.g., '1-0', '0-1', '1/2-1/2' */
   result: string | null
+  /** The specific reason for the game ending, e.g., 'Resignation', 'Checkmate' */
+  reason?: string | null
+  /** Whether the AI review report is currently loading */
   isReviewing: boolean
 }>()
 
@@ -16,6 +20,7 @@ defineEmits(['newGame', 'review'])
 <template>
   <div class="game-over-overlay glass">
     <h3 style="color: var(--accent-bright);">Game Over</h3>
+    <p v-if="reason" class="reason-text">{{ reason }}</p>
     <p class="result-text">{{ result }}</p>
     
     <div class="actions">
@@ -45,6 +50,13 @@ defineEmits(['newGame', 'review'])
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   border: 1px solid var(--border);
   backdrop-filter: blur(12px);
+}
+
+.reason-text {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-top: var(--space-1);
 }
 
 .result-text {

@@ -7,6 +7,7 @@
  */
 import { computed, watch } from 'vue'
 import { useMortalLogic } from '../../stores/engine/useMortalLogic'
+import { logger } from '../../utils/logger'
 
 const props = defineProps<{
   topMoves: any[] // Stockfish candidate moves
@@ -38,7 +39,7 @@ const moveProbabilities = computed(() => {
 })
 
 watch(() => props.topMoves, (newMoves: any[]) => {
-  console.log(`[MortalGraph] Received ${newMoves.length} candidate moves`, newMoves)
+  logger.info(`[MortalGraph] Received ${newMoves.length} candidate moves`, newMoves)
 }, { immediate: true })
 </script>
 

@@ -12,7 +12,7 @@ test.describe('New Game Onboarding Flow', () => {
     await page.goto('/play');
     
     // The "New Game" modal is triggered by the setup CTA
-    await page.click('text=START NEW GAME');
+    await page.click('button:has-text("START NEW GAME")');
   });
 
   test('should complete the full setup flow for vs Computer', async ({ page }) => {
@@ -21,8 +21,8 @@ test.describe('New Game Onboarding Flow', () => {
     await expect(page.locator('.step-modal h2')).toContainText('CHOOSE YOUR BATTLE');
     
     // Select "vs Computer" (default)
-    await page.click('text=vs Computer');
-    await page.click('text=NEXT STEP →');
+    await page.click('.mode-card:has-text("vs Computer")');
+    await page.click('button:has-text("NEXT STEP")');
 
     // Step 2: Opponent Selection
     await expect(page.locator('.step-modal h2')).toContainText('SELECT ADVERSARY');
@@ -47,17 +47,17 @@ test.describe('New Game Onboarding Flow', () => {
     const depthTrigger = page.locator('.stat-info-trigger >> nth=0');
     await expect(depthTrigger).toBeVisible();
 
-    await page.click('text=NEXT STEP →');
+    await page.click('button:has-text("NEXT STEP")');
 
     // Step 3: Parameter Selection
     await expect(page.locator('.step-modal h2')).toContainText('SET PARAMETERS');
     
     // Select Side and Time Control
-    await page.click('text=Black side');
-    await page.click('text=10+5'); // 10+5 is default active, but let's click it anyway
+    await page.click('.color-btn:has-text("Black side")');
+    await page.click('.tc-btn:has-text("10m | 5s")'); // 10m | 5s is default active, but let's click it anyway
 
     // Finalize: Start the Battle
-    await page.click('text=READY FOR BATTLE');
+    await page.click('button:has-text("READY FOR BATTLE")');
 
     // Verify Modal Closure and Game Start
     // The modal should disappear and the board should no longer be blurred
@@ -68,8 +68,8 @@ test.describe('New Game Onboarding Flow', () => {
 
   test('should skip bot selection for Local Pass & Play', async ({ page }) => {
     // Step 1: Mode Selection
-    await page.click('text=Pass & Play');
-    await page.click('text=NEXT STEP →');
+    await page.click('.mode-card:has-text("Pass & Play")');
+    await page.click('button:has-text("NEXT STEP")');
 
     // Verification: Should jump directly to Step 3 (Parameters)
     await expect(page.locator('.step-modal h2')).toContainText('SET PARAMETERS');

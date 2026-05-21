@@ -67,33 +67,34 @@ test.describe('Gameplay to Analysis Pipeline', () => {
     await page.waitForSelector('button:has-text("START NEW GAME")', { timeout: 30000 });
     await page.click('button:has-text("START NEW GAME")');
     
-    // Select "vs Computer" and start
-    await page.click('.mode-btn:has-text("vs Computer")');
-    await page.click('#start-game-btn');
+    // Select "vs Computer" and progress through steps
+    await page.click('.mode-card:has-text("vs Computer")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("NEXT STEP")');
+    await page.click('button:has-text("READY FOR BATTLE")');
     
-    // Ensure the setup panel disappears and the board is ready
-    await expect(page.locator('.setup-panel')).toBeHidden();
+    // Ensure the setup overlay disappears and the board is ready
+    await expect(page.locator('.setup-overlay')).toBeHidden();
     await expect(page.locator('.chess-board')).toBeVisible();
+
+    // Show Intel to see move list
+    await page.getByRole('button', { name: /Show Intel/ }).click();
+    await expect(page.locator('.side-panel')).toBeVisible();
 
     console.log('[E2E] Game started. Making moves...');
 
     // --- STEP 2: PLAY A FEW MOVES (Ruy Lopez) ---
     // Move 1: e4
     await page.locator('[data-square="e2"]').first().click({ force: true });
+    await page.waitForTimeout(300);
     await page.locator('[data-square="e4"]').first().click({ force: true });
-    
-    // Wait for history to be populated
-    // Ensure history is open if not already
-    const historyBtn = page.locator('button:has-text("Show Intel")');
-    if (await historyBtn.isVisible()) {
-        await historyBtn.click();
-    }
 
     // Wait for move 1 (White e4) and move 2 (Black response)
     await expect(page.locator('.moves-list .move-btn')).toHaveCount(2, { timeout: 30000 });
 
     // Move 2: Nf3
     await page.locator('[data-square="g1"]').first().click({ force: true });
+    await page.waitForTimeout(300);
     await page.locator('[data-square="f3"]').first().click({ force: true });
     
     // Wait for computer response (total 4 moves)
@@ -101,6 +102,7 @@ test.describe('Gameplay to Analysis Pipeline', () => {
 
     // Move 3: Bb5
     await page.locator('[data-square="f1"]').first().click({ force: true });
+    await page.waitForTimeout(300);
     await page.locator('[data-square="b5"]').first().click({ force: true });
     
     // Wait for computer response (total 6 moves)

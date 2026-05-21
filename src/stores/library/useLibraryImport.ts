@@ -1,6 +1,5 @@
 import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
-import JSZip from 'jszip'
 import type { LibraryGame } from './types'
 import { useUserStore } from '../userStore'
 import { safeLoadPgn, injectPgnHeaders } from '../../utils/pgnParser'
@@ -158,6 +157,7 @@ export function useLibraryImport(
     importProgress.value = 0
     
     try {
+      const JSZip = (await import('jszip')).default
       const zip = await JSZip.loadAsync(file)
       const pgnFiles = Object.keys(zip.files).filter(name => name.toLowerCase().endsWith('.pgn'))
       

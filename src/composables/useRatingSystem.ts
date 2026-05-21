@@ -1,4 +1,6 @@
 import { type Ref, computed } from 'vue'
+import type { LibraryGame } from '../stores/libraryStore'
+import type { PastGame } from '../stores/userStore'
 /**
  * Elo Rating System Implementation
  * 
@@ -92,7 +94,7 @@ function normalizeDate(d: string): string {
  * @returns Array of { date, rating } snapshots
  */
 export function calculateRatingHistory(
-    games: any[], 
+    games: (PastGame | LibraryGame)[],
     isMe?: (username: string) => boolean
 ): { date: string, rating: number }[] {
     let current = BASE_RATING;
@@ -164,7 +166,7 @@ export function calculateRatingHistory(
  * Composable wrapper for Vue components.
  * Allows components to reactive-ly access rating utilities and history.
  */
-export function useRatingSystem(pastGames?: Ref<any[]>, isMe?: (username: string) => boolean) {
+export function useRatingSystem(pastGames?: Ref<(PastGame | LibraryGame)[]>, isMe?: (username: string) => boolean) {
     const history = computed(() => {
         if (!pastGames || !pastGames.value) return [{ date: new Date().toISOString(), rating: BASE_RATING }];
         return calculateRatingHistory(pastGames.value, isMe);

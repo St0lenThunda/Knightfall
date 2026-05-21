@@ -26,9 +26,9 @@ export function useAnalysisSession() {
   const route = useRoute()
 
   const isPlaying = ref(false)
-  const pauseReason = ref<any>(null)
+  const pauseReason = ref<ReturnType<typeof getMoveQuality> | null>(null)
   const isActive = ref(true)
-  let playTimeout: any = null
+  let playTimeout: ReturnType<typeof setTimeout> | null = null
 
   /**
    * Toggles the automated move-by-move playback reel.
@@ -188,7 +188,7 @@ export function useAnalysisSession() {
   })
 
   // Auto-analyze FEN changes
-  let analysisDebounce: any = null
+  let analysisDebounce: ReturnType<typeof setTimeout> | null = null
   watch(() => store.fen, (newFen) => {
     if (analysisDebounce) clearTimeout(analysisDebounce)
     analysisDebounce = setTimeout(() => {

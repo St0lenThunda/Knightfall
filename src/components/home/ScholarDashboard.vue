@@ -95,6 +95,29 @@ const weaknesses = computed(() => {
 
 <template>
   <div class="scholar-dashboard animated-fade-in">
+    <!-- Onboarding Assessment Banner for Legacy Members -->
+    <div v-if="userStore.profile && !userStore.profile.archetype" class="legacy-sync-banner glass">
+      <div class="banner-accent-border"></div>
+      <div class="banner-content">
+        <div class="banner-text-group">
+          <h3 class="banner-title">
+            <span class="pulse-amber">⚠️</span> Profile Calibration Required
+          </h3>
+          <p class="banner-description">
+            To ensure schema parity with our new Chess DNA engine and unlock highly accurate personalized lesson prescriptions, you must calibrate your profile.
+          </p>
+          <div class="oracle-disclaimer">
+            <strong>Oracle Benchmark Notice:</strong> The ratings generated here are platform-specific skill benchmarks used by our AI curriculum engine to deliver customized challenges, and are not affiliated with official FIDE, USCF, or Chess.com/Lichess rating systems.
+          </div>
+        </div>
+        <div class="banner-actions">
+          <button class="btn btn-primary" @click="router.push('/assessment')">
+            Calibrate Chess DNA (7-Min)
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Welcome Header -->
     <header class="scholar-header">
       <div class="welcome-text">
@@ -269,5 +292,92 @@ const weaknesses = computed(() => {
 
 @media (max-width: 900px) {
   .scholar-grid { grid-template-columns: 1fr; }
+}
+
+/* Legacy Calibration Banner Styles */
+.legacy-sync-banner {
+  position: relative;
+  display: flex;
+  margin-bottom: var(--space-8);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(20, 20, 28, 0.8) 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 16px rgba(245, 158, 11, 0.05);
+  animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.banner-accent-border {
+  width: 4px;
+  background: linear-gradient(180deg, #f59e0b 0%, transparent 100%);
+  flex-shrink: 0;
+}
+
+.banner-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-8);
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.banner-text-group {
+  flex: 1;
+}
+
+.banner-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f59e0b;
+  margin-bottom: var(--space-2);
+}
+
+.pulse-amber {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.banner-description {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #f3f4f6;
+  margin-bottom: var(--space-3);
+}
+
+.oracle-disclaimer {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding-left: var(--space-3);
+  font-style: italic;
+}
+
+.banner-actions {
+  flex-shrink: 0;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (max-width: 768px) {
+  .banner-content {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-5);
+  }
+  .banner-actions {
+    margin-top: var(--space-2);
+  }
 }
 </style>

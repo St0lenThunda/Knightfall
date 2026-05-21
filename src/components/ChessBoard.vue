@@ -126,6 +126,7 @@ const isDev = import.meta.env.DEV
  * Uses the global debug utility to copy a forensic snapshot to the clipboard.
  */
 async function exportDebugInfo() {
+  if (!isDev) return;
   try {
     await copySystemSnapshot({
       gameId: store.loadedGameId || 'N/A (unsaved)',

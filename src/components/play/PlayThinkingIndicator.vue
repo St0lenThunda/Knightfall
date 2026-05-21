@@ -8,7 +8,8 @@
 </script>
 
 <template>
-  <div class="thinking-bar">
+  <!-- The thinking-indicator class is required by the Playwright E2E tests for verification -->
+  <div class="thinking-bar thinking-indicator">
     <div class="thinking-dots">
       <span></span><span></span><span></span>
     </div>

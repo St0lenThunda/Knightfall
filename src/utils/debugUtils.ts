@@ -3,6 +3,7 @@
  * 
  * Provides forensic tools for development and diagnostics.
  */
+import { logger } from './logger';
 
 /**
  * Interface for the state required to generate a system snapshot.
@@ -82,9 +83,7 @@ export async function copySystemSnapshot(data: SystemSnapshotData): Promise<stri
   
   // Console dump for deep inspection
   if (import.meta.env.DEV) {
-    console.group('%c 🛠️ KNF System Snapshot ', 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 4px;');
-    console.log('Snapshot Data:', data);
-    console.groupEnd();
+    logger.info('🛠️ KNF System Snapshot:', data);
   }
 
   await navigator.clipboard.writeText(finalMetadata);

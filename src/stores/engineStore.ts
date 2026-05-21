@@ -4,6 +4,7 @@ import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
 import { useMortalLogic } from './engine/useMortalLogic'
+import type { Bot } from './game/useBotEngine'
 
 export interface MultiPV {
   id: number
@@ -92,7 +93,7 @@ export const useEngineStore = defineStore('engine', () => {
   // Mortal Pillar
   const mortal = useMortalLogic()
   const activeArchetype = ref<string | null>(null)
-  const activeBot = ref<any>(null)
+  const activeBot = ref<Bot | null>(null)
   const isMortalThinking = ref(false)
 
   function init() {
@@ -401,7 +402,7 @@ export const useEngineStore = defineStore('engine', () => {
   }
 
   // Trigger analysis for a given position
-  function analyze(fen: string, depth = 15, bot?: any) {
+  function analyze(fen: string, depth = 15, bot?: Bot) {
     if (!worker) init()
     
     activeBot.value = bot

@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useCoachStore } from '../stores/coachStore'
+import type { Prescription } from '../stores/coachStore'
 
 /**
  * Shared interfaces for the navigation system.
@@ -100,11 +101,11 @@ export function useNavigation() {
     const dnaRx = coachStore.dnaPrescriptions || []
     const openingRx = coachStore.openingPrescriptions || []
 
-    const critRx = dnaRx.filter((r: any) => r.severity === 'critical').length +
-                   openingRx.filter((r: any) => r.severity === 'critical').length
+    const critRx = dnaRx.filter((r: Prescription) => r.severity === 'critical').length +
+                   openingRx.filter((r: Prescription) => r.severity === 'critical').length
     
-    const warnRx = dnaRx.filter((r: any) => r.severity === 'warning').length +
-                   openingRx.filter((r: any) => r.severity === 'warning').length
+    const warnRx = dnaRx.filter((r: Prescription) => r.severity === 'warning').length +
+                   openingRx.filter((r: Prescription) => r.severity === 'warning').length
 
     return [
       {
