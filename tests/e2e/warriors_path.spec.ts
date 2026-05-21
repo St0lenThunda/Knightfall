@@ -16,6 +16,47 @@ test.describe("The Warrior's Path & Rite of Oblivion", () => {
   };
 
   test('should complete the pilgrimage and perform the rite of oblivion', async ({ page }) => {
+    // INTERCEPT: Mock Supabase Auth and Deletion for CI
+    await page.route('**/auth/v1/token*', async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            access_token: 'fake-token',
+            token_type: 'bearer',
+            expires_in: 3600,
+            refresh_token: 'fake-refresh-token',
+            user: { id: 'fake-user-id', email: TEST_USER.email, user_metadata: { username: 'Antonio' }, aud: 'authenticated', role: 'authenticated' }
+          })
+        });
+      } else await route.continue();
+    });
+
+    await page.route('**/rest/v1/profiles*', async route => {
+      if (route.request().method() === 'DELETE') {
+        await route.fulfill({ status: 204 });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([{ id: 'fake-user-id', username: 'Antonio', rating: 1200, hearts: 5, xp: 100, bot_progression: { 'bot-1': { status: 'unlocked' } } }])
+        });
+      }
+    });
+
+    await page.route('**/rest/v1/matches*', async route => {
+      if (route.request().method() === 'DELETE') await route.fulfill({ status: 204 }); else await route.continue();
+    });
+    
+    await page.route('**/rest/v1/puzzle_attempts*', async route => {
+      if (route.request().method() === 'DELETE') await route.fulfill({ status: 204 }); else await route.continue();
+    });
+    
+    await page.route('**/auth/v1/logout*', async route => {
+      await route.fulfill({ status: 204 });
+    });
+
     // --- 1. ENTERING THE CATHEDRAL ---
     await page.goto('/');
     
