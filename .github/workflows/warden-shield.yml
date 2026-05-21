@@ -2,9 +2,12 @@ name: Warden's Shield (Regression Prevention)
 
 on:
   push:
-    branches: [ main, duolingo ]
+    branches: [ "main", "duolingo" ]
   pull_request:
-    branches: [ main, duolingo ]
+    branches: [ "main", "duolingo" ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 
 
