@@ -9,8 +9,8 @@ import type { Color } from 'chess.js'
 import type { TimeControl } from '../../../stores/gameStore'
 
 defineProps<{
-  selectedColor: Color
-  colors: { value: Color; icon: string; label: string }[]
+  selectedColor: Color | 'r'
+  colors: { value: Color | 'r'; icon: string; label: string }[]
   selectedTc: TimeControl
   timeControls: TimeControl[]
 }>()
