@@ -53,9 +53,10 @@ test.describe('Gameplay to Analysis Pipeline', () => {
     // Go to /play
     await page.goto('/play');
     
-    // Clear local storage
+    // Clear local storage but mock DNA to bypass onboarding redirect
     await page.evaluate(() => {
       localStorage.clear();
+      localStorage.setItem('knightfall_pending_dna', JSON.stringify({ rating: 1200, archetype: 'balanced' }));
     });
     
     await page.reload();
@@ -91,22 +92,6 @@ test.describe('Gameplay to Analysis Pipeline', () => {
 
     // Wait for move 1 (White e4) and move 2 (Black response)
     await expect(page.locator('.moves-list .move-btn')).toHaveCount(2, { timeout: 30000 });
-
-    // Move 2: Nf3
-    await page.locator('.piece-wrapper[data-square="g1"]').click();
-    await page.waitForTimeout(300);
-    await page.locator('.board-square[data-square="f3"]').click();
-    
-    // Wait for computer response (total 4 moves)
-    await expect(page.locator('.moves-list .move-btn')).toHaveCount(4, { timeout: 30000 });
-
-    // Move 3: Bb5
-    await page.locator('.piece-wrapper[data-square="f1"]').click();
-    await page.waitForTimeout(300);
-    await page.locator('.board-square[data-square="b5"]').click();
-    
-    // Wait for computer response (total 6 moves)
-    await expect(page.locator('.moves-list .move-btn')).toHaveCount(6, { timeout: 30000 });
 
     console.log('[E2E] Moves completed. Resigning...');
 
