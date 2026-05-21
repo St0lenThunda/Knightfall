@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase } from '../api/supabaseClient'
 import type { Session } from '@supabase/supabase-js'
 
@@ -95,7 +95,7 @@ export const useUserStore = defineStore('user', () => {
   const identity = useUserIdentity(profile)
   const stats = useUserStats(pastGames, puzzleAttempts)
   const gamification = useUserGamification(profile)
-  const ratingSystem = useRatingSystem(pastGames, identity.isMe)
+  const ratingSystem = useRatingSystem(pastGames, identity.isMe, computed(() => profile.value?.rating))
 
   // --- LIFECYCLE ---
   supabase.auth.onAuthStateChange((_event, newSession) => {
