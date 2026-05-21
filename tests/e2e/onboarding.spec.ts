@@ -11,6 +11,15 @@ test.describe('New Game Onboarding Flow', () => {
     // Navigate to the play view
     await page.goto('/play');
     
+    // Clear local storage but mock DNA to bypass onboarding redirect
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('knightfall_pending_dna', JSON.stringify({ rating: 1200, archetype: 'balanced' }));
+    });
+    
+    // Reload so the route guard picks up the DNA
+    await page.reload();
+    
     // The "New Game" modal is triggered by the setup CTA
     await page.click('button:has-text("START NEW GAME")');
   });

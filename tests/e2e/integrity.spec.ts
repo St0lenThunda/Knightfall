@@ -6,6 +6,47 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Vault Integrity Maintenance', () => {
   test('should purge test pollution from the cloud', async ({ page }) => {
+    // INTERCEPT: Mock Supabase Auth for CI
+    await page.route('**/auth/v1/token*', async route => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            access_token: 'fake-token',
+            token_type: 'bearer',
+            expires_in: 3600,
+            refresh_token: 'fake-refresh-token',
+            user: { id: 'fake-user-id', email: 'test@example.com', user_metadata: { username: 'TestUser' }, aud: 'authenticated', role: 'authenticated' }
+          })
+        });
+      } else await route.continue();
+    });
+
+    await page.route('**/rest/v1/profiles*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: 'fake-user-id', username: 'TestUser', rating: 1200, hearts: 5, xp: 100, bot_progression: { 'bot-1': { status: 'unlocked' } } }])
+      });
+    });
+
+    // We must mock the RPC call that deletes test pollution
+    await page.route('**/rest/v1/rpc/purge_test_ghosts*', async route => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ success: true }) });
+    });
+    
+    // We also need to log in first so we have the session
+    await page.goto('/');
+    const loginTrigger = page.locator('button:has-text("Login")');
+    if (await loginTrigger.isVisible()) {
+      await loginTrigger.click();
+      await page.fill('[data-testid="email-input"]', 'test@example.com');
+      await page.fill('[data-testid="password-input"]', 'password');
+      await page.click('[data-testid="auth-submit-btn"]');
+      await page.locator('.modal-card').waitFor({ state: 'hidden', timeout: 15000 });
+    }
+
     // Navigate to the War Room (located on the Profile page)
     await page.goto('/profile');
     
