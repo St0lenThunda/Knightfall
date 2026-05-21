@@ -95,9 +95,10 @@ function normalizeDate(d: string): string {
  */
 export function calculateRatingHistory(
     games: (PastGame | LibraryGame)[],
-    isMe?: (username: string) => boolean
+    isMe?: (username: string) => boolean,
+    baseRating: number = BASE_RATING
 ): { date: string, rating: number }[] {
-    let current = BASE_RATING;
+    let current = baseRating;
     const history: { date: string, rating: number }[] = [];
     
     // 1. Deduplicate and Sort Chronologically
@@ -114,9 +115,9 @@ export function calculateRatingHistory(
     if (sorted.length > 0) {
         const firstDate = new Date(normalizeDate(sorted[0].date));
         firstDate.setDate(firstDate.getDate() - 1);
-        history.push({ date: firstDate.toISOString(), rating: BASE_RATING });
+        history.push({ date: firstDate.toISOString(), rating: baseRating });
     } else {
-        history.push({ date: new Date().toISOString(), rating: BASE_RATING });
+        history.push({ date: new Date().toISOString(), rating: baseRating });
     }
 
     // 3. Sequential Calculation
@@ -166,14 +167,24 @@ export function calculateRatingHistory(
  * Composable wrapper for Vue components.
  * Allows components to reactive-ly access rating utilities and history.
  */
-export function useRatingSystem(pastGames?: Ref<(PastGame | LibraryGame)[]>, isMe?: (username: string) => boolean) {
+export function useRatingSystem(
+    pastGames?: Ref<(PastGame | LibraryGame)[]>, 
+    isMe?: (username: string) => boolean,
+    initialRating?: Ref<number | undefined>
+) {
+    const getBase = () => (initialRating?.value && initialRating.value > 0) ? initialRating.value : BASE_RATING;
+
     const history = computed(() => {
-        if (!pastGames || !pastGames.value) return [{ date: new Date().toISOString(), rating: BASE_RATING }];
-        return calculateRatingHistory(pastGames.value, isMe);
+        const br = getBase();
+        if (!pastGames || !pastGames.value || pastGames.value.length === 0) {
+            return [{ date: new Date().toISOString(), rating: br }];
+        }
+        return calculateRatingHistory(pastGames.value, isMe, br);
     });
 
     const currentRating = computed(() => {
-        return history.value.length > 0 ? history.value[history.value.length - 1].rating : BASE_RATING;
+        const br = getBase();
+        return history.value.length > 0 ? history.value[history.value.length - 1].rating : br;
     });
 
     return {
