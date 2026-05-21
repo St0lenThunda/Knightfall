@@ -5,7 +5,7 @@
  * Visualizes the likelihood of different human archetypes playing the 
  * current candidate moves.
  */
-import { computed, watch } from 'vue'
+import { computed, watch, onMounted, ref } from 'vue'
 import { useMortalLogic } from '../../stores/engine/useMortalLogic'
 import { logger } from '../../utils/logger'
 
@@ -14,6 +14,12 @@ const props = defineProps<{
 }>()
 
 const { ARCHETYPES } = useMortalLogic()
+
+/**
+ * We use a boolean flag to trigger the "active" state of the bars.
+ * This allows us to animate them from 0 to their target width on mount.
+ */
+const isVisible = ref(false)
 
 /**
  * Mock probability calculation logic.
@@ -38,6 +44,14 @@ const moveProbabilities = computed(() => {
   })
 })
 
+onMounted(() => {
+  // A small delay ensures the browser has painted the initial state (width: 0)
+  // before we trigger the transition to the actual values.
+  setTimeout(() => {
+    isVisible.value = true
+  }, 50)
+})
+
 watch(() => props.topMoves, (newMoves: any[]) => {
   logger.info(`[MortalGraph] Received ${newMoves.length} candidate moves`, newMoves)
 }, { immediate: true })
@@ -57,7 +71,16 @@ watch(() => props.topMoves, (newMoves: any[]) => {
     </div>
 
     <div v-else class="moves-container">
-      <div v-for="move in moveProbabilities" :key="move.san" class="move-row mb-6">
+      <!-- 
+        We apply a staggered delay to each row. 
+        index * 0.1s creates a "flowing" entrance effect.
+      -->
+      <div 
+        v-for="(move, moveIdx) in moveProbabilities" 
+        :key="move.san" 
+        class="move-row mb-6 entrance-anim"
+        :style="{ animationDelay: `${moveIdx * 0.1}s` }"
+      >
         <div class="move-info flex justify-between items-center mb-2">
           <span class="move-badge">{{ move.san }}</span>
           <span class="eval-tag" :class="move.eval >= 0 ? 'plus' : 'minus'">
@@ -72,9 +95,17 @@ watch(() => props.topMoves, (newMoves: any[]) => {
               <span class="name">{{ arch.name }}</span>
             </div>
             <div class="bar-container">
+              <!-- 
+                The bar width transitions from 0 to target when 'isVisible' becomes true.
+                We also stagger the bars slightly within the row for extra polish.
+              -->
               <div 
                 class="bar-fill" 
-                :style="{ width: arch.probability + '%', background: arch.id === 'aggressor' ? 'var(--rose)' : 'var(--accent-bright)' }"
+                :style="{ 
+                  width: isVisible ? arch.probability + '%' : '0%', 
+                  background: arch.id === 'aggressor' ? 'var(--rose)' : 'var(--accent-bright)',
+                  transitionDelay: `${(moveIdx * 0.1) + 0.3}s`
+                }"
               ></div>
               <span class="prob-label">{{ Math.round(arch.probability) }}%</span>
             </div>
@@ -144,7 +175,7 @@ watch(() => props.topMoves, (newMoves: any[]) => {
 .bar-fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .prob-label {
@@ -153,5 +184,22 @@ watch(() => props.topMoves, (newMoves: any[]) => {
   font-size: 0.6rem;
   font-weight: 800;
   color: var(--text-muted);
+}
+
+/* 
+  ENTRANCE ANIMATION 
+  A smooth fade-in + slide-up effect for the candidate move blocks.
+*/
+.entrance-anim {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpFade {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
