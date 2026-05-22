@@ -75,7 +75,7 @@ const tabs = [
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(16px);
+
   z-index: 10000;
   display: flex;
   align-items: center;

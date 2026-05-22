@@ -16,7 +16,7 @@ defineEmits(['accept'])
 </script>
 
 <template>
-  <div class="game-over-overlay cheat-busted glass">
+  <div class="game-over-overlay cheat-busted glass backdrop-overlay">
     <div class="cheat-header">
       <span class="cheat-icon">⚠️</span>
       <h3 class="cheat-title">Anti-Cheat Triggered</h3>
@@ -71,7 +71,7 @@ defineEmits(['accept'])
   min-width: 300px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+
 }
 
 .cheat-busted {

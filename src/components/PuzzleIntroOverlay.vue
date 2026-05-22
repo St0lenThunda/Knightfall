@@ -87,7 +87,7 @@ const missionText = computed(() => {
   align-items: center;
   justify-content: center;
   background: rgba(5, 5, 10, 0.7);
-  backdrop-filter: blur(8px);
+
   padding: var(--space-6);
 }
 
@@ -109,8 +109,7 @@ const missionText = computed(() => {
 }
 
 .glass-void {
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+
 }
 
 .void-pulse-ring {

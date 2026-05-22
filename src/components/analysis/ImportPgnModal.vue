@@ -127,7 +127,7 @@ function handleSubmit() {
 }
 .modal-enter-from, .modal-leave-to {
   opacity: 0;
-  backdrop-filter: blur(0px);
+
 }
 .modal-enter-from .lab-modal, .modal-leave-to .lab-modal {
   transform: scale(0.95) translateY(10px);

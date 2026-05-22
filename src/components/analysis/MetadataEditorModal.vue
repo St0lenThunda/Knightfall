@@ -145,7 +145,7 @@ async function handleSave() {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(12px);
+
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -157,7 +157,7 @@ async function handleSave() {
   width: 100%;
   max-width: 500px;
   background: rgba(10, 10, 15, 0.98);
-  backdrop-filter: blur(25px);
+
   border-radius: var(--radius-lg);
   /* INCREASED CONTRAST BORDER */
   border: 2px solid rgba(255, 255, 255, 0.25);

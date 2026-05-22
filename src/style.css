@@ -489,6 +489,15 @@ h4 { font-size: 1rem; font-weight: 600; }
 }
 
 /* ─── MODALS ─── */
+.backdrop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 9900;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

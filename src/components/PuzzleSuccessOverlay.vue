@@ -81,7 +81,7 @@ defineEmits(['next', 'close'])
   align-items: center;
   justify-content: center;
   background: rgba(10, 10, 15, 0.4);
-  backdrop-filter: blur(4px);
+
   padding: var(--space-6);
 }
 
@@ -102,8 +102,7 @@ defineEmits(['next', 'close'])
 }
 
 .glass-premium {
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
 }
 
 .success-badge {

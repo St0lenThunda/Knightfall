@@ -42,6 +42,8 @@ import ChessBoard from '../components/ChessBoard.vue'
 import FoundationNarrative from '../components/learn/FoundationNarrative.vue'
 import FoundationChallenge from '../components/learn/FoundationChallenge.vue'
 import FoundationQuiz from '../components/learn/FoundationQuiz.vue'
+import FoundationCompletionCard from '../components/learn/FoundationCompletionCard.vue'
+import FoundationFailureCard from '../components/learn/FoundationFailureCard.vue'
 
 import { FOUNDATION_LESSONS } from '../data/foundationLessons'
 import type { FoundationLesson, FoundationSlide } from '../types/foundationTypes'
@@ -396,52 +398,25 @@ onMounted(() => {
 
     <!-- ─── COMPLETION CARD ─── -->
     <Transition name="phase-transition" mode="out-in">
-      <div v-if="phase === 'complete'" class="completion-card glass animated-fade-in">
-        <div class="confetti">🎉</div>
-        <h1 class="completion-title">Lesson Complete!</h1>
-        <p class="completion-subtitle">
-          You've completed <strong>{{ lesson?.title }}</strong>.
-        </p>
-
-        <div class="rewards-row">
-          <div class="reward">
-            <span class="val">{{ isAlreadyCompleted ? '+0' : `+${quest?.xp_reward || 30}` }}</span>
-            <span class="lbl">XP EARNED</span>
-          </div>
-          <div class="reward">
-            <span class="val">✅</span>
-            <span class="lbl">{{ isAlreadyCompleted ? 'ALREADY COMPLETED' : 'QUEST COMPLETE' }}</span>
-          </div>
-        </div>
-
-        <button class="btn btn-primary btn-lg" @click="router.push('/path')">
-          Continue Path →
-        </button>
-      </div>
+      <FoundationCompletionCard
+        v-if="phase === 'complete' && lesson"
+        :lessonTitle="lesson.title"
+        :xpReward="quest?.xp_reward || 30"
+        :isAlreadyCompleted="isAlreadyCompleted"
+        @continue="router.push('/path')"
+      />
     </Transition>
 
     <!-- ─── FAILURE CARD ─── -->
     <Transition name="phase-transition" mode="out-in">
-      <div v-if="phase === 'failed'" class="completion-card glass failure-card animated-fade-in">
-        <div class="failure-icon">💡</div>
-        <h1 class="failure-title">Try Again!</h1>
-        <p class="failure-subtitle">
-          You scored <strong>{{ failedScore }}</strong> out of <strong>{{ failedTotal }}</strong>.
-          An advisor demands at least 70% correct answers to unlock passage.
-        </p>
-
-        <div class="action-buttons">
-          <button class="btn btn-primary" @click="retryQuiz">
-            🔄 Retry Quiz
-          </button>
-          <button class="btn btn-secondary" @click="reviewLesson">
-            📖 Review Lesson
-          </button>
-          <button class="btn btn-ghost" @click="router.push('/path')">
-            Back to Path
-          </button>
-        </div>
-      </div>
+      <FoundationFailureCard
+        v-if="phase === 'failed'"
+        :score="failedScore"
+        :total="failedTotal"
+        @retry="retryQuiz"
+        @review="reviewLesson"
+        @back="router.push('/path')"
+      />
     </Transition>
   </div>
 </template>
@@ -519,60 +494,7 @@ onMounted(() => {
   padding: var(--space-8) 0;
 }
 
-/* ─── COMPLETION CARD ─── */
-.completion-card {
-  text-align: center;
-  padding: var(--space-12);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-6);
-  max-width: 500px;
-  margin: var(--space-12) auto;
-}
 
-.completion-card .confetti {
-  font-size: 4rem;
-  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.completion-title {
-  font-size: 2rem;
-  background: linear-gradient(135deg, var(--gold), #fbbf24);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.completion-subtitle {
-  color: var(--text-secondary);
-  font-size: 1rem;
-}
-
-.rewards-row {
-  display: flex;
-  gap: var(--space-12);
-  margin: var(--space-4) 0;
-}
-
-.reward {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.reward .val {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--gold);
-}
-
-.reward .lbl {
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-}
 
 /* ─── TRANSITIONS ─── */
 .slide-fade-enter-active {
@@ -611,10 +533,7 @@ onMounted(() => {
   transform: translateY(-20px) scale(0.95);
 }
 
-@keyframes bounceIn {
-  from { transform: scale(0); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+
 
 .animated-fade-in {
   animation: fadeIn 0.8s ease-out forwards;
@@ -625,40 +544,5 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── FAILURE CARD ─── */
-.failure-card {
-  border-color: rgba(244, 63, 94, 0.2) !important;
-}
 
-.failure-icon {
-  font-size: 4rem;
-  animation: pulse 2s infinite;
-}
-
-.failure-title {
-  font-size: 2rem;
-  background: linear-gradient(135deg, var(--rose), #f43f5e);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.failure-subtitle {
-  color: var(--text-secondary);
-  font-size: 1rem;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.action-buttons {
-  display: flex;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
 </style>

@@ -112,7 +112,7 @@ async function handlePurge() {
   position: fixed;
   inset: 0;
   background: rgba(10, 10, 12, 0.85);
-  backdrop-filter: blur(8px);
+
   display: flex;
   align-items: center;
   justify-content: center;

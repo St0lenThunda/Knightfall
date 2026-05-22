@@ -5,7 +5,6 @@ import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
 import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
-import { resolveId } from '@/composables/useNavigationMap'
 import { useRouter } from 'vue-router'
 
 const libraryStore = useLibraryStore()
@@ -77,7 +76,26 @@ onMounted(async () => {
  * @param openingId - The slug of the opening (e.g., 'sicilian', 'italian')
  */
 function startTraining(openingId: string) {
-  const lessonId = resolveId(openingId)
+  // Mapping table to connect visual opening cards to curriculum nodes
+  const trainingMap: Record<string, string> = {
+    'italian': 'ruy-lopez',
+    'italian-game': 'ruy-lopez',
+    'sicilian': 'sicilian-defense',
+    'sicilian-defense': 'sicilian-defense',
+    'queens-gambit': 'd4-opening',
+    'caro-kann': 'caro-kann',
+    'caro-kann-defense': 'caro-kann',
+    'french': 'french-defense',
+    'french-defense': 'french-defense',
+    'ruy-lopez': 'ruy-lopez',
+    'kings-pawn': 'e4-opening',
+    'queens-pawn': 'd4-opening',
+    'london-system': 'd4-opening'
+  }
+
+  const normalizedId = openingId.toLowerCase().trim()
+  const lessonId = trainingMap[normalizedId] || trainingMap[normalizedId.replace(/-defense$/, '')]
+
   if (lessonId) {
     router.push(`/lesson/${lessonId}`)
   } else {
@@ -106,7 +124,7 @@ function startTraining(openingId: string) {
       </div>
     </div>
 
-<LoadingOverlay :isLoading="isLoading" :stage="loadingStage" :progress="libraryStore.importProgress || 45" />
+    <LoadingOverlay v-if="isLoading" :isLoading="isLoading" :stage="loadingStage" :progress="libraryStore.importProgress || 45" />
     <template v-else>
       <div class="lab-content">
         <!-- Opening Prescriptions — Coach's Notes -->
@@ -177,68 +195,6 @@ function startTraining(openingId: string) {
         </div>
       </div>
     </template>
-      <!-- My Repertoire Section -->
-      <div v-if="selectedCategory === 'repertoire'" class="repertoire-grid">
-        <div v-if="detectedOpenings.length === 0" class="empty-state glass-card">
-          <div class="icon">🔍</div>
-          <h3>No Openings Detected</h3>
-          <p>Import some games or play a few rounds to see your repertoire analysis here.</p>
-          <router-link to="/dna" class="btn btn-primary mt-4">Sync with Chess.com</router-link>
-        </div>
-
-        <div v-else v-for="opening in detectedOpenings" :key="opening.id" class="opening-card glass-card">
-          <div class="card-top">
-            <span class="opening-icon">{{ opening.icon }}</span>
-            <div class="opening-name-wrap">
-              <h3 class="title-sm">{{ opening.name }}</h3>
-              <p class="opening-desc">{{ opening.description }}</p>
-              <p class="games-count">{{ opening.games }} games analyzed</p>
-            </div>
-          </div>
-          
-          <div class="performance-stats">
-            <div class="stat-row">
-              <label>Win Rate</label>
-              <div class="progress-bar-sm">
-                <div class="fill" :style="{ width: opening.winPct + '%', background: 'var(--green)' }"></div>
-              </div>
-              <span class="pct">{{ opening.winPct }}%</span>
-            </div>
-          </div>
-
-          <div class="card-actions">
-            <button class="btn btn-ghost btn-sm w-full" @click="startTraining(opening.id)">
-              Train Tactics
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Curated Section -->
-      <div v-else class="curated-grid">
-        <div v-for="opening in curatedOpenings" :key="opening.id" class="study-card glass-card">
-          <div class="study-header">
-            <span class="study-icon">{{ opening.icon }}</span>
-            <div class="badge-difficulty" :class="opening.difficulty.toLowerCase()">
-              {{ opening.difficulty }}
-            </div>
-          </div>
-          
-          <h3 class="title-sm">{{ opening.name }}</h3>
-          <p class="moves-text">{{ opening.moves }}</p>
-          
-          <div class="study-footer">
-            <div class="pop-info">
-              <span class="label">Popularity</span>
-              <span class="val">{{ opening.popularity }}</span>
-            </div>
-            <button class="btn btn-primary btn-sm" @click="startTraining(opening.id)">
-              Study Theory
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

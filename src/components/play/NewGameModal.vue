@@ -179,7 +179,7 @@ function finalize() {
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(16px);
+
   z-index: 9999;
   display: flex;
   align-items: flex-start;

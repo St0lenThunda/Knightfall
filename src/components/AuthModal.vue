@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
+  <div class="modal-backdrop backdrop-overlay" @click.self="$emit('close')">
     <div class="modal-card glass fade-in">
       <button class="close-btn btn btn-icon" @click="$emit('close')">✕</button>
       
@@ -220,7 +220,7 @@ async function handleSubmit() {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
   background: rgba(10, 10, 15, 0.8);
-  backdrop-filter: blur(4px);
+
   display: flex;
   align-items: center; justify-content: center;
   z-index: 1000;

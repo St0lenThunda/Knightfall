@@ -18,7 +18,7 @@ defineEmits(['newGame', 'review'])
 </script>
 
 <template>
-  <div class="game-over-overlay glass">
+  <div class="game-over-overlay glass backdrop-overlay">
     <h3 style="color: var(--accent-bright);">Game Over</h3>
     <p v-if="reason" class="reason-text">{{ reason }}</p>
     <p class="result-text">{{ result }}</p>
@@ -49,7 +49,7 @@ defineEmits(['newGame', 'review'])
   min-width: 300px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+
 }
 
 .reason-text {

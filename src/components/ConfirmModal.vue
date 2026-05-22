@@ -39,7 +39,7 @@ const uiStore = useUiStore()
   inset: 0;
   z-index: 10000;
   background: rgba(5, 5, 10, 0.85);
-  backdrop-filter: blur(12px);
+
   display: flex;
   align-items: center;
   justify-content: center;
