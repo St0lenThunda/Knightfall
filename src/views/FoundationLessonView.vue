@@ -302,6 +302,17 @@ function reviewLesson() {
   loadSlidePosition()
 }
 
+/**
+ * Safely navigates back to the previous view, falling back to '/path'.
+ */
+function goBack() {
+  if (window.history.state && window.history.state.back) {
+    router.back()
+  } else {
+    router.push('/path')
+  }
+}
+
 // ─── LIFECYCLE ───
 
 onMounted(() => {
@@ -323,7 +334,7 @@ onMounted(() => {
   <div class="page foundation-page">
     <!-- ─── HEADER ─── -->
     <header class="foundation-header">
-      <button class="btn btn-ghost btn-sm" @click="router.push('/path')">← Back</button>
+      <button class="btn btn-ghost btn-sm" @click="goBack()">← Back</button>
 
       <div v-if="lesson && phase === 'story'" class="header-info">
         <span class="lesson-badge badge badge-gold">{{ quest?.icon }} Foundations</span>
@@ -403,7 +414,7 @@ onMounted(() => {
         :lessonTitle="lesson.title"
         :xpReward="quest?.xp_reward || 30"
         :isAlreadyCompleted="isAlreadyCompleted"
-        @continue="router.push('/path')"
+        @continue="goBack()"
       />
     </Transition>
 
@@ -415,7 +426,7 @@ onMounted(() => {
         :total="failedTotal"
         @retry="retryQuiz"
         @review="reviewLesson"
-        @back="router.push('/path')"
+        @back="goBack()"
       />
     </Transition>
   </div>

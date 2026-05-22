@@ -37,12 +37,23 @@ const progress = computed(() => {
   return (puzzlesSolvedInLesson.value / total) * 100
 })
 
+/**
+ * Safely navigates back to the previous view, falling back to '/path'.
+ */
+function goBack() {
+  if (window.history.state && window.history.state.back) {
+    router.back()
+  } else {
+    router.push('/path')
+  }
+}
+
 onMounted(async () => {
   if (!quest.value) {
     // If not found, maybe we need to generate them first?
     await curriculum.generatePersonalLessons()
     if (!quest.value) {
-      router.push('/path')
+      goBack()
       return
     }
   }
@@ -170,8 +181,8 @@ watch(() => store.mistakeCount, async (newCount, oldCount) => {
     
     // Out of lives: send the user back to the Sanctum to recharge
     if (remainingHearts <= 0) {
-      logger.info('[Lesson] Out of hearts, redirecting to path.')
-      router.push('/path') 
+      logger.info('[Lesson] Out of hearts, redirecting to previous page.')
+      goBack() 
     }
   }
 })
@@ -190,7 +201,7 @@ async function finishLesson() {
 <template>
   <div class="page lesson-page container">
     <header class="lesson-header">
-      <button class="btn btn-ghost btn-sm" @click="router.push('/path')">← Back</button>
+      <button class="btn btn-ghost btn-sm" @click="goBack()">← Back</button>
       
       <div class="progress-container">
         <div class="progress-bar">
@@ -251,7 +262,7 @@ async function finishLesson() {
         </div>
       </div>
 
-      <button class="btn btn-primary btn-lg" @click="router.push('/path')">Continue Path</button>
+      <button class="btn btn-primary btn-lg" @click="goBack()">Continue</button>
     </div>
   </div>
 </template>
