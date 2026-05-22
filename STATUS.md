@@ -1,4 +1,4 @@
-## 🏁 Current Status: v0.40.0 ("Chronicles & Sanctum Unification") — STABLE
+## 🏁 Current Status: v0.40.1 ("Chronicles & Sanctum Unification") — STABLE
 **Date**: May 22, 2026
 **Overall Health**: 🟢 Green (Stable)
 **Test Coverage**: 100% Pass Rate (Unit Suite)

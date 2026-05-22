@@ -45,7 +45,14 @@ We implemented a narrative-first foundational learning curriculum, unified gamif
 
 ---
 
+- **Branch Renaming**: Renamed local/remote branch to `mortal-curriculum`.
+- **CI Trigger Hardening**: Updated `.github/workflows/warden-shield.yml` to target the `mortal-curriculum` branch for push and pull request hooks.
+- **E2E Test Unification**: Refactored `tests/e2e/auth.spec.ts` to expect the unified `"Sanctum"` navigation labels and `/sanctum` routes.
+
+---
+
 ## Verification
 
 - **TypeScript compilation**: Verified using `vue-tsc -b` during production builds.
 - **Unit tests**: Verified via `npx vitest run`. All 88 tests pass successfully, including newly added cache validation suites.
+- **E2E validation**: Verified via `npx playwright test`. All 43 test suites and scenarios pass successfully under Chromium and WebKit.

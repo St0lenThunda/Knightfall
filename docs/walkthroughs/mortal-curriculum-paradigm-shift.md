@@ -1,4 +1,4 @@
-# Technical Walkthrough: The Duolingo Paradigm Shift
+# Technical Walkthrough: The Mortal Curriculum Paradigm Shift
 
 ## The Objective
 Knightfall is moving from a utility "PGN analyzer" to a standalone "Chess Skill Progression Platform". The core goal is to provide immediate, gamified value to new users without requiring them to import games from external platforms. 

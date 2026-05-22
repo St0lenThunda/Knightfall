@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-21T23:37:49Z",
+  "timestamp": "2026-05-21T23:44:13Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: f90d988 - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\nb1284bd - feat(sanctum): rename Academy to Sanctum, add conditional UI based on vault state, update reactive puzzle count, add test (Antonio Moses)\n3f6961c - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\n96204d0 - fix(puzzles): prevent horizon effect from harvesting correct moves as blunders and confusing insights (Antonio Moses)\n71ca260 - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: b60bb2a - feat(sanctum): add foundational lessons, unify terminology, and cache daily puzzles (Antonio Moses)\nf90d988 - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\nb1284bd - feat(sanctum): rename Academy to Sanctum, add conditional UI based on vault state, update reactive puzzle count, add test (Antonio Moses)\n3f6961c - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\n96204d0 - fix(puzzles): prevent horizon effect from harvesting correct moves as blunders and confusing insights (Antonio Moses)",
   "metrics": {
     "files_scanned":      398,
     "integrity_score": 98
