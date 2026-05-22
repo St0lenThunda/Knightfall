@@ -6,7 +6,7 @@ import { useUserStore } from '../../stores/userStore'
  * Manages the static curriculum data and provides utilities for 
  * tracking lesson completion and subject progress.
  */
-export function useAcademyCurriculum() {
+export function useSanctumCurriculum() {
   const userStore = useUserStore()
 
   const curriculum = [

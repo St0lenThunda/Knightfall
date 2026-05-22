@@ -5,10 +5,14 @@
  * Displays personalized drills harvested from the user's losses.
  * This is the primary "High Cohesion" training loop.
  */
+import { useLibraryStore } from '../../stores/libraryStore'
+
 defineProps<{
   puzzles: any[]
   isProcessing: boolean
 }>()
+
+const libraryStore = useLibraryStore()
 
 defineEmits(['openPuzzle', 'scan'])
 </script>
@@ -16,7 +20,7 @@ defineEmits(['openPuzzle', 'scan'])
 <template>
   <div class="shadow-realm-container">
     <!-- Priority Path Indicator -->
-    <div v-if="puzzles.length > 0" class="subject-card glass shadow-realm priority-path">
+    <div v-if="puzzles.length > 0 && (libraryStore.personalGames?.length || 0) > 0" class="subject-card glass shadow-realm priority-path">
       <div class="priority-tag">ACTIVE PATH</div>
       <div class="subject-header">
         <div class="subject-icon shadow-icon">⚔️</div>
@@ -27,8 +31,13 @@ defineEmits(['openPuzzle', 'scan'])
       </div>
     </div>
 
+    <!-- Notice if no games -->
+    <div v-if="(libraryStore.personalGames?.length || 0) === 0" class="subject-card glass compact-notice p-4 text-center">
+      <p class="text-muted small m-0">♟️ Tactical Sanctuaries unlock once you have games in your vault.</p>
+    </div>
+
     <!-- Personalized Drills Card -->
-    <div class="subject-card glass shadow-realm" :class="{ 'empty-state': puzzles.length === 0 }">
+    <div v-else class="subject-card glass shadow-realm" :class="{ 'empty-state': puzzles.length === 0 }">
       <div class="subject-header">
         <div class="subject-icon shadow-icon">👤</div>
         <div class="subject-info">

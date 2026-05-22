@@ -26,7 +26,7 @@ const router = createRouter({
     { path: '/',         component: HomeView },
     { path: '/path',     component: () => import('./views/PathView.vue'),    meta: { requiresAuth: true } },
     { path: '/lesson/:id', component: () => import('./views/LessonView.vue'), meta: { requiresAuth: true } },
-    { path: '/academy',  component: () => import('./views/AcademyView.vue'), meta: { requiresAuth: true } },
+    { path: '/academy',  component: () => import('./views/SanctumView.vue'), meta: { requiresAuth: true } },
     { path: '/play',     component: () => import('./views/PlayView.vue') },
     { path: '/analysis', component: () => import('./views/AnalysisView.vue') },
     { path: '/puzzles',  component: () => import('./views/PuzzlesView.vue') },

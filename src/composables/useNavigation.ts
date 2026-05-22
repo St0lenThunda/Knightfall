@@ -128,7 +128,7 @@ export function useNavigation() {
         title: 'Training',
         showTitle: true,
         items: [
-          { path: '/academy', icon: '⚔️', label: "Knight's Path", badge: 'ACTIVE', auth: true },
+          { path: '/academy', icon: '⚔️', label: 'Sanctum', badge: 'ACTIVE', auth: true },
           { path: '/puzzles', icon: '⚡', label: 'Siege Trials', badge: 'NEW', auth: false },
           { path: '/gauntlet', icon: '🔥', label: 'The Great Gauntlet', badge: null, auth: true },
         ].filter(i => !i.auth || !!userStore.session)
