@@ -2,11 +2,35 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useCurriculumStore } from '../../../stores/curriculumStore'
 import { useLibraryStore } from '../../../stores/libraryStore'
+import { useUserStore } from '../../../stores/userStore'
+import { useUiStore } from '../../../stores/uiStore'
+import { supabase } from '../../../api/supabaseClient'
 
 // Mock the dependencies
 vi.mock('../../../stores/libraryStore', () => ({
   useLibraryStore: vi.fn()
 }))
+
+vi.mock('../../../stores/userStore', () => {
+  const addXP = vi.fn()
+  const markQuestComplete = vi.fn()
+  return {
+    useUserStore: vi.fn(() => ({
+      profile: { id: 'test-user-id', xp: 100 },
+      addXP,
+      markQuestComplete
+    }))
+  }
+})
+
+vi.mock('../../../stores/uiStore', () => {
+  const addToast = vi.fn()
+  return {
+    useUiStore: vi.fn(() => ({
+      addToast
+    }))
+  }
+})
 
 vi.mock('../../../api/supabaseClient', () => ({
   supabase: {
@@ -31,6 +55,7 @@ vi.mock('../../../api/puzzleApi', () => ({
 describe('Curriculum Store - Shadow Realm Intelligence', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.clearAllMocks()
   })
 
   it('should generate a personal puzzle when a mistake is detected in an analyzed game', async () => {
@@ -88,5 +113,54 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     expect(curriculum.personalLessons.length).toBe(1)
     expect(curriculum.personalLessons[0].title).toBe('Focus: Fork')
     expect(curriculum.personalLessons[0].puzzles.length).toBe(2)
+  })
+
+  describe('Quest Completion & XP award rules', () => {
+    it('should complete a quest for the first time, insert into database, and award XP', async () => {
+      const curriculum = useCurriculumStore()
+      const userStore = useUserStore()
+      const uiStore = useUiStore()
+
+      // Define a quest in our quests ref for testing (found-origins, rewards 30 XP)
+      expect(curriculum.quests.some(q => q.id === 'found-origins')).toBe(true)
+
+      // Mock supabase insert to succeed
+      const fromSpy = vi.spyOn(supabase, 'from')
+      const insertSpy = vi.fn().mockResolvedValue({ error: null })
+      fromSpy.mockReturnValue({ insert: insertSpy } as any)
+
+      // Execute completion
+      await curriculum.completeQuest('test-user-id', 'found-origins')
+
+      // Assertions
+      expect(insertSpy).toHaveBeenCalledWith([{ user_id: 'test-user-id', node_id: 'found-origins' }])
+      expect(curriculum.completedQuestIds).toContain('found-origins')
+      expect(userStore.markQuestComplete).toHaveBeenCalledWith('found-origins')
+      expect(userStore.addXP).toHaveBeenCalledWith(30) // from quest.xp_reward (30 XP)
+      expect(uiStore.addToast).toHaveBeenCalledWith('+30 XP earned!', 'success')
+    })
+
+    it('should skip completion, database insertion, and XP award if already completed', async () => {
+      const curriculum = useCurriculumStore()
+      const userStore = useUserStore()
+      const uiStore = useUiStore()
+
+      // Pre-populate completed quests
+      curriculum.completedQuestIds = ['found-origins']
+
+      // Mock supabase insert (should not be called anyway)
+      const fromSpy = vi.spyOn(supabase, 'from')
+      const insertSpy = vi.fn().mockResolvedValue({ error: null })
+      fromSpy.mockReturnValue({ insert: insertSpy } as any)
+
+      // Execute completion
+      await curriculum.completeQuest('test-user-id', 'found-origins')
+
+      // Assertions
+      expect(insertSpy).not.toHaveBeenCalled()
+      expect(userStore.markQuestComplete).not.toHaveBeenCalled()
+      expect(userStore.addXP).not.toHaveBeenCalled()
+      expect(uiStore.addToast).not.toHaveBeenCalled()
+    })
   })
 })

@@ -178,15 +178,21 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   const completedQuests = ref<string[]>(Storage.get(StorageKey.COMPLETED_QUESTS, [] as string[]))
 
   /**
-   * Marks a quest as completed locally, rewards XP, and saves to storage.
+   * Marks a quest as completed locally in browser storage.
+   * 
+   * Why do we not award XP here?
+   * Historically, this method awarded a static 50 XP. We have moved XP rewards
+   * to be dynamic, based on each Quest's specific `xp_reward` defined in curriculumStore.ts.
+   * Removing `addXP` here prevents double-awarding XP when quests are completed.
    * 
    * @param questId - The unique identifier of the completed quest
    */
   function markQuestComplete(questId: string) {
+    // Only add to the completed array if it's not already tracked.
     if (!completedQuests.value.includes(questId)) {
       completedQuests.value.push(questId)
+      // Save the updated array to localStorage to persist state across reloads.
       Storage.set(StorageKey.COMPLETED_QUESTS, completedQuests.value)
-      addXP(50) // Reward XP
     }
   }
 

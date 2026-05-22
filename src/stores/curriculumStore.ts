@@ -167,24 +167,54 @@ export const useCurriculumStore = defineStore('curriculum', () => {
    * @param userId - The unique identifier of the user
    * @param questId - The unique identifier of the quest
    */
+  /**
+   * Marks a quest as complete in Supabase, updates local state,
+   * awards the quest's specific XP reward, and updates local gamification badges.
+   * 
+   * @param userId - The unique identifier of the user
+   * @param questId - The unique identifier of the quest
+   */
   async function completeQuest(userId: string, questId: string) {
+    // 1. Guard against duplicate completions to prevent infinite XP loops
+    if (completedQuestIds.value.includes(questId)) {
+      logger.info(`[Curriculum] Quest ${questId} is already completed. Skipping duplicate progress save.`)
+      return
+    }
+
+    // 2. Persist completion to database
     const { error } = await supabase
       .from('user_skill_progress')
       .insert([{ user_id: userId, node_id: questId }])
     
     if (!error) {
+      // 3. Update local state
       completedQuestIds.value.push(questId)
       updateQuestStatuses()
       
-      // Bridge gamification progress
+      // 4. Bridge gamification progress and award dynamic XP reward
       try {
         const userStore = useUserStore()
         if (userStore.markQuestComplete) {
           userStore.markQuestComplete(questId)
         }
+
+        // Find the quest content to get the correct, configured XP reward
+        const quest = quests.value.find(q => q.id === questId)
+        if (quest) {
+          const xp = quest.xp_reward || 50
+          userStore.addXP(xp)
+          
+          const uiStore = useUiStore()
+          uiStore.addToast(`+${xp} XP earned!`, 'success')
+        }
       } catch (e) {
         logger.error('[Curriculum] Failed to trigger gamification sync:', e)
       }
+    } else {
+      // Log the database error clearly for debugging
+      logger.error(`[Curriculum] Failed to insert progress for quest ${questId}:`, error)
+      const uiStore = useUiStore()
+      uiStore.addToast('Failed to save lesson progress to database.', 'error')
     }
   }
 

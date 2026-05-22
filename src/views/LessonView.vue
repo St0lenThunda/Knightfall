@@ -166,11 +166,15 @@ async function handleMoveResult(result: string) {
   }
 }
 
+/**
+ * Handles completing the trial/drill lesson.
+ * We mark the quest as complete in the curriculum store, which automatically
+ * checks for existing completions, saves progress, and awards the dynamic XP.
+ */
 async function finishLesson() {
   lessonComplete.value = true
   if (userStore.profile?.id) {
     await curriculum.completeQuest(userStore.profile.id, questId)
-    userStore.addXP(quest.value?.xp_reward || 50)
   }
 }
 </script>
