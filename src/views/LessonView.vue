@@ -96,8 +96,14 @@ function loadCurrentStep() {
     logger.error('[Lesson] store.setDrill is missing!')
   }
   
-  // Force explanation overlay on first load of each puzzle step.
-  isExplanationMode.value = true
+  // Show explanation only for the first puzzle of the lesson.
+  isExplanationMode.value = currentPuzzleIndex.value === 0
+  // Auto-start drill for the first puzzle after a brief pause
+  if (currentPuzzleIndex.value === 0) {
+    setTimeout(() => {
+      startDrill()
+    }, 500)
+  }
 }
 
 /**

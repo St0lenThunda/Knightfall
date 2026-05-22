@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef } from 'vue'
+import { ref, computed, shallowRef, onMounted, onUnmounted } from 'vue'
 import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
@@ -24,10 +24,12 @@ export interface EngineInfo {
 }
 
 export const useEngineStore = defineStore('engine', () => {
+  // Core reactive state
   const isReady = ref(false)
   const isAnalyzing = ref(false)
   const isRebooting = ref(false)
-  
+  const isThrottled = ref(false) // Indicates engine has been auto-throttled due to inactivity
+
   // Evaluation values
   const evalScoreCp = ref(0) // Centipawns. Positive = white advantage
   const evalMate = ref<number | null>(null) // Moves to mate. Multiplier determines color.
@@ -45,6 +47,7 @@ export const useEngineStore = defineStore('engine', () => {
    */
   const multiPvs = shallowRef<MultiPV[]>([])
   
+  // Internal worker handling
   let worker: Worker | null = null
   let pendingInfo: EngineInfo | null = null
   let infoThrottleTimeout: ReturnType<typeof setTimeout> | null = null
@@ -52,15 +55,68 @@ export const useEngineStore = defineStore('engine', () => {
   let rebootResetTimer: ReturnType<typeof setTimeout> | null = null
   let activeTurn: 'w' | 'b' = 'w'
 
-  // State persistence for self-healing reboots
+  // Persistence for seamless reboot recovery
   let lastAnalyzedFen = ''
   let lastAnalyzedDepth = 0
   let lastAnalyzedBot: Bot | null = null
 
-  // Command Queue for stable worker handshaking
+  // Command queue to ensure ordered communication with the worker
   let messageQueue: string[] = []
   let isReadyForCommand = true
 
+  // ---------------------------------------------------------------------
+  // Inactivity auto-throttling (priority #1)
+  // ---------------------------------------------------------------------
+  const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000 // 3 minutes
+  let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+
+  /**
+   * Reset the inactivity timeout. Called whenever the user or the app
+   * triggers a new engine analysis request.
+   */
+  function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer)
+    inactivityTimer = setTimeout(() => {
+      logger.warn('[Engine] Auto-throttling due to 3 min inactivity or hidden tab')
+      stop()
+      isThrottled.value = true
+    }, INACTIVITY_TIMEOUT_MS)
+    isThrottled.value = false
+  }
+
+  /**
+   * Handle page visibility changes. When the tab becomes hidden we immediately
+   * stop the engine to avoid unnecessary CPU work.
+   */
+  function onVisibilityChange() {
+    if (document.hidden) {
+      logger.info('[Engine] Tab hidden – stopping engine')
+      stop()
+      isThrottled.value = true
+    } else {
+      // Tab visible again – next analysis call will reset the timer.
+      logger.info('[Engine] Tab visible – engine can be re-started')
+    }
+  }
+
+  // Register listeners when the store is first used
+  onMounted(() => {
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
+  })
+
+  // Clean up listeners when the store is destroyed
+  onUnmounted(() => {
+    if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+    if (inactivityTimer) clearTimeout(inactivityTimer)
+  })
+
+  // ---------------------------------------------------------------------
+  // Command dispatcher
+  // ---------------------------------------------------------------------
   /**
    * Safe command dispatcher that waits for Stockfish's 'readyok' 
    * before sending the next command in the queue.
@@ -401,6 +457,7 @@ export const useEngineStore = defineStore('engine', () => {
       infoThrottleTimeout = null
     }
     pendingInfo = null
+    isAnalyzing.value = false
   }
 
 
@@ -419,12 +476,21 @@ export const useEngineStore = defineStore('engine', () => {
   }
 
   // Trigger analysis for a given position
+  /**
+   * Start analysis of a position.
+   * This function also resets the inactivity timer so that the engine will be
+   * automatically throttled if no further analysis requests occur within three
+   * minutes.
+   */
   function analyze(fen: string, depth = 15, bot?: Bot) {
     if (!worker) init()
     
     activeBot.value = bot || null
 
     logger.info(`[Engine] Analyzing FEN: ${fen.substring(0, 20)}... at Depth: ${depth}`)
+
+    // Reset inactivity timer – a new analysis request means the user is active.
+    resetInactivityTimer()
     
     // 1. Idempotency Check: Don't re-analyze exactly the same state
     if (lastAnalyzedFen === fen && lastAnalyzedDepth === depth && !isRebooting.value) {
@@ -496,7 +562,7 @@ export const useEngineStore = defineStore('engine', () => {
   })
 
   return {
-    isReady, isAnalyzing, evalScoreCp, evalMate, bestMove, suggestedMove, currentDepth, pv, multiPvs,
+    isReady, isAnalyzing, isThrottled, evalScoreCp, evalMate, bestMove, suggestedMove, currentDepth, pv, multiPvs,
     evalNumber, evalPercent,
     init, analyze, stop, reboot, resetRebootCount,
     setMortalArchetype,
