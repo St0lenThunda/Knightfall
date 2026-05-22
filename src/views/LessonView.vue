@@ -27,6 +27,7 @@ const quest = computed(() => {
 
 const puzzles = ref<Puzzle[]>([])
 const currentPuzzleIndex = ref(0)
+const currentPuzzle = computed(() => puzzles.value[currentPuzzleIndex.value])
 const isExplanationMode = ref(true)
 const lessonComplete = ref(false)
 const puzzlesSolvedInLesson = ref(0)
@@ -228,11 +229,11 @@ async function finishLesson() {
               <span class="icon">{{ quest?.icon }}</span>
               <h2>{{ quest?.title }}</h2>
             </div>
-            <p class="text-secondary">
-              {{ quest?.category === 'Tactics' ? 'Tactical patterns like this appear frequently in winning games. Find the winning continuation.' : 'Mastering this positional concept will give you a long-term advantage.' }}
+            <p class="text-secondary" style="line-height: 1.6; font-size: 1.05rem;">
+              {{ quest?.description || 'This personalized training module is forged from the ashes of your own past games. Take a deep breath, review the concepts, and find the stronger continuation.' }}
             </p>
             <div class="tip glass-xs">
-              <strong>Coach's Tip:</strong> Look for unprotected pieces or king safety issues.
+              <strong>Coach's Tip:</strong> {{ currentPuzzle?.explanation || 'Take your time. Identify the opponent\'s last move and search for forcing checks, captures, and threats.' }}
             </div>
             <button class="btn btn-primary btn-lg" @click="startDrill">Start Exercise</button>
           </div>
