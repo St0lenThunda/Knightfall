@@ -8,6 +8,7 @@
  * Why: Raw localStorage access is error-prone (key typos) and doesn't 
  * handle complex objects well without JSON.stringify/parse.
  */
+import { logger } from './logger'
 
 export const StorageKey = {
   AUTH_SESSION: 'kf_auth_session',
@@ -65,7 +66,7 @@ export const Storage = {
       const serializedValue = JSON.stringify(value);
       localStorage.setItem(key, serializedValue);
     } catch (error) {
-      console.error(`[Storage] Error saving key "${key}":`, error);
+      logger.error(`[Storage] Error saving key "${key}":`, error)
     }
   },
 
@@ -87,8 +88,8 @@ export const Storage = {
         return value as unknown as T;
       }
     } catch (error) {
-      console.error(`[Storage] Error reading key "${key}":`, error);
-      return defaultValue;
+      logger.error(`[Storage] Error reading key "${key}":`, error)
+      return defaultValue
     }
   },
 

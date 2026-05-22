@@ -3,7 +3,17 @@ import type { LibraryGame } from './types'
 
 /**
  * Composable for library filtering and sorting.
- * Offloads heavy filtering work to a Web Worker to keep the UI responsive.
+ * Performs filtering synchronously on the main thread, which is highly
+ * performant for typical player libraries (<100k games).
+ * 
+ * @param games - Reactive list of all library games
+ * @param userStore - User store instance containing profile details
+ * @param searchQuery - Current text query for players, event, etc.
+ * @param filterResult - Selection filter for game outcomes
+ * @param selectedTag - Active tag filter
+ * @param filterPerspective - Filter by player color perspective
+ * @param sortBy - The field name to sort games by
+ * @param sortOrder - Sort direction (asc/desc)
  */
 export function useLibraryFilter(
   games: Ref<LibraryGame[]>,

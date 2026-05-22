@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAdminStore } from '../../stores/adminStore'
 import { useEngineStore } from '../../stores/engineStore'
 import { useLibraryStore } from '../../stores/libraryStore'
+import { formatNps, formatTime } from '../../utils/telemetryUtils'
 
 const adminStore = useAdminStore()
 const engineStore = useEngineStore()
@@ -16,11 +17,7 @@ const getHitRateClass = computed(() => {
   return ''
 })
 
-const formatNps = (nps: number) => {
-  if (nps > 1000000) return (nps / 1000000).toFixed(1) + 'M'
-  if (nps > 1000) return (nps / 1000).toFixed(0) + 'K'
-  return nps
-}
+
 
 const formatTokens = (t: number) => {
   if (t > 1000) return (t / 1000).toFixed(1) + 'k'
@@ -31,12 +28,6 @@ const getWaveHeight = (i: number) => {
   if (!engineStore.isAnalyzing) return '2px'
   const seed = Date.now() / 200 + i
   return (Math.sin(seed) * 10 + 15) + 'px'
-}
-
-const formatTime = (ts: string) => {
-  if (!ts) return '?'
-  const d = new Date(ts)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 

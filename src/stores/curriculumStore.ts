@@ -327,13 +327,20 @@ export const useCurriculumStore = defineStore('curriculum', () => {
         // Iterate through evals and find significant mistakes
         const evals = game.evals || []
         evals.forEach((ev, i) => {
-          // We need the eval for the position BEFORE move i to find the best move for that position
+          // We need the evaluation for the position BEFORE move i to find the engine's best move.
+          // If we are at the very first move (i = 0), we default to a standard opening balance of 0.3.
           const prevEval = i > 0 ? evals[i-1] : { score: 0.3, bestMove: '' }
-          if (!prevEval || !prevEval.bestMove || i >= moves.length) return
+
+          // SAFETY CHECK: Ensure that both the current eval object (ev) and the previous eval (prevEval)
+          // exist, that a valid bestMove was recorded, and that we have not exceeded the game moves array.
+          // If ev is null (e.g., the engine skipped that specific ply during a cloud sync or fast scan),
+          // accessing ev.score would throw a TypeError: "Cannot read properties of null (reading 'score')".
+          if (!ev || !prevEval || !prevEval.bestMove || i >= moves.length) return
 
           const fenBefore = moves[i].before
-          const evalBefore = prevEval.score || 0.3
-          const evalAfter = ev.score || 0
+          // We check if score exists to avoid defaulting a genuine 0.0 (equal position) to 0.3
+          const evalBefore = (prevEval.score !== undefined && prevEval.score !== null) ? prevEval.score : 0.3
+          const evalAfter = (ev.score !== undefined && ev.score !== null) ? ev.score : 0
 
           // If the user played the engine's suggested best move, it's not a mistake,
           // even if the evaluation dropped (horizon effect).

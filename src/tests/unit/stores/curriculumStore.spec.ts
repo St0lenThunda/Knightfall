@@ -97,6 +97,30 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     expect(puzzle.category).toBe('Personal Mistake')
   })
 
+  it('should handle null elements in evals gracefully without throwing', async () => {
+    const curriculum = useCurriculumStore()
+    
+    // Setup a game with a null eval in the evals array
+    const mockGameWithNullEvals = {
+      id: 'test-game-null-evals',
+      pgn: '1. e4 f6',
+      whiteElo: '1500',
+      event: 'Test Open',
+      evals: [
+        null, // Simulates a null eval
+        { score: 3.5, bestMove: 'd4' },
+      ]
+    }
+
+    ;(useLibraryStore as any).mockReturnValue({
+      games: [mockGameWithNullEvals]
+    })
+
+    // Verify it doesn't throw a TypeError
+    await expect(curriculum.generatePersonalPuzzles()).resolves.not.toThrow()
+    expect(curriculum.personalPuzzles.length).toBe(0)
+  })
+
   it('should group related puzzles into thematic lessons', async () => {
     const curriculum = useCurriculumStore()
     

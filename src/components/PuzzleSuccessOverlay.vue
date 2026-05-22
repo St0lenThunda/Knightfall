@@ -18,7 +18,7 @@
         <div class="stats-grid">
           <div class="stat-item">
             <div class="stat-label">TIME</div>
-            <div class="stat-value">{{ formatTime(timeTaken) }}</div>
+            <div class="stat-value">{{ formatDuration(timeTaken) }}</div>
           </div>
           <div class="stat-item">
             <div class="stat-label">XP REWARD</div>
@@ -57,6 +57,8 @@
  * Replaces the simple toast with a high-fidelity feedback loop.
  */
 
+import { formatDuration } from '../utils/telemetryUtils'
+
 defineProps<{
   visible: boolean
   solutionUsed: boolean
@@ -68,12 +70,6 @@ defineProps<{
 
 defineEmits(['next', 'close'])
 
-function formatTime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}m ${secs}s`
-}
 </script>
 
 <style scoped>

@@ -25,126 +25,26 @@
     <main class="gauntlet-main">
       
       <!-- SCREEN 1: Hero Landing & Self-Declaration -->
-      <div v-if="step === 'landing'" class="landing-step animate-fade-in">
-        <div class="hero-arch glass-lg">
-          <span class="ritual-tag">THE RITE OF INITIATION</span>
-          <h1 class="hero-title">Forge Your <span class="text-gradient">Chess DNA</span></h1>
-          <p class="hero-desc">
-            Welcome to Knightfall. To map your cognitive strengths and weaknesses, we must initialize your tactical profile.
-          </p>
-
-          <!-- Oracle Rating Notice -->
-          <div class="oracle-notice glass-sm">
-            <span class="oracle-icon">🔮</span>
-            <div class="oracle-text">
-              <strong>The Oracle Whispers:</strong>
-              <p>
-                The ratings generated here are platform-specific skill benchmarks designed to optimize your personalized training queue. They do not constitute official federation ratings (like FIDE, USCF, Lichess, or Chess.com).
-              </p>
-            </div>
-          </div>
-
-          <!-- Self-Declaration Form -->
-          <div class="declaration-form">
-            <h3>Select your estimated chess experience:</h3>
-            <div class="skill-grid">
-              <button 
-                v-for="opt in skillOptions" 
-                :key="opt.label"
-                class="skill-btn glass-sm"
-                :class="{ active: declaredSkill === opt.value }"
-                @click="declaredSkill = opt.value"
-              >
-                <span class="skill-emoji">{{ opt.emoji }}</span>
-                <div class="skill-meta">
-                  <span class="skill-title">{{ opt.label }}</span>
-                  <span class="skill-desc">Est. {{ opt.rating }} Elo</span>
-                </div>
-              </button>
-            </div>
-
-            <button 
-              class="btn btn-primary btn-lg btn-glow mt-8" 
-              :disabled="!declaredSkill"
-              @click="proceedToQuickWin"
-            >
-              Begin Assessment →
-            </button>
-          </div>
-        </div>
-      </div>
+      <OnboardingDeclaration 
+        v-if="step === 'landing'"
+        v-model="declaredSkill"
+        @submit="proceedToQuickWin"
+      />
 
       <!-- SCREEN 2: Quick Win Puzzle -->
-      <div v-else-if="step === 'quick-win'" class="quick-win-step animate-fade-in">
-        <div class="board-layout">
-          <div class="board-wrapper glass-lg">
-            <ChessBoard 
-              :interactive="true"
-              :flipped="false"
-            />
-            <div class="board-overlay-banner white">
-              White to Move — Deliver Checkmate!
-            </div>
-          </div>
-
-          <aside class="sidebar glass-sm">
-            <div class="sidebar-top">
-              <span class="ritual-tag">TEST 1: QUICK WIN</span>
-              <h3>Deliver the Strike</h3>
-              <p class="muted mt-4">
-                The enemy king is exposed. Cooperate with your Queen on f3 and Bishop on c4 to deliver checkmate on f7 in a single move.
-              </p>
-            </div>
-
-            <div class="sidebar-bottom">
-              <div class="telemetry-item">
-                <span class="label">PUZZLE DIFFICULTY</span>
-                <span class="val text-gold-gradient">★ 600 Elo</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="label">ATTEMPTS</span>
-                <span class="val">{{ gameStore.mistakeCount }}</span>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </div>
+      <OnboardingQuickWin 
+        v-else-if="step === 'quick-win'"
+        @solved="showQuickWinSuccess = true"
+      />
 
       <!-- SCREEN 3+: Diagnostic Stages -->
-      <div v-else class="diagnostic-step animate-fade-in">
-        <div class="board-layout">
-          <div class="board-wrapper glass-lg">
-            <ChessBoard 
-              v-if="currentPuzzle"
-              :interactive="true"
-              :flipped="isFlipped"
-            />
-            <div class="intel-overlay" v-if="showIntel">
-              <div class="intel-pulse"></div>
-              <span>SEQUENCING COGNITIVE DNA...</span>
-            </div>
-          </div>
-
-          <aside class="sidebar glass-sm">
-            <div class="sidebar-top">
-              <span class="ritual-tag">{{ curriculumStore.currentStage.toUpperCase() }} ASSESSMENT</span>
-              <h3>Task Briefing</h3>
-              <p class="muted mt-4">{{ stageDescription }}</p>
-            </div>
-
-            <div class="sidebar-bottom">
-              <div class="telemetry-item">
-                <span class="label">ACCURACY</span>
-                <span class="val">{{ Math.round(accuracy * 100) }}%</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="label">PACE</span>
-                <span class="val">{{ pace }}s</span>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </div>
+      <OnboardingDiagnostic 
+        v-else
+        :declared-skill="declaredSkill!"
+        :current-stage="curriculumStore.currentStage"
+        :current-stage-index="curriculumStore.currentStageIndex"
+        @stage-complete="handleStageComplete"
+      />
 
     </main>
 
@@ -201,49 +101,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+/**
+ * OnboardingGauntlet.vue
+ *
+ * The Rite of Initiation Orchestrator.
+ * Manages the onboarding stages funnel (landing selection, quick win challenge, and 5-stage
+ * diagnostic tasks). It tracks overall progress, shows success feedback overlays, resolves final
+ * diagnostic ratings compared to declared skills, and saves the final cached DNA profile before
+ * sending the user to the visual DNA reveal showcase.
+ *
+ * Decoupled into sub-components (OnboardingDeclaration.vue, OnboardingQuickWin.vue, OnboardingDiagnostic.vue)
+ * to comply with the project style guidelines (500 lines limit).
+ */
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCurriculumStore } from '../stores/curriculumStore'
 import { useGameStore } from '../stores/gameStore'
 import { useUiStore } from '../stores/uiStore'
-import { fetchAssessmentPuzzles, type Puzzle } from '../api/puzzleApi'
-import { QUICK_WIN_PUZZLE } from '../data/onboardingData'
-import ChessBoard from '../components/ChessBoard.vue'
 import { logger } from '../utils/logger'
 import { Storage, StorageKey } from '../utils/storage'
+
+// Step-specific components imports
+import OnboardingDeclaration from '../components/onboarding/OnboardingDeclaration.vue'
+import OnboardingQuickWin from '../components/onboarding/OnboardingQuickWin.vue'
+import OnboardingDiagnostic from '../components/onboarding/OnboardingDiagnostic.vue'
 
 const router = useRouter()
 const curriculumStore = useCurriculumStore()
 const gameStore = useGameStore()
 const uiStore = useUiStore()
 
-// --- ONBOARDING STATE ---
+// --- ONBOARDING FUNNEL STATE ---
 type Step = 'landing' | 'quick-win' | 'diagnostic'
 const step = ref<Step>('landing')
 
 const declaredSkill = ref<number | null>(null)
 const showQuickWinSuccess = ref(false)
 
-// Diagnostic stage states
-const currentPuzzles = ref<Puzzle[]>([])
-const puzzleIdx = ref(0)
-const startTime = ref(0)
-const stageResults = ref<{ time: number; errors: number }[]>([])
-const showIntel = ref(false)
 const showSuccess = ref(false)
 const hasRatingMismatch = ref(false)
 
-const skillOptions = [
-  { label: 'Beginner', value: 800, rating: 800, emoji: '♟️' },
-  { label: 'Casual', value: 1200, rating: 1200, emoji: '🍻' },
-  { label: 'Club Player', value: 1600, rating: 1600, emoji: '⚔️' },
-  { label: 'Expert', value: 2000, rating: 2000, emoji: '👑' }
-]
+// Results accumulator across all 5 diagnostic assessment cycles
+const finalResults = ref<{ stage: string; accuracy: number; avgTime: number; difficulty: number }[]>([])
 
-// --- COMPUTED ---
+// --- COMPUTED VIEW DATA ---
 
 /**
- * Computes the header title dynamically based on the current step and stage.
+ * Computes the header title dynamically based on the current step and active stage.
  */
 const headerTitle = computed(() => {
   if (step.value === 'landing') return 'Initiate Assessment'
@@ -260,7 +164,7 @@ const headerTitle = computed(() => {
 })
 
 /**
- * Computes the current step's progress percentage.
+ * Computes the current step's progress percentage across the 0-100% path.
  */
 const progressPercentage = computed(() => {
   if (step.value === 'landing') return 5
@@ -269,162 +173,69 @@ const progressPercentage = computed(() => {
   return 20 + (curriculumStore.currentStageIndex / 5) * 80
 })
 
-/**
- * Fetches the active puzzle.
- */
-const currentPuzzle = computed(() => {
-  if (step.value === 'quick-win') return QUICK_WIN_PUZZLE
-  return currentPuzzles.value[puzzleIdx.value]
-})
+// --- ACTIONS & FLOW HANDLERS ---
 
 /**
- * Flips the board if playing as Black (to match bottom-up convention).
- */
-const isFlipped = computed(() => {
-  if (!currentPuzzle.value) return false
-  return currentPuzzle.value.fen.split(' ')[1] === 'b'
-})
-
-const accuracy = computed(() => {
-  if (stageResults.value.length === 0) return 1
-  const totalPuzzles = stageResults.value.length
-  const perfectPuzzles = stageResults.value.filter(r => r.errors === 0).length
-  return perfectPuzzles / totalPuzzles
-})
-
-const pace = computed(() => {
-  if (stageResults.value.length === 0) return 0
-  const totalTime = stageResults.value.reduce((acc, r) => acc + r.time, 0)
-  return Math.round(totalTime / stageResults.value.length)
-})
-
-const stageDescriptions: Record<string, string> = {
-  tactics: 'Find the winning sequence as quickly as possible. We are measuring your tactical floor.',
-  calculation: 'Look 3-4 moves ahead. Accuracy is more important than speed in this phase.',
-  endgame: 'Convert the advantage. This measures your technical precision in high-leverage moments.',
-  strategy: 'Choose the best positional plan. No immediate tactics; purely conceptual.',
-  speed: 'Instinct test. Solve simple patterns under extreme time pressure.'
-}
-
-const stageDescription = computed(() => stageDescriptions[curriculumStore.currentStage] || 'Analyzing performance...')
-
-// --- ACTIONS ---
-
-/**
- * Transitions from Screen 1 (Hero) to Screen 2 (Quick Win).
+ * Transitions from Screen 1 (Self-Declaration Selection) to Screen 2 (Quick Win Challenge).
  */
 function proceedToQuickWin() {
   if (!declaredSkill.value) return
   step.value = 'quick-win'
-  loadPuzzle(QUICK_WIN_PUZZLE)
 }
 
 /**
- * Sets up a puzzle position in the gameStore.
- * 
- * @param puzzle - The chess puzzle object
- */
-function loadPuzzle(puzzle: Puzzle) {
-  logger.info(`[Onboarding] Loading puzzle ${puzzle.id}`, puzzle.solution)
-  
-  // 1. Load position into the board logic
-  gameStore.loadPosition(puzzle.fen, 'puzzle')
-  
-  // 2. Configure drill properties
-  gameStore.mode = 'puzzle'
-  gameStore.setDrill(puzzle.solution || [])
-  gameStore.playerColor = puzzle.fen.split(' ')[1] as 'w' | 'b'
-  
-  // 3. Start game clock and state
-  gameStore.startMatch()
-  
-  // 4. Record telemetry timestamps
-  startTime.value = Date.now()
-}
-
-/**
- * Advances from Screen 2 (Quick Win) to Screen 3 (Diagnostic Stages).
+ * Advances from Screen 2 (Quick Win) to Screen 3 (Diagnostic Stages initiation).
  */
 function startDiagnosticAssessment() {
   showQuickWinSuccess.value = false
   step.value = 'diagnostic'
   curriculumStore.startAssessment()
-  loadStage()
 }
 
 /**
- * Loads the current diagnostic stage puzzles.
+ * Triggered by the diagnostic component when a full assessment stage is finished.
+ * Accumulates the metrics, records them inside the curriculum store, and shows the overlay.
+ *
+ * @param stageMetrics - Object containing accuracy and average pace time
  */
-async function loadStage() {
-  try {
-    currentPuzzles.value = await fetchAssessmentPuzzles(curriculumStore.currentStage)
-    puzzleIdx.value = 0
-    stageResults.value = []
-    
-    if (currentPuzzles.value.length > 0) {
-      loadPuzzle(currentPuzzles.value[0])
-    }
-  } catch (err) {
-    logger.error('[Onboarding] Failed to load stage:', err)
-  }
-}
-
-/**
- * Records individual puzzle results and checks stage progression.
- */
-function handlePuzzleComplete() {
-  const timeTaken = (Date.now() - startTime.value) / 1000
-  
-  stageResults.value.push({
-    time: timeTaken,
-    errors: gameStore.mistakeCount
-  })
-
-  if (puzzleIdx.value < currentPuzzles.value.length - 1) {
-    puzzleIdx.value++
-    loadPuzzle(currentPuzzles.value[puzzleIdx.value])
-  } else {
-    completeStage()
-  }
-}
-
-/**
- * Completes a diagnostic stage and checks for total gauntlet completion.
- */
-function completeStage() {
+function handleStageComplete({ accuracy, pace }: { accuracy: number; pace: number }) {
   showSuccess.value = true
   
-  // We use the declared skill rating as the base difficulty target
+  // Use user's declared skill rating as the difficulty index target
   const baseDifficulty = declaredSkill.value || 1200
   
-  curriculumStore.recordStageResult({
+  const stageResult = {
     stage: curriculumStore.currentStage,
-    accuracy: accuracy.value,
-    avgTime: pace.value,
+    accuracy,
+    avgTime: pace,
     difficulty: baseDifficulty
-  })
+  }
+  
+  finalResults.value.push(stageResult)
+  
+  curriculumStore.recordStageResult(stageResult)
 }
 
 /**
- * Moves to the next diagnostic stage.
+ * Moves to the next diagnostic stage. Called from the Proceed button on the stage complete overlay.
  */
 function nextStage() {
   showSuccess.value = false
-  loadStage()
+  // curriculumStore will handle advancing currentStageIndex automatically
 }
 
 /**
- * Finalizes the assessment, resolves rating mismatches, and redirects to DNA reveal.
+ * Finalizes the assessment, resolves rating mismatches, caches DNA locally, and redirects.
  */
 async function revealDna() {
   showSuccess.value = false
   
   // Calculate average diagnostic performance rating
-  const totalWeight = curriculumStore.results.reduce((acc, r) => acc + r.difficulty, 0)
-  let calculatedElo = curriculumStore.results.length > 0 ? totalWeight / curriculumStore.results.length : 1200
+  const totalWeight = finalResults.value.reduce((acc, r) => acc + r.difficulty, 0)
+  let calculatedElo = finalResults.value.length > 0 ? totalWeight / finalResults.value.length : 1200
   
   // Mismatch Resolution: If average diagnostic accuracy is low, adjust rating down
-  const avgAccuracy = curriculumStore.results.reduce((acc, r) => acc + r.accuracy, 0) / (curriculumStore.results.length || 1)
+  const avgAccuracy = finalResults.value.reduce((acc, r) => acc + r.accuracy, 0) / (finalResults.value.length || 1)
   if (avgAccuracy < 0.5) {
     calculatedElo = Math.max(600, calculatedElo - 300)
     hasRatingMismatch.value = true
@@ -433,14 +244,14 @@ async function revealDna() {
     hasRatingMismatch.value = true
   }
 
-  // Cache DNA and final rating locally for Delayed Auth Gate (Combination 1 + 3 + 4)
+  // Cache DNA and final rating locally for Delayed Auth Gate
   const pendingDna = {
     rating: Math.round(calculatedElo),
     puzzle_rating: Math.round(calculatedElo + 100),
     archetype: calculatedElo > 1600 ? 'The Strategist' : calculatedElo > 1200 ? 'The Tactician' : 'The Initiate',
     declared_rating: declaredSkill.value,
     gauntlet_completed: true,
-    results: curriculumStore.results
+    results: finalResults.value
   }
   
   Storage.set(StorageKey.LAST_ANALYSIS_ID, 'guest-dna-profile')
@@ -452,7 +263,7 @@ async function revealDna() {
 }
 
 /**
- * Exits the onboarding funnel with confirmation.
+ * Exits the onboarding funnel with standard confirmation check.
  */
 function handleExit() {
   uiStore.confirm('Exit Assessment?', 'Your current progress will not be saved.', () => {
@@ -460,45 +271,10 @@ function handleExit() {
   })
 }
 
-// --- WATCHERS & LIFECYCLE ---
-
-// Watch for drill index steps to handle checkmate triggers and auto-moves
-watch(() => gameStore.drillIndex, (newIdx) => {
-  if (!currentPuzzle.value) return
-
-  const solution = currentPuzzle.value.solution
-  
-  // 1. Check if puzzle is fully solved
-  if (newIdx >= solution.length) {
-    setTimeout(() => {
-      if (step.value === 'quick-win') {
-        showQuickWinSuccess.value = true
-      } else {
-        handlePuzzleComplete()
-      }
-    }, 500)
-    return
-  }
-
-  // 2. Trigger opponent's counter-move automatically if it's their turn
-  const currentTurn = gameStore.turn
-  if (currentTurn !== gameStore.playerColor) {
-    const nextMove = solution[newIdx]
-    setTimeout(() => {
-      const from = nextMove.slice(0, 2) as any
-      const to = nextMove.slice(2, 4) as any
-      gameStore.makeMove(from, to)
-      logger.info(`[Onboarding] Opponent played auto-move: ${nextMove}`)
-    }, 400) // 400ms delay for realism
-  }
-})
-
 onMounted(() => {
   // Reset game state on initiation
   gameStore.forceGameOver = false
-  
-  // Trigger secondary visual animations
-  setTimeout(() => { showIntel.value = true }, 1500)
+  finalResults.value = []
 })
 </script>
 
@@ -535,7 +311,7 @@ onMounted(() => {
 .ray:nth-child(2) { left: 45%; }
 .ray:nth-child(3) { left: 85%; }
 
-/* Header */
+/* Header Layout Styles */
 .gauntlet-header {
   height: 80px;
   display: flex;
@@ -544,6 +320,20 @@ onMounted(() => {
   padding: 0 var(--space-8);
   position: relative;
   z-index: 2;
+}
+
+.stage-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+
+.current-task {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 2px;
 }
 
 .progress-track-bg {
@@ -571,7 +361,6 @@ onMounted(() => {
 }
 .btn-exit:hover { color: white; }
 
-/* Layouts */
 .gauntlet-main {
   flex: 1;
   display: flex;
@@ -584,226 +373,7 @@ onMounted(() => {
   width: 100%;
 }
 
-.landing-step {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex: 1;
-}
-
-.hero-arch {
-  width: 100%;
-  max-width: 750px;
-  padding: var(--space-10);
-  border-radius: var(--radius-xl);
-  text-align: center;
-  box-shadow: var(--shadow-lg);
-}
-
-.ritual-tag {
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.3em;
-  color: var(--accent-bright);
-  display: block;
-  margin-bottom: var(--space-3);
-  text-transform: uppercase;
-}
-
-.hero-title {
-  font-size: 3.2rem;
-  font-weight: 900;
-  margin-bottom: var(--space-4);
-  line-height: 1.15;
-}
-
-.hero-desc {
-  font-size: 1.15rem;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-8);
-}
-
-/* Oracle Notice */
-.oracle-notice {
-  display: flex;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  text-align: left;
-  margin-bottom: var(--space-8);
-  border-left: 3px solid var(--accent);
-}
-
-.oracle-icon {
-  font-size: 1.8rem;
-}
-
-.oracle-text strong {
-  color: var(--accent-bright);
-  font-size: 0.95rem;
-}
-
-.oracle-text p {
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-  line-height: 1.5;
-}
-
-/* Skill Grid */
-.skill-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
-}
-
-@media (max-width: 600px) {
-  .skill-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.skill-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  text-align: left;
-  border: 1px solid var(--border);
-  transition: all var(--duration) var(--ease);
-}
-
-.skill-btn:hover {
-  border-color: var(--accent);
-  background: rgba(139, 92, 246, 0.05);
-}
-
-.skill-btn.active {
-  border-color: var(--accent-bright);
-  background: var(--accent-dim);
-  box-shadow: var(--shadow-accent);
-}
-
-.skill-emoji {
-  font-size: 1.8rem;
-}
-
-.skill-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.skill-title {
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--text-primary);
-}
-
-.skill-desc {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.btn-glow {
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.4);
-}
-.btn-glow:hover {
-  box-shadow: 0 0 50px rgba(139, 92, 246, 0.7);
-}
-
-/* Board Layouts */
-.board-layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: var(--space-8);
-  width: 100%;
-  flex: 1;
-}
-
-@media (max-width: 1000px) {
-  .board-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-.board-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  padding: var(--space-6);
-  border-radius: var(--radius-xl);
-}
-
-.board-overlay-banner {
-  margin-top: var(--space-4);
-  padding: 6px 18px;
-  border-radius: var(--radius-full);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.05em;
-}
-
-.board-overlay-banner.white {
-  background: white;
-  color: black;
-}
-
-.sidebar {
-  padding: var(--space-6);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border-radius: var(--radius-xl);
-}
-
-.telemetry-item {
-  margin-top: var(--space-6);
-}
-
-.telemetry-item .label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--text-muted);
-  letter-spacing: 0.1em;
-}
-
-.telemetry-item .val {
-  font-size: 1.5rem;
-  font-weight: 900;
-  color: var(--accent-bright);
-  display: block;
-}
-
-.intel-overlay {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(139, 92, 246, 0.1);
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--accent-bright);
-}
-
-.intel-pulse {
-  width: 8px;
-  height: 8px;
-  background: var(--accent-bright);
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-
-/* Success Modal Overlay */
+/* Success Modal & Overlays Styles */
 .success-modal-overlay {
   position: fixed;
   inset: 0;
@@ -820,6 +390,7 @@ onMounted(() => {
   padding: var(--space-10);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
 }
 
 .success-icon {
@@ -846,6 +417,7 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   text-align: left;
   border-left: 3px solid var(--rose);
+  background: rgba(244, 63, 94, 0.05);
 }
 
 .warning-emoji {
@@ -864,13 +436,26 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-  70% { transform: scale(1.1); opacity: 0.5; box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
-  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+.btn-glow {
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.4);
+}
+.btn-glow:hover {
+  box-shadow: 0 0 50px rgba(139, 92, 246, 0.7);
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s var(--ease) both;
+/* Slide Transitions */
+.fade-slide-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fade-slide-leave-active {
+  transition: all 0.25s ease-in;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
 }
 </style>

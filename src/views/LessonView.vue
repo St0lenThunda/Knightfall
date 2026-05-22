@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
@@ -62,11 +62,14 @@ onMounted(async () => {
   }
 })
 
-// Moves are now validated directly by the gameStore via setDrill()
-
 // Drill progress is now tracked via store.drillIndex
 const playerColor = ref<'w' | 'b'>('w')
 
+/**
+ * Loads the current puzzle step from the active batch.
+ * Resets board positions, configures the user's player color,
+ * and sets up the active solution sequence in the gameStore.
+ */
 function loadCurrentStep() {
   if (currentPuzzleIndex.value >= puzzles.value.length) {
     finishLesson()
@@ -75,101 +78,100 @@ function loadCurrentStep() {
   
   const p = puzzles.value[currentPuzzleIndex.value]
   
-  // Determine which color the user is playing
-  // The Turn in p.fen is the side whose move is solution[0] (Opponent)
+  // Single Source of Truth (SSOT): The turn of the starting FEN represents the side 
+  // that must move, which is the player.
   const tempChess = new Chess(p.fen)
-  const engineSide = tempChess.turn() // Color of the first move in solution
-  playerColor.value = engineSide === 'w' ? 'b' : 'w' // User plays the OTHER side
+  playerColor.value = tempChess.turn() // e.g., 'w' or 'b'
   
+  // Load position into our global gameplay state machine.
   store.loadPosition(p.fen, 'puzzle')
   
-  // CRITICAL: We must override the store's playerColor with the user's actual color.
-  // Because store.loadPosition sets store.playerColor to the FEN's starting turn
-  // (which is the opponent's side, since the opponent plays the first move).
-  // Without overriding this, store.isPlayersTurn will evaluate to false when the
-  // user tries to move, locking the board.
+  // Set the player's active color.
   store.playerColor = playerColor.value
   
+  // Configure the correct solution steps in the board logic.
   if (typeof store.setDrill === 'function') {
     store.setDrill(p.solution)
   } else {
-    logger.error('[Lesson] store.setDrill is missing! Store keys:', Object.keys(store))
+    logger.error('[Lesson] store.setDrill is missing!')
   }
   
+  // Force explanation overlay on first load of each puzzle step.
   isExplanationMode.value = true
-  
-  // Automatically play the FIRST move of the solution (The Opponent move)
-  setTimeout(() => {
-    // Note: makeMove will increment store.drillIndex to 1
-    const result = store.makeMove(
-      p.solution[0].slice(0, 2) as any,
-      p.solution[0].slice(2, 4) as any,
-      (p.solution[0][4] as any) || undefined
-    )
-    logger.info('[Lesson] Initial move result:', result)
-  }, 800)
 }
 
+/**
+ * Triggers the start of the exercise, removing the explanation card.
+ */
 function startDrill() {
   isExplanationMode.value = false
 }
 
-async function handleMoveResult(result: string) {
-  if (isExplanationMode.value) return
-  
+// --- WATCHERS ---
+
+/**
+ * Watcher: gameStore.drillIndex
+ * 
+ * Monitors the execution of moves in the active puzzle solution.
+ * - If the index reaches or exceeds the solution length, the puzzle is successfully resolved.
+ * - If the turn shifts to the opponent (odd indices in 0-indexed solutions), triggers the opponent's
+ *   response automatically after a realistic delay.
+ */
+watch(() => store.drillIndex, (newIdx) => {
   const p = puzzles.value[currentPuzzleIndex.value]
   if (!p) return
 
-  if (result === 'correct' || result === 'complete') {
-    // CurrentMoveIndex logic is now handled internally by gameStore (drillIndex)
-    
-    if (result === 'complete') {
-      uiStore.addToast('Correct!', 'success')
-      puzzlesSolvedInLesson.value++
-      setTimeout(() => {
-        currentPuzzleIndex.value++
-        loadCurrentStep()
-      }, 1000)
-      return
-    }
+  const solution = p.solution
+  
+  // 1. Check if the puzzle is fully completed
+  if (newIdx >= solution.length) {
+    uiStore.addToast('Correct!', 'success')
+    puzzlesSolvedInLesson.value++
+    // Wait 1 second for the visual board animation to complete, then load the next puzzle
+    setTimeout(() => {
+      currentPuzzleIndex.value++
+      loadCurrentStep()
+    }, 1000)
+    return
+  }
 
-    // Play opponent response automatically if we are on a user move completion
-    // The store.drillIndex is now even if it's the system's turn to respond
-    if (store.drillIndex % 2 === 0) {
-      setTimeout(() => {
-        const nextMove = p.solution[store.drillIndex]
-        const sysResult = store.makeMove(
-          nextMove.slice(0, 2) as any,
-          nextMove.slice(2, 4) as any,
-          (nextMove[4] as any) || undefined
-        )
-        
-        if (sysResult === 'complete') {
-          uiStore.addToast('Correct!', 'success')
-          puzzlesSolvedInLesson.value++
-          setTimeout(() => {
-            currentPuzzleIndex.value++
-            loadCurrentStep()
-          }, 1000)
-        }
-      }, 600)
-    }
+  // 2. Play the opponent response automatically if it's the opponent's turn.
+  // The player moves on even indices (0, 2, ...), so the opponent moves on odd indices (1, 3, ...).
+  if (newIdx % 2 !== 0) {
+    const nextMove = solution[newIdx]
+    setTimeout(() => {
+      const from = nextMove.slice(0, 2) as any
+      const to = nextMove.slice(2, 4) as any
+      const promotion = nextMove[4] || undefined
+      store.makeMove(from, to, promotion)
+      logger.info(`[Lesson] Opponent played auto-move: ${nextMove}`)
+    }, 600) // 600ms delay simulates response time
+  }
+})
 
-  } else if (result === 'incorrect') {
+/**
+ * Watcher: gameStore.mistakeCount
+ * 
+ * Listens for failed move attempts. When the user plays an incorrect move,
+ * we display an error toast, deduct a heart, and redirect back to the path
+ * if they run out of lives.
+ */
+watch(() => store.mistakeCount, async (newCount, oldCount) => {
+  // Only trigger if a new mistake was committed (mistakeCount incremented)
+  if (newCount > oldCount) {
     uiStore.addToast('Incorrect. Try again!', 'error')
     const remainingHearts = await userStore.deductHeart()
     
+    // Out of lives: send the user back to the Sanctum to recharge
     if (remainingHearts <= 0) {
       logger.info('[Lesson] Out of hearts, redirecting to path.')
       router.push('/path') 
     }
   }
-}
+})
 
 /**
- * Handles completing the trial/drill lesson.
- * We mark the quest as complete in the curriculum store, which automatically
- * checks for existing completions, saves progress, and awards the dynamic XP.
+ * Marks a quest as complete in the database and user profiles.
  */
 async function finishLesson() {
   lessonComplete.value = true
@@ -200,8 +202,7 @@ async function finishLesson() {
       <div class="board-area">
         <ChessBoard 
           :flipped="playerColor === 'b'" 
-          :interactive="!isExplanationMode && store.drillIndex % 2 !== 0" 
-          @move-result="handleMoveResult" 
+          :interactive="!isExplanationMode && store.drillIndex % 2 === 0" 
         />
       </div>
 

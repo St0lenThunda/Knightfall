@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
 import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
@@ -35,7 +35,15 @@ export const useEngineStore = defineStore('engine', () => {
   const bestMove = ref('')
   const currentDepth = ref(0)
   const pv = ref<string[]>([]) // Principal variation
-  const multiPvs = ref<MultiPV[]>([])
+  
+  /**
+   * List of multi-PV lines evaluated by Stockfish.
+   * We use a shallowRef here because the engine reports updates at extremely
+   * high frequencies. A deep ref causes Vue to recursively proxy-wrap
+   * every single nested move list and evaluation score, adding massive CPU
+   * overhead. Using shallowRef ensures that UI updates are atomic and efficient.
+   */
+  const multiPvs = shallowRef<MultiPV[]>([])
   
   let worker: Worker | null = null
   let pendingInfo: EngineInfo | null = null
@@ -359,18 +367,28 @@ export const useEngineStore = defineStore('engine', () => {
       pv.value = data.pv
     }
     if (data.multiPvs) {
+      // Create a shallow copy of the existing array to trigger reactive reference assignment.
+      // We must re-assign the reference itself because multiPvs is a shallowRef.
+      const nextMultiPvs = [...multiPvs.value]
+
       data.multiPvs.forEach((newPv: MultiPV) => {
-        // Normalize to White's perspective
+        // Normalize centipawn evaluation to White's perspective.
+        // Positive cp indicates White advantage, negative indicates Black advantage.
         if (activeTurn === 'b') {
           newPv.cp = -newPv.cp
-          // Note: score string is already formatted, we might want to update it but cp is primary for graph
         }
         
-        const idx = multiPvs.value.findIndex(p => p.id === newPv.id)
-        if (idx > -1) multiPvs.value[idx] = newPv
-        else multiPvs.value.push(newPv)
+        const idx = nextMultiPvs.findIndex(p => p.id === newPv.id)
+        if (idx > -1) {
+          nextMultiPvs[idx] = newPv
+        } else {
+          nextMultiPvs.push(newPv)
+        }
       })
-      multiPvs.value.sort((a, b) => a.id - b.id)
+
+      // Sort the variations by PV index to maintain correct order in UI lists
+      nextMultiPvs.sort((a, b) => a.id - b.id)
+      multiPvs.value = nextMultiPvs
     }
   }
 

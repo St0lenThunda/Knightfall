@@ -1,43 +1,42 @@
-# 📌 Pinned Context
+# ðŸ“Œ Pinned Context
 
-> Last pinned: 2026-05-21 22:18
-> Session: Foundational Lessons System (The Mentor's Path)
+> Last pinned: 2026-05-22 15:34
+> Session: System Analysis & Suggestions (v0.42.1)
 
 ## What Was Done
-- [x] **[P0] WASM Worker Resilience**: Reduced "The Celestial Event" depth to 16 and implemented a 16MB Hash limit to resolve `RuntimeError: unreachable` memory crashes.
-- [x] **[P0] Self-Healing Engine**: Integrated a reboot mechanism that automatically reduces analysis depth by 2 on worker failure to prevent infinite crash loops.
-- [x] **[P0] Viewport Hardening**: Adjusted ChessBoard max-height to `min(800px, 72vh)` and refined the setup overlay symmetry to eliminate UI clipping on standard viewports.
-- [x] **[P1] Anti-Cheat (Warden) Tuning**: Reduced visibility violation weights from 30 to 20, allowing 5 blurs before a "Busted" state, providing a fairer dev/debug experience.
-- [x] **[P1] Navigation Accessibility**: Elevated SideNav z-index to 2000 and optimized NavSection padding to ensure the toggle remains usable even behind full-page overlays.
-- [x] **[P2] UX Polish**: Implemented smooth `scrollIntoView` for the board area upon game start to automatically conceal the play-header.
+- [x] **[P0] Administrative Command Center (v0.42.1)**: Built a secure, role-verified administration view with user search and dual-confirmation purging RPC ("Rite of Oblivion").
+- [x] **[P0] Foundational Lessons (Chapter 0)**: Implemented 10 story-driven, interactive lessons with narrative slides, quizzes, and live board verification challenges.
+- [x] **[P0] Lesson Completion & Quiz XP Fixes**: Implemented 70% passing threshold for quizzes, disabled duplicate XP on repeat runs, and solved the progress synchronization foreign key issue.
+- [x] **[P0] [Bug] DnaReveal Fanfare Fix (v0.42.2)**: Resolved the template ref binding bug in [DnaRevealView.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/DnaRevealView.vue) to restore the rank-up particle fanfare.
+- [x] **[P0] [Engine] Stockfish MultiPV Reactivity (v0.42.2)**: Converted `multiPvs` in [engineStore.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/stores/engineStore.ts) to `shallowRef` to prevent CPU-heavy recursive observer wrapping.
+- [x] **[P1] Board Interactivity Fix**: Eliminated duplicate `playerColor` state between `gameStore` and `boardLogic` to resolve chessboard lockups.
+- [x] **[P1] Lichess Daily Puzzle Cache**: Integrated local cache check to skip daily puzzle network fetches and save attempts automatically to Supabase.
+- [x] **[P1] [Logging] Storage Guidelines Compliance (v0.42.2)**: Replaced raw `console.error` calls with `logger.error` in [storage.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/utils/storage.ts).
+- [x] **[P1] System Audit & Analysis**: Completed a full system-wide audit of performance, maintainability, quality, and security, creating [analysis_results.md](file:///Users/thunda/.gemini/antigravity/brain/a0caaaaa-2f8c-4709-8b0d-c41f1e9d8853/analysis_results.md).
+- [x] **[P2] [Performance] Web Worker Cleanup (v0.42.2)**: Deleted the obsolete Web Worker file [libraryFilter.worker.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/workers/libraryFilter.worker.ts).
+- [x] **[P1] [Maintainability] Decompose OnboardingGauntlet (v0.42.2)**: Refactor [OnboardingGauntlet.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/OnboardingGauntlet.vue) to split landing, Scholar's Mate, and diagnostic assessment steps into isolated components, resolving type errors and syntax warnings.
 
 ## What's Next
-- [ ] **[P0] [Learn] Foundational Lessons**: Build the "Mentor's Path" — 10 foundation nodes (Story → Do → Confirm) for absolute beginners.
-- [ ] **[P0] [Gameplay] Full Testing of Gameplay and Puzzle Verification.**
-- [ ] **[P0] [Mortal] Mortal UX**: Build the "Mortal Probability" graph for the analysis board to visualize human move likelihood.
-- [ ] **[P1] [Engine] External Engine Integration**: Prototype Approach 1 (WebSocket Bridge).
-- [ ] **[P1] [UX] Feedback System**: Implement a thematic "Courier's Dispatch" or "Scribe's Ledger" for bug reports and suggestions.
-- [ ] **[P1] [Mortal] Mortal Engine Validation**: Finalize drill validation for the training queue using the new personality layer.
-- [ ] **[P1] [DNA] Struggle Tracking**: Implement logic to identify which Mortal archetypes the user struggles against most.
-- [ ] **[P2] [Telemetry] Expansion**: Integrate `useLibraryStats` output into the `ConstellationPanel`.
-- [ ] **[P2] [UX] DNA Reveal Screen**: Finalize the "Magic Moment" animation for Archetype/Skill breakdown.
-- [ ] **[P2] [Engine] Latency Meter**: Add engine telemetry HUD for external integrations.
-- [ ] **[P3] [Engine] Multi-Threaded WASM**: Investigate `SharedArrayBuffer` support.
-- [ ] **[P3] [UX] Delayed Signup Gate**: Implement "Save your DNA profile" logic.
+- [ ] **[P0] [Engine] Stockfish Inactivity Auto-Throttling**: Auto-stop Stockfish worker calculations after 3 minutes of user inactivity or hidden tab state to save battery and reduce CPU load.
+- [ ] **[P1] [Maintainability] Decompose GameDetailsModal**: Refactor [GameDetailsModal.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/components/library/GameDetailsModal.vue) (796 lines) by moving tab layouts into sub-components.
+- [ ] **[P1] [Maintainability] Decompose FoundationLessonView**: Refactor [FoundationLessonView.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/FoundationLessonView.vue) (665 lines) by separating quiz and slide review overlays.
+- [ ] **[P1] [Maintainability] Backdrop CSS Consolidation**: Consolidate copy-pasted backdrop overlay styles into a global CSS class in [style.css](file:///Users/thunda/Desktop/Development/Knightfall/src/style.css).
+- [ ] **[P2] [Security] RLS Policy Integration Testing**: Write an automated test suite to assert that cross-user progress records in `user_skill_progress` are rejected by Supabase RLS.
+- [ ] **[P2] [Maintainability] Store TypeScript Strictness**: Eliminate `any` types for store parameters and composable variables.
 
-## 📌 Pinned Future Layers (Foundations Upgrade Path)
+## ðŸ“Œ Pinned Future Layers (Foundations Upgrade Path)
 
-> These are approved future enhancements from the Brainstorm session. Do NOT build these now —
+> These are approved future enhancements from the Brainstorm session. Do NOT build these now â€”
 > they are post-launch upgrades to the Foundational Lessons system (Approach E: Mentor's Path).
 
 ### Layer 1: Chapter World Islands (from Approach D)
 - Group the 10 foundation nodes into **3 themed islands** on the Knight's Path:
-  - 🏛️ **The Ancient Realm** — `found-origins`, `found-board`
-  - ⚔️ **The War College** — `found-pawns` → `found-kings` (6 piece lessons)
-  - 🧠 **The Grand Library** — `found-check`, `found-principles`
+  - ðŸ�›ï¸� **The Ancient Realm** â€” `found-origins`, `found-board`
+  - âš”ï¸� **The War College** â€” `found-pawns` â†’ `found-kings` (6 piece lessons)
+  - ðŸ§  **The Grand Library** â€” `found-check`, `found-principles`
 - Each island has its own visual theme, background art, and color palette.
 - Non-linear piece ordering within "The War College" (user chooses which piece to learn first).
-- Star ratings per node (1–3 stars: finished / quiz passed / challenge aced).
+- Star ratings per node (1â€“3 stars: finished / quiz passed / challenge aced).
 - Hidden lore nodes unlocked by 3-starring all nodes in an island (e.g., "The Opera Game" for War College).
 - Cross-island cinematic transitions.
 
@@ -51,7 +50,7 @@
 
 ### Layer 3: Dojo Master AI Coach (from Approach B)
 - Replace scripted Phase 1 narrative with an **AI-powered Socratic tutor** (Gemini API).
-- Reactive dialogue based on what the user does on the board ("Nice try — but a pawn can't move backwards").
+- Reactive dialogue based on what the user does on the board ("Nice try â€” but a pawn can't move backwards").
 - Character portrait + typing animation.
 - Prerequisite: Gemini coaching integration must be live first.
 
@@ -64,10 +63,11 @@
 - HMR Sync: Visibility violation scores in the Anti-Cheat may occasionally lag during HMR.
 
 ## Hot Files
-- `src/stores/curriculumStore.ts` (Foundation Node Definitions)
-- `src/data/foundationLessons.ts` (Lesson Content — NEW)
-- `src/views/FoundationLessonView.vue` (Mentor's Path View — NEW)
-- `src/views/PathView.vue` (Node Click Routing)
+- `src/views/OnboardingGauntlet.vue` (Onboarding steps to decompose)
+- `src/components/library/GameDetailsModal.vue` (Modal tabs to decompose)
+- `src/views/DnaRevealView.vue` & `src/composables/useDnaFanfare.ts` (Elo fanfare particle bug)
+- `src/stores/engineStore.ts` (Stockfish MultiPV optimization)
+- `src/utils/storage.ts` (Logging compliance)
 
 ## Session Notes
-Brainstormed 5 approaches for the Foundational Lessons system. Selected **Approach E (The Mentor's Path)** — a 3-phase lesson structure (Story → Do → Confirm) for each of the 10 foundation nodes. Future upgrade path: Layer 1 (Chapter World Islands) → Layer 2 (Arrow Overlays) → Layer 3 (AI Dojo Master). Building Approach E now.
+Completed the foundational lessons path, quiz XP validation, and administrative purging RPC. Conducted a system-wide audit and found a visual bug in `DnaRevealView` where Elo reveal particles never spawn due to unbound template refs, as well as dead code in `libraryFilter.worker.ts` and reactivity overhead in the Stockfish MultiPV stream. Pinned these findings as next-up objectives.’ Layer 3 (AI Dojo Master). Building Approach E now.

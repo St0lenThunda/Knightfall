@@ -188,10 +188,14 @@ watch(() => [store.fen, props.flipped, resolvedLastMove.value], () => {
   board.forEach((row, r) => {
     row.forEach((cell, c) => {
       if (cell) {
+        const sq = squareId(r, c)
+        // Skip dummy kings so they are completely hidden on the UI
+        if (store.dummyKingSquares.includes(sq)) return
+
         targetPieces.push({
           type: cell.type,
           color: cell.color,
-          sq: squareId(r, c),
+          sq,
           r, c
         })
       }
@@ -262,11 +266,15 @@ function squareId(rowIdx: number, colIdx: number): Square {
 
 function handleSquareClick(rowIdx: number, colIdx: number) {
   const sq = squareId(rowIdx, colIdx)
+  // Disable selecting dummy king squares to prevent unexpected behavior
+  if (store.dummyKingSquares.includes(sq)) return
   if (!isInteractive.value || isThinking.value) return
   store.selectSquare(sq)
 }
 
 function handleDragStartPiece(sq: Square, event: DragEvent) {
+  // Prevent dragging any dummy piece
+  if (store.dummyKingSquares.includes(sq)) return
   if (!isInteractive.value || isThinking.value) return
   if (event.dataTransfer) {
     event.dataTransfer.setData('sourceSquare', sq)
@@ -277,6 +285,8 @@ function handleDragStartPiece(sq: Square, event: DragEvent) {
 
 function handleDrop(rowIdx: number, colIdx: number, event: DragEvent) {
   const toSq = squareId(rowIdx, colIdx)
+  // Prevent placing/dropping pieces onto squares designated for dummy kings
+  if (store.dummyKingSquares.includes(toSq)) return
   const fromSq = event.dataTransfer?.getData('sourceSquare') as Square
   if (fromSq && fromSq !== toSq) {
     store.makeMove(fromSq, toSq)
@@ -284,6 +294,8 @@ function handleDrop(rowIdx: number, colIdx: number, event: DragEvent) {
 }
 
 function handleDropOnPiece(toSq: Square, event: DragEvent) {
+  // Prevent placing/dropping pieces onto squares designated for dummy kings
+  if (store.dummyKingSquares.includes(toSq)) return
   const fromSq = event.dataTransfer?.getData('sourceSquare') as Square
   if (fromSq && fromSq !== toSq) {
     store.makeMove(fromSq, toSq)

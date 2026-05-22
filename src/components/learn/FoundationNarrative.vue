@@ -11,6 +11,7 @@
  * independent styling and animation of the text panel.
  */
 import type { FoundationSlide } from '../../types/foundationTypes'
+import { renderMarkdown } from '../../utils/markdown'
 
 /**
  * @prop slide - The current slide data to render
@@ -82,13 +83,13 @@ function getButtonText(): string {
 
     <!-- Main Narrative Text -->
     <div class="narrative-body">
-      <p
+      <div
         v-for="(paragraph, idx) in slide.narrative.split('\n\n')"
         :key="idx"
         class="narrative-paragraph"
+        v-html="renderMarkdown(paragraph)"
       >
-        {{ paragraph }}
-      </p>
+      </div>
     </div>
 
     <!-- Historical Note (Did You Know?) -->
@@ -97,19 +98,19 @@ function getButtonText(): string {
         <span class="note-icon">📜</span>
         <span class="note-label">Did You Know?</span>
       </div>
-      <p class="note-text">{{ slide.historicalNote }}</p>
+      <div class="note-text" v-html="renderMarkdown(slide.historicalNote)"></div>
     </div>
 
     <!-- Board Description (What to Notice) -->
     <div class="board-caption">
       <span class="caption-icon">👁️</span>
-      <span>{{ slide.boardDescription }}</span>
+      <div class="caption-text" v-html="renderMarkdown(slide.boardDescription)"></div>
     </div>
 
     <!-- Exploration Hint -->
     <div v-if="slide.explorationHint" class="exploration-hint">
       <span class="hint-icon">🎮</span>
-      <span>{{ slide.explorationHint }}</span>
+      <div class="hint-text" v-html="renderMarkdown(slide.explorationHint)"></div>
     </div>
 
     <!-- Navigation -->
@@ -191,6 +192,15 @@ function getButtonText(): string {
   opacity: 0.9;
 }
 
+.narrative-paragraph :deep(p) {
+  margin: 0;
+}
+
+.narrative-paragraph :deep(strong) {
+  color: var(--gold);
+  font-weight: 700;
+}
+
 /* ─── HISTORICAL NOTE ─── */
 .historical-note {
   padding: var(--space-4);
@@ -225,6 +235,15 @@ function getButtonText(): string {
   font-style: italic;
 }
 
+.note-text :deep(p) {
+  margin: 0;
+}
+
+.note-text :deep(strong) {
+  color: var(--gold);
+  font-weight: 700;
+}
+
 /* ─── BOARD CAPTION ─── */
 .board-caption {
   display: flex;
@@ -243,6 +262,21 @@ function getButtonText(): string {
   flex-shrink: 0;
 }
 
+.caption-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.caption-text :deep(p) {
+  margin: 0;
+}
+
+.caption-text :deep(strong) {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
 /* ─── EXPLORATION HINT ─── */
 .exploration-hint {
   display: flex;
@@ -259,6 +293,22 @@ function getButtonText(): string {
 
 .hint-icon {
   font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.hint-text {
+  font-size: 0.85rem;
+  color: var(--accent-bright);
+  line-height: 1.5;
+}
+
+.hint-text :deep(p) {
+  margin: 0;
+}
+
+.hint-text :deep(strong) {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /* ─── ACTIONS ─── */
@@ -279,3 +329,4 @@ function getButtonText(): string {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+

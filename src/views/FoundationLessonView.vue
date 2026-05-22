@@ -173,6 +173,23 @@ function resetBoard() {
 // ─── CHALLENGE VALIDATION ───
 
 /**
+ * Watches for board square selection during the narrative story/exploration phase.
+ * When the user selects/clicks a square on the board while they are reading the story
+ * (and before they have clicked "Try the Challenge"), this watcher fires an info toast
+ * indicating the square's coordinate name (e.g. "Square: E4").
+ *
+ * This provides visual coordinate feedback directly as requested by the lesson instructions.
+ *
+ * @param sq - The selected board square (e.g. 'e4') or null if cleared
+ */
+watch(() => store.selectedSquare, (sq) => {
+  // We only show coordinate toasts during the narrative phase when the challenge is not active.
+  if (sq && phase.value === 'story' && !challengeActive.value) {
+    uiStore.addToast(`Square: ${sq.toUpperCase()}`, 'info')
+  }
+})
+
+/**
  * Watches for moves on the board and validates them against
  * the active challenge (if any).
  *
@@ -180,34 +197,51 @@ function resetBoard() {
  * In challenge mode, only the specific from→to move is accepted.
  */
 watch(() => store.lastMove, (newMove) => {
-  if (!newMove || !challengeActive.value || !currentSlide.value?.challenge) return
+  // If there's no move or the current slide has no challenge, ignore.
+  if (!newMove || !currentSlide.value?.challenge) return
 
-  const isCorrect = challengeRef.value?.validateMove(
-    newMove.from,
-    newMove.to
-  )
+  const challenge = currentSlide.value.challenge
+  // Check if the user's move matches the expected challenge move coordinates
+  const isMoveCorrect = newMove.from === challenge.from && newMove.to === challenge.to
 
-  if (isCorrect) {
+  logger.info(`[Foundation] Validating move: from=${newMove.from}, to=${newMove.to}. Challenge expected: from=${challenge.from}, to=${challenge.to} (isCorrect: ${isMoveCorrect})`)
+
+  if (isMoveCorrect) {
+    // Correct move! Force activation/completion of challenge and auto-advance.
+    challengeActive.value = true
     challengeCompleted.value = true
-    uiStore.addToast(currentSlide.value.challenge.successMessage, 'success')
+    
+    // Notify the challenge component to show its success state
+    if (challengeRef.value) {
+      challengeRef.value.validateMove(newMove.from, newMove.to)
+    }
+
+    uiStore.addToast(challenge.successMessage, 'success')
     logger.info('[Foundation] Challenge completed successfully!')
 
-    // Auto-advance after a short celebration delay
+    // Auto-advance after a short celebration delay (1200ms)
     setTimeout(() => {
       handleNext()
     }, 1200)
   } else {
-    // Wrong move in challenge mode — reset the board to the challenge FEN
-    // so the user can try again from the correct position
-    setTimeout(() => {
-      if (currentSlide.value) {
-        store.loadPosition(currentSlide.value.fen, 'analysis')
-        // Keep challenge active after reset
-        nextTick(() => {
-          challengeActive.value = true
-        })
+    // If the challenge is active, wrong moves should shake and reset the board position.
+    // If they were in free exploration mode, we do NOT reset the board or restrict moves.
+    if (challengeActive.value) {
+      logger.info('[Foundation] Incorrect move made during active challenge. Shaking and resetting...')
+      if (challengeRef.value) {
+        challengeRef.value.validateMove(newMove.from, newMove.to)
       }
-    }, 600)
+      
+      setTimeout(() => {
+        if (currentSlide.value) {
+          store.loadPosition(currentSlide.value.fen, 'analysis')
+          // Ensure challenge remains active after resetting the board FEN
+          nextTick(() => {
+            challengeActive.value = true
+          })
+        }
+      }, 600)
+    }
   }
 }, { deep: true })
 
@@ -311,6 +345,13 @@ onMounted(() => {
         <ChessBoard
           :interactive="true"
           :flipped="false"
+          :debugData="{
+            slideTitle: currentSlide?.title,
+            challengeActive,
+            challengeCompleted,
+            currentSlideIndex,
+            phase
+          }"
         />
       </div>
 
@@ -330,8 +371,11 @@ onMounted(() => {
         </Transition>
 
         <!-- Challenge Banner (Phase 2) -->
+        <!-- We bind :key="currentSlideIndex" to force Vue to destroy and recreate the challenge component -->
+        <!-- when switching slides, which correctly resets all internal states (like isCompleted). -->
         <FoundationChallenge
           v-if="currentSlide.challenge"
+          :key="currentSlideIndex"
           ref="challengeRef"
           :challenge="currentSlide.challenge"
           :active="challengeActive"

@@ -1,6 +1,7 @@
 import { ref, computed, shallowRef } from 'vue'
 import { Chess, type Square, type Color, type PieceSymbol } from 'chess.js'
 import { safeLoadPgn } from '../../utils/pgnParser'
+import { ensureKingsExist } from '../../utils/fenUtils'
 
 /**
  * useBoardLogic
@@ -13,6 +14,12 @@ export function useBoardLogic() {
   const boardTrigger = ref(0)
   const selectedSquare = ref<Square | null>(null)
   const legalMoveSquares = ref<Square[]>([])
+  
+  /**
+   * Tracks coordinates of dummy kings injected for chess.js compatibility.
+   * These squares will be hidden in the UI and not interactive.
+   */
+  const dummyKingSquares = ref<Square[]>([])
   const lastMove = ref<{ from: string; to: string } | null>(null)
   const moveHistory = ref<any[]>([])
   const viewIndex = ref(-1)
@@ -165,6 +172,21 @@ export function useBoardLogic() {
         moveParams.to = finalTo
       }
 
+      // Check if a pawn is moving to its promotion rank (8th rank for White, 1st rank for Black).
+      // Standard engines like chess.js reject promotion moves if a promotion piece symbol is missing
+      // or invalid. To prevent failures in browser environments, we dynamically enforce a default of 'q'.
+      const piece = chess.value.get(from)
+      if (piece && piece.type === 'p') {
+        const destRank = finalTo.charAt(1)
+        const isPromotionRank = (piece.color === 'w' && destRank === '8') || (piece.color === 'b' && destRank === '1')
+        if (isPromotionRank) {
+          const isValidPiece = ['q', 'r', 'b', 'n'].includes(moveParams.promotion)
+          if (!isValidPiece) {
+            moveParams.promotion = 'q'
+          }
+        }
+      }
+
       const moveNum = chess.value.moveNumber()
       const move = chess.value.move(moveParams)
       if (move) {
@@ -176,16 +198,23 @@ export function useBoardLogic() {
         clearSelection()
 
         // Drill Validation
+        // If there is an active puzzle solution (drill) configured:
         if (drillSolution.value.length > 0) {
-          const uci = from + to + (move.san.includes('=') ? promotion : '')
+          // Construct the move in UCI format (e.g., "e2e4" or "e7e8q" for promotion).
+          // We use `finalTo` because `to` parameter might be undefined if fromOrUci was a UCI string.
+          const uci = from + finalTo + (move.san.includes('=') ? promotion : '')
           const expected = drillSolution.value[drillIndex.value]
           
-          if (uci === expected || uci.slice(0,4) === expected.slice(0,4)) {
+          // Verify if the played move matches the expected solution step.
+          // We check `expected` first to avoid a TypeError (cannot read properties of undefined reading 'slice')
+          // if the user makes a move after the solution is already fully completed.
+          if (expected && (uci === expected || uci.slice(0, 4) === expected.slice(0, 4))) {
             drillIndex.value++
+            // If we reached the end of the solution list, the puzzle is solved.
             if (drillIndex.value >= drillSolution.value.length) return 'complete'
             return 'correct'
           } else {
-            // Incorrect move in drill: Undo it
+            // Incorrect move in drill: Undo it from the chess engine and local history.
             chess.value.undo()
             moveHistory.value.pop()
             viewIndex.value = moveHistory.value.length - 1
@@ -215,8 +244,20 @@ export function useBoardLogic() {
   }
 
 
+  /**
+   * Loads a specific position from a FEN string.
+   * If the FEN does not contain kings, we sanitize it by injecting dummy kings.
+   * 
+   * @param fen - The FEN string to load
+   * @param mode - The game mode for the loaded position
+   */
   function loadPosition(fen: string, mode: 'live' | 'puzzle' | 'analysis' = 'live') {
-    chess.value.load(fen)
+    // Sanitize position FEN to ensure it contains both a White and Black King.
+    // This is required for chess.js stability since loading king-less positions throws.
+    const { sanitizedFen, dummySquares } = ensureKingsExist(fen)
+    chess.value.load(sanitizedFen)
+    dummyKingSquares.value = dummySquares as Square[]
+
     boardTrigger.value++
     moveHistory.value = []
     viewIndex.value = -1
@@ -224,7 +265,7 @@ export function useBoardLogic() {
     drillSolution.value = []
     drillIndex.value = 0
     mistakeCount.value = 0
-    playerColor.value = mode === 'live' ? playerColor.value : (fen.split(' ')[1] as Color)
+    playerColor.value = mode === 'live' ? playerColor.value : (sanitizedFen.split(' ')[1] as Color)
     isThinking.value = false
     if (mode !== 'analysis') originalPgn.value = ''
   }
@@ -234,6 +275,7 @@ export function useBoardLogic() {
     lastMove, moveHistory, viewIndex,    playerColor, isThinking,
     promotionPending, originalPgn,
     drillSolution, drillIndex, mistakeCount,
+    dummyKingSquares,
     fen, pgn, turn, board, isCheck, isCheckmate, isStalemate, isDraw, 
     isThreefoldRepetition, isInsufficientMaterial, isGameOver,
     selectSquare, clearSelection, makeMove, undoMove, loadPosition,

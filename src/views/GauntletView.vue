@@ -6,6 +6,7 @@ import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
 import { fetchDailyGauntlet, type Puzzle } from '../api/puzzleApi'
 import ChessBoard from '../components/ChessBoard.vue'
+import { formatMmSs } from '../utils/telemetryUtils'
 
 const store = useGameStore()
 const userStore = useUserStore()
@@ -119,11 +120,8 @@ function finishGauntlet() {
   uiStore.addToast(`🔥 Gauntlet Completed in ${timer.value}s!`, 'success', 10000)
 }
 
-const formatTime = (s: number) => {
-  const mins = Math.floor(s / 60)
-  const secs = s % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
+
+
 
 onMounted(() => {
   startGauntlet()
@@ -145,7 +143,7 @@ onUnmounted(() => {
       <div class="gauntlet-stats" v-if="!isLoading">
         <div class="stat-card timer" :class="{ 'pulse': !isFinished }">
           <span class="icon">⏱️</span>
-          <span class="value">{{ formatTime(timer) }}</span>
+          <span class="value">{{ formatMmSs(timer) }}</span>
         </div>
         <div class="stat-card streak">
           <span class="icon">🔥</span>
@@ -171,7 +169,7 @@ onUnmounted(() => {
     <div v-else-if="isFinished" class="finish-screen glass-card">
       <div class="trophy">🏆</div>
       <h2 class="title-xl">Gauntlet Conquered!</h2>
-      <p class="final-time">Final Time: <strong>{{ formatTime(timer) }}</strong></p>
+      <p class="final-time">Final Time: <strong>{{ formatMmSs(timer) }}</strong></p>
       
       <div class="stats-grid">
         <div class="stat-box">

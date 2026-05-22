@@ -1,9 +1,18 @@
-## 🏁 Current Status: v0.42.1 ("Archivist Command & Deletion Control") — STABLE
+## 🏁 Current Status: v0.42.2 ("Onboarding Modularization & System Hardening") — STABLE
 **Date**: May 22, 2026
 **Overall Health**: 🟢 Green (Stable)
-**Test Coverage**: 100% Pass Rate (Unit Suite)
+**Test Coverage**: 100% Pass Rate (Unit & E2E Suites)
 
 ### 🚀 Recent Milestones
+- **Onboarding Gauntlet Modularization (v0.42.2)**:
+  - Decomposed the monolithic 877-line `OnboardingGauntlet.vue` component into three isolated step components under `src/components/onboarding/` (`OnboardingDeclaration.vue`, `OnboardingQuickWin.vue`, and `OnboardingDiagnostic.vue`) to satisfy the style guide's 500-line component threshold.
+  - Removed syntax-invalid `v-slot` template attributes that caused production build compile failures.
+- **System Optimizations & Code Safety (v0.42.2)**:
+  - Fixed DNA Reveal fanfare particle rendering by binding destructured refs from `useDnaFanfare()` in `DnaRevealView.vue`.
+  - Converted `multiPvs` in `engineStore.ts` to `shallowRef` to eliminate recursive observer proxy wrapping.
+  - Aligned local storage with centralized logging constraints by replacing console logs with `logger` calls.
+  - Pruned the obsolete `libraryFilter.worker.ts` script.
+  - Resolved TypeScript type errors in `gameStore.spec.ts` unit tests.
 - **Administrative Command Center & Secure Purging (v0.42.1)**:
   - Resolved directory SELECT query crash by ensuring `role` and `created_at` database columns exist.
   - Implemented secure RLS access using `SECURITY DEFINER` check helper (`public.is_admin(user_id)`) to bypass infinite recursion.

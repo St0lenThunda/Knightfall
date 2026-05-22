@@ -46,6 +46,12 @@ export const useGameStore = defineStore('game', () => {
   const lastMoveDuration = ref(0)
 
   const gameActive = computed(() => {
+    // In local or analysis mode, the game is active as long as it has started and not been forced over.
+    // This allows free piece movement and exploration even if the position is technically a game over.
+    if (mode.value === 'local' || mode.value === 'analysis') {
+      return gameStarted.value && !forceGameOver.value
+    }
+
     const active = gameStarted.value && !forceGameOver.value && !boardLogic.isGameOver.value
     if (!active && gameStarted.value) {
       logger.warn(`[GameStore] Game inactive! Started: ${gameStarted.value}, ForceGameOver: ${forceGameOver.value}, BoardGameOver: ${boardLogic.isGameOver.value}, FEN: ${boardLogic.fen.value}`)
@@ -65,10 +71,13 @@ export const useGameStore = defineStore('game', () => {
    * board turn matches the user's player color.
    */
   const isPlayersTurn = computed(() => {
-    if (!gameActive.value) return false
+    if (!gameStarted.value || forceGameOver.value) return false
     
-    // In local or analysis mode, the user can always move
+    // In local or analysis mode, the user can always move and interact
     if (mode.value === 'local' || mode.value === 'analysis') return true
+    
+    // For competitive/puzzle modes, if the board says the game is over, they cannot move
+    if (boardLogic.isGameOver.value) return false
     
     // In vs-computer or puzzle mode, user can only move if it's their color's turn
     if (mode.value === 'vs-computer' || mode.value === 'puzzle') {
@@ -512,6 +521,7 @@ export const useGameStore = defineStore('game', () => {
     isBotTurn,
     gameResult,
     gameOverReason,
+    dummyKingSquares: boardLogic.dummyKingSquares,
 
     // Orchestration Actions
     newGame,

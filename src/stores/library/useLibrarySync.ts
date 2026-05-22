@@ -418,88 +418,43 @@ export function useLibrarySync(
         let blunders: any[] = []
         let theoryMoves = 0
         
+        // Initialize evaluations list if not present
+        if (!game.evals) game.evals = []
+        
         // Intelligence pass on each move
         for (let i = 0; i < Math.min(moves.length, 30); i++) {
           const move = moves[i]
           const fen = move.after
           
           // 1. Cloud Eval Check (TRY CACHE FIRST TO AVOID THROTTLE)
-          const cloudData = await fetchCloudEval(fen)
+          let cloudData = await fetchCloudEval(fen)
           
           if (!cloudData) {
             await new Promise(r => setTimeout(r, 1200))
-            const freshData = await fetchCloudEval(fen)
+            cloudData = await fetchCloudEval(fen)
             
             if (isRateLimited()) {
               logger.warn('[Intel Hub] Lichess Rate Limit hit. Pausing analysis pass.')
               return
             }
-            
-            if (freshData && freshData.pvs && freshData.pvs[0]) {
-              processCloudData(freshData, i)
-            }
-          } else if (cloudData.pvs && cloudData.pvs[0]) {
-            processCloudData(cloudData, i)
+          }
+          
+          const evalResult = extractCloudEvalScore(cloudData)
+          if (evalResult) {
+            game.evals[i] = evalResult
+            totalCpl += evalResult.score
           }
 
-          function processCloudData(data: any, index: number) {
-            const bestMove = data.pvs[0].pv?.split(' ')[0] || ''
-            const evalScore = data.pvs[0].cp ?? (data.pvs[0].mate * 100)
-            
-            if (!game.evals) game.evals = []
-            // Store as object for better traceability
-            game.evals[index] = { score: evalScore, bestMove }
-            
-            totalCpl += evalScore
-
-            // Harvest Blunders for move index + 1 (using this position's bestMove)
-            // Note: We don't have the eval for nextMove yet, so we'll harvest it in the NEXT iteration
+          // 2. Blunder Harvesting (Check move i vs eval i-1)
+          const harvested = harvestGameBlunder(game.id, move, i, game.evals, curriculum)
+          if (harvested) {
+            blunders.push(harvested)
           }
 
-          // Blunder Harvesting (Check move i vs eval i-1)
-          if (i > 0 && game.evals) {
-            const currentEval = game.evals[i] as any
-            const prevEval = game.evals[i-1] as any
-            
-            if (currentEval && prevEval) {
-              const drop = Math.abs(currentEval.score - prevEval.score)
-              // If you're White and the eval dropped significantly, you blundered
-              const isSignificant = drop > 180 
-              
-              if (isSignificant) {
-                // The solution is what you SHOULD have played (prevEval.bestMove)
-                const solution = prevEval.bestMove
-                
-                // VALIDATE: Ensure the solution is actually legal in the position BEFORE the mistake
-                const testChess = new Chess(move.before)
-                try {
-                  const legal = testChess.move(solution)
-                  if (legal) {
-                    const b = { 
-                      fen: move.before, 
-                      drop, 
-                      move: solution, // Use the BEST move as the solution
-                      playerMove: move.san, 
-                      ply: i 
-                    }
-                    blunders.push(b)
-                    curriculum.harvestBlunders(game.id, b)
-                  } else {
-                    logger.warn(`[Intel Hub] Skipping illegal harvest in ${game.id}: ${solution} illegal in ${move.before}`)
-                  }
-                } catch (e) {}
-              }
-            }
-          }
-
-          // 2. Theory DNA Check (First 12 moves)
+          // 3. Theory DNA Check (First 12 moves)
           if (i < 12) {
-            // fetchMasterMoves is also cached now!
-            const masters = await fetchMasterMoves(move.before)
-            if (masters && masters.moves) {
-              const isTheory = masters.moves.some((m: any) => m.san === move.san)
-              if (isTheory) theoryMoves++
-            }
+            const isTheory = await checkTheoryMove(move.before, move.san)
+            if (isTheory) theoryMoves++
           }
         }
 
@@ -547,3 +502,93 @@ export function useLibrarySync(
     analyzeLibraryWithCloud
   }
 }
+
+/**
+ * Extracts score and bestMove from Lichess cloud evaluation data if available.
+ * 
+ * @param cloudData - Raw evaluation data from Lichess Cloud API
+ * @returns Object containing score and bestMove, or null if invalid/unavailable
+ */
+function extractCloudEvalScore(cloudData: any): { score: number; bestMove: string } | null {
+  if (cloudData && cloudData.pvs && cloudData.pvs[0]) {
+    const pv = cloudData.pvs[0];
+    const bestMove = pv.pv?.split(' ')[0] || '';
+    const score = pv.cp ?? (pv.mate * 100);
+    return { score, bestMove };
+  }
+  return null;
+}
+
+/**
+ * Evaluates whether the current move constitutes a significant blunder compared to
+ * the previous position evaluation. If a blunder is detected and validated as a legal
+ * move in Chess.js, it returns a blunder record and registers it with the curriculum store.
+ * 
+ * @param gameId - The local database ID of the game
+ * @param move - Chess.js verbose move object for the current move
+ * @param ply - The current move index (ply)
+ * @param evals - Array of evaluations for this game
+ * @param curriculum - The curriculum store instance for recording blunders
+ * @returns Blunder record if harvested, otherwise null
+ */
+function harvestGameBlunder(
+  gameId: string,
+  move: any,
+  ply: number,
+  evals: Array<{ score: number; bestMove: string } | undefined>,
+  curriculum: ReturnType<typeof useCurriculumStore>
+): { fen: string; drop: number; move: string; playerMove: string; ply: number } | null {
+  if (ply <= 0 || !evals) return null;
+  
+  const currentEval = evals[ply];
+  const prevEval = evals[ply - 1];
+  if (!currentEval || !prevEval) return null;
+  
+  // Calculate difference in engine evaluation Centipawns (CPL)
+  const drop = Math.abs(currentEval.score - prevEval.score);
+  // Significant drop threshold: 180 centipawns (approx. 1.8 pawns)
+  if (drop <= 180) return null;
+  
+  const solution = prevEval.bestMove;
+  if (!solution) return null;
+  
+  try {
+    // Validate that the suggested engine move is actually a legal move in the previous position
+    const testChess = new Chess(move.before);
+    const legal = testChess.move(solution);
+    if (legal) {
+      const blunder = {
+        fen: move.before,
+        drop,
+        move: solution, // The engine's recommended best alternative
+        playerMove: move.san,
+        ply
+      };
+      curriculum.harvestBlunders(gameId, blunder);
+      return blunder;
+    } else {
+      logger.warn(`[Intel Hub] Skipping illegal harvest in ${gameId}: ${solution} illegal in ${move.before}`);
+    }
+  } catch (e) {
+    // Fail silently to prevent throwing exceptions during analysis pass
+  }
+  
+  return null;
+}
+
+/**
+ * Queries the Lichess master games database to check if the played move
+ * is considered a standard opening theory move.
+ * 
+ * @param beforeFen - FEN of the position before the move was played
+ * @param playerSan - The SAN (Standard Algebraic Notation) representation of the player's move
+ * @returns Promise<boolean> - True if the move exists in the master games database
+ */
+async function checkTheoryMove(beforeFen: string, playerSan: string): Promise<boolean> {
+  const masters = await fetchMasterMoves(beforeFen);
+  if (masters && masters.moves) {
+    return masters.moves.some((m: any) => m.san === playerSan);
+  }
+  return false;
+}
+

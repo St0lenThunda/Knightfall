@@ -27,28 +27,56 @@ export const TELEMETRY_METADATA = {
 };
 
 /**
+/**
  * Formats Nodes Per Second into human-readable K/M values.
+ * 
+ * @param nps - The raw nodes per second number from the chess engine
+ * @returns string - Formatted value, e.g., "1.2M", "450K", or "0"
  */
-export const formatNps = (nps: number) => {
+export const formatNps = (nps: number): string => {
   if (nps > 1000000) return (nps / 1000000).toFixed(1) + 'M';
   if (nps > 1000) return (nps / 1000).toFixed(0) + 'K';
   return nps ? nps.toString() : '0';
 };
 
 /**
- * Formats raw seconds into m/s duration.
+ * Formats raw seconds into a human-readable duration string.
+ * If the duration is less than 60 seconds, returns the seconds directly.
+ * Otherwise, formats as minutes and seconds.
+ * 
+ * @param seconds - The raw duration in seconds
+ * @returns string - Formatted duration, e.g., "45s" or "3m 15s"
  */
-export const formatDuration = (seconds: number) => {
+export const formatDuration = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
 };
 
 /**
- * Localized time formatting for telemetry logs.
+ * Formats raw seconds into digital clock format (mm:ss).
+ * Used primarily for timers and stopwatches in active sessions.
+ * 
+ * @param seconds - The raw duration in seconds
+ * @returns string - Digital clock format, e.g., "1:15" or "0:45"
  */
-export const formatTime = (ts: string) => {
+export const formatMmSs = (seconds: number): string => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Localized time formatting for telemetry logs.
+ * Converts an ISO timestamp string into a localized time display.
+ * 
+ * @param ts - The ISO timestamp string
+ * @returns string - Formatted local time, e.g., "09:30 AM" or "--:--" if empty
+ */
+export const formatTime = (ts: string): string => {
   if (!ts) return '--:--';
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
