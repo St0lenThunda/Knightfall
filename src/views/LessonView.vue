@@ -108,12 +108,10 @@ function loadCurrentStep() {
   }
   
   // Show explanation only for the first puzzle of the lesson.
-  isExplanationMode.value = currentPuzzleIndex.value === 0
-  // Auto-start drill for the first puzzle after a brief pause
   if (currentPuzzleIndex.value === 0) {
-    setTimeout(() => {
-      startDrill()
-    }, 500)
+    isExplanationMode.value = true
+  } else {
+    isExplanationMode.value = false
   }
 }
 

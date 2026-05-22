@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
 import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 const coachStore = useCoachStore()
+const route = useRoute()
 const router = useRouter()
 
 const isLoading = ref(true)
-const selectedCategory = ref('repertoire')
+const selectedCategory = ref((route.query.tab as string) || 'repertoire')
 const loadingStage = ref('Preparing analysis engine...')
+
+watch(selectedCategory, (newVal) => {
+  router.replace({ query: { ...route.query, tab: newVal } })
+})
 
 // Mock opening data for curated section
 const curatedOpenings = [
