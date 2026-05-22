@@ -1,7 +1,7 @@
 <template>
   <div class="view-container">
     <!-- Pillar Header -->
-    <AcademyHeader 
+    <SanctumHeader 
       :badges="userStore.badges"
       :archetype="userStore.profile?.archetype || 'The Unwritten Page'"
       :isProcessing="isProcessing()"
@@ -12,10 +12,10 @@
     />
 
     <div class="scroll-container neon-scroll">
-      <div class="academy-content">
+      <div class="sanctum-content">
         
         <!-- THE SHADOW REALM: Personalized Drills -->
-        <AcademyShadowRealm 
+        <SanctumShadowRealm 
           :puzzles="curriculumStore.personalPuzzles"
           :isProcessing="isProcessing()"
           @openPuzzle="openPersonalPuzzle"
@@ -23,7 +23,7 @@
         />
 
         <!-- STANDARD CURRICULUM -->
-        <AcademySubjectCard 
+        <SanctumSubjectCard 
           v-for="(subject, idx) in curriculum" 
           :key="idx"
           :subject="subject"
@@ -44,13 +44,13 @@ import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
 
 // Pillar Components
-import AcademyHeader from '../components/academy/AcademyHeader.vue'
-import AcademyShadowRealm from '../components/academy/AcademyShadowRealm.vue'
-import AcademySubjectCard from '../components/academy/AcademySubjectCard.vue'
+import SanctumHeader from '../components/sanctum/SanctumHeader.vue'
+import SanctumShadowRealm from '../components/sanctum/SanctumShadowRealm.vue'
+import SanctumSubjectCard from '../components/sanctum/SanctumSubjectCard.vue'
 
 // Pillar Composables
-import { useAcademyCurriculum } from '../composables/academy/useAcademyCurriculum'
-import { useAcademyActions } from '../composables/academy/useAcademyActions'
+import { useSanctumCurriculum } from '../composables/sanctum/useSanctumCurriculum'
+import { useSanctumActions } from '../composables/sanctum/useSanctumActions'
 
 // Core Stores
 const userStore = useUserStore()
@@ -58,7 +58,7 @@ const uiStore = useUiStore()
 const curriculumStore = useCurriculumStore()
 
 // Initialize Pillar Logic
-const { curriculum, isCompleted, getSubjectProgress } = useAcademyCurriculum()
+const { curriculum, isCompleted, getSubjectProgress } = useSanctumCurriculum()
 const { 
   scanForMistakes, 
   recalibratePath, 
@@ -67,7 +67,7 @@ const {
   toggleComplete,
   isProcessing,
   isGenerating
-} = useAcademyActions()
+} = useSanctumActions()
 
 onMounted(async () => {
   if (userStore.session?.user.id) {
@@ -94,7 +94,7 @@ onMounted(async () => {
   padding: var(--space-8);
 }
 
-.academy-content {
+.sanctum-content {
   max-width: 1000px;
   margin: 0 auto;
   display: flex;

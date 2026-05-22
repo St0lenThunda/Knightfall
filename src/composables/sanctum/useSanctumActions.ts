@@ -9,7 +9,7 @@ import { useUserStore } from '../../stores/userStore'
  * Orchestrates user interactions in the Academy, including scanning for 
  * mistakes, recalibrating the path, and navigation.
  */
-export function useAcademyActions() {
+export function useSanctumActions() {
   const router = useRouter()
   const libraryStore = useLibraryStore()
   const curriculumStore = useCurriculumStore()

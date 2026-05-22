@@ -282,6 +282,10 @@ export function usePuzzleLogic() {
           
           userStore.submitPuzzleAttempt(currentPuzzle.value.id, true, Math.max(1, attemptCount.value), timeTakenFinal.value, maxHintLevel.value, currentPuzzle.value.themes || [])
 
+          if (activeCat.value === 'Personal Mistake') {
+            curriculumStore.discardPuzzle(currentPuzzle.value.id)
+          }
+
           if (!solutionUsed.value) {
             const { totalXp } = calculatePuzzleXP(timeTakenFinal.value)
             xpGainedFinal.value = totalXp

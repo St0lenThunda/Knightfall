@@ -5,12 +5,16 @@
  * Displays the main title, user badges, DNA status, and global 
  * training actions (Scan/Recalibrate).
  */
+import { useLibraryStore } from '../../stores/libraryStore'
+
 defineProps<{
   badges: any[]
   archetype: string
   isProcessing: boolean
   isGenerating: boolean
 }>()
+
+const libraryStore = useLibraryStore()
 
 defineEmits(['scan', 'recalibrate', 'openArchetype'])
 </script>
@@ -19,8 +23,8 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
   <div class="header-section">
     <div class="header-flex">
       <div class="title-group">
-        <h1 class="view-title">The Academy</h1>
-        <p class="view-subtitle text-muted">Your <span class="text-accent">Knight's Path</span> is curated by your gameplay DNA.</p>
+        <h1 class="view-title">The Sanctum</h1>
+        <p class="view-subtitle text-muted">Your <span class="text-accent">Sanctum</span> is curated by your gameplay DNA.</p>
       </div>
       
       <div class="actions-group">
@@ -44,6 +48,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
         
         <!-- Action Buttons -->
         <button 
+          v-if="(libraryStore.personalGames?.length || 0) > 0"
           class="btn btn-primary btn-sm" 
           @click="$emit('scan')"
           :disabled="isProcessing"
@@ -53,6 +58,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
         </button>
 
         <button 
+          v-if="(libraryStore.personalGames?.length || 0) > 0"
           class="btn btn-secondary btn-sm" 
           @click="$emit('recalibrate')"
           :disabled="isGenerating"
