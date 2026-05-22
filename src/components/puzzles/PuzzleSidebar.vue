@@ -46,7 +46,7 @@
       </div>
       
       <div v-if="queue.length > 5" class="queue-footer">
-        <button class="btn btn-ghost btn-sm full-width" @click="$emit('view-academy')">
+        <button class="btn btn-ghost btn-sm" @click="$emit('view-sanctum')">
           +{{ queue.length - 5 }} More in Sanctum →
         </button>
       </div>
@@ -103,7 +103,7 @@ defineProps<{
   shadowStats: { total: number; solved: number; accuracy: number };
 }>()
 
-defineEmits(['view-academy'])
+defineEmits(['view-sanctum'])
 </script>
 
 <style scoped>

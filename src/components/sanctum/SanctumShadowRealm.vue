@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Academy Shadow Realm
+ * Sanctum Shadow Realm
  * 
  * Displays personalized drills harvested from the user's losses.
  * This is the primary "High Cohesion" training loop.

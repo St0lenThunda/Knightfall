@@ -18,9 +18,9 @@ const uiStore = useUiStore()
  * Calculates the total percentage of the Sanctum (Library) mastered.
  */
 const sanctumCompletion = computed(() => {
-  const totalLessons = 20 // Standardized count across current subjects
-  const completed = userStore.completedLessons.length
-  return Math.round((completed / totalLessons) * 100)
+  const totalQuests = curriculumStore.quests.length || 20
+  const completed = userStore.completedQuests.length
+  return Math.round((completed / totalQuests) * 100)
 })
 
 /**

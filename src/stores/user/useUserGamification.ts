@@ -174,30 +174,35 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     }
   }
 
-  // --- Academy Achievements ---
-  const completedLessons = ref<string[]>(Storage.get(StorageKey.COMPLETED_LESSONS, [] as string[]))
+  // --- Sanctum Achievements ---
+  const completedQuests = ref<string[]>(Storage.get(StorageKey.COMPLETED_QUESTS, [] as string[]))
 
-  function markLessonComplete(lessonId: string) {
-    if (!completedLessons.value.includes(lessonId)) {
-      completedLessons.value.push(lessonId)
-      Storage.set(StorageKey.COMPLETED_LESSONS, completedLessons.value)
+  /**
+   * Marks a quest as completed locally, rewards XP, and saves to storage.
+   * 
+   * @param questId - The unique identifier of the completed quest
+   */
+  function markQuestComplete(questId: string) {
+    if (!completedQuests.value.includes(questId)) {
+      completedQuests.value.push(questId)
+      Storage.set(StorageKey.COMPLETED_QUESTS, completedQuests.value)
       addXP(50) // Reward XP
     }
   }
 
   const badges = computed(() => {
     const b = []
-    if (completedLessons.value.length >= 1) b.push({ id: 'first_lesson', name: 'First Steps', icon: '📜', color: 'var(--blue)' })
-    if (completedLessons.value.length >= 5) b.push({ id: 'scholar_novice', name: 'Dedicated Scholar', icon: '📚', color: 'var(--teal)' })
-    if (completedLessons.value.length >= 10) b.push({ id: 'scholar_adept', name: 'Academy Adept', icon: '🏛️', color: 'var(--gold)' })
-    if (completedLessons.value.length >= 20) b.push({ id: 'scholar_master', name: 'Master Theoretician', icon: '👑', color: 'var(--rose)' })
+    if (completedQuests.value.length >= 1) b.push({ id: 'first_lesson', name: 'First Steps', icon: '📜', color: 'var(--blue)' })
+    if (completedQuests.value.length >= 5) b.push({ id: 'scholar_novice', name: 'Dedicated Scholar', icon: '📚', color: 'var(--teal)' })
+    if (completedQuests.value.length >= 10) b.push({ id: 'scholar_adept', name: 'Sanctum Adept', icon: '🏛️', color: 'var(--gold)' })
+    if (completedQuests.value.length >= 20) b.push({ id: 'scholar_master', name: 'Master Theoretician', icon: '👑', color: 'var(--rose)' })
     return b
   })
 
   return {
     hearts, xp, streak, maxHearts,
     currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName, currentRankBase,
-    completedLessons, badges,
-    addXP, deductHeart, refillHearts, updateStreak, markLessonComplete
+    completedQuests, badges,
+    addXP, deductHeart, refillHearts, updateStreak, markQuestComplete
   }
 }

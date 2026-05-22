@@ -4,8 +4,7 @@ import { useUserStore } from '../stores/userStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
-import { fetchPuzzleBatch, fetchPuzzleById, type Puzzle } from '../api/puzzleApi'
-import { fetchDailyPuzzle } from '../api/lichessApi'
+import { fetchPuzzleBatch, fetchPuzzleById, fetchLichessDaily, type Puzzle } from '../api/puzzleApi'
 import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
 import { useRoute } from 'vue-router'
 import type { Square, PieceSymbol } from 'chess.js'
@@ -47,6 +46,7 @@ export function usePuzzleLogic() {
   const activeCat = ref(route.query.personal ? 'Personal Mistake' : (coachStore.archetypeReport.category || 'mixed'))
 
   let timerInterval: ReturnType<typeof setInterval> | null = null
+  let isFirstLoad = true
 
   // --- COMPUTED ---
   const puzzleColor = computed(() => {
@@ -121,50 +121,83 @@ export function usePuzzleLogic() {
     if (store.isThinking) return 
     store.forceGameOver = false
     
-    if (queuePuzzles.value.length === 0) {
-      if (activeCat.value === 'Personal Mistake') {
-        if (curriculumStore.personalPuzzles.length === 0) {
-          await curriculumStore.generatePersonalPuzzles()
-        }
-        if (queuePuzzles.value.length === 0) {
-          queuePuzzles.value = [...curriculumStore.personalPuzzles]
-        }
-      }
-
-      if (queuePuzzles.value.length === 0) {
-        const now = new Date()
-        const queue = userStore.puzzleQueue || []
-        const due = queue
-          .filter(q => new Date(q.next_review) <= now)
-          .sort((a, b) => new Date(a.next_review).getTime() - new Date(b.next_review).getTime())
-          .slice(0, 10)
-
-        if (due.length > 0) {
-          uiStore.addToast(`Loading ${due.length} review puzzles...`, 'info')
-          for (const item of due) {
-            const p = await fetchPuzzleById(item.puzzle_id)
-            if (p) queuePuzzles.value.push(p)
+    // Check if we should automatically fetch and load today's Lichess Daily Puzzle
+    let loadedDaily = false
+    if (isFirstLoad && !route.query.personal) {
+      // Ensure we mark isFirstLoad false immediately to avoid loops on subsequent calls
+      isFirstLoad = false
+      try {
+        const dailyPuzzle = await fetchLichessDaily()
+        if (dailyPuzzle) {
+          // Check if this specific daily puzzle was already solved or attempted by the user
+          const alreadyAttempted = userStore.puzzleAttempts.some(
+            attempt => attempt.puzzle_id === dailyPuzzle.id
+          )
+          
+          if (!alreadyAttempted) {
+            // Load the Lichess Daily Puzzle as the active puzzle
+            currentPuzzle.value = dailyPuzzle
+            store.loadPosition(dailyPuzzle.fen, 'puzzle')
+            store.playerColor = puzzleColor.value
+            puzzleStep.value = 0
+            puzzleStartTime.value = Date.now()
+            loadedDaily = true
+            logger.info(`[PuzzleLogic] Automatically loaded Lichess Daily Puzzle: ${dailyPuzzle.id}`)
+          } else {
+            logger.info(`[PuzzleLogic] Lichess Daily Puzzle ${dailyPuzzle.id} already attempted today. Skipping auto-load.`)
           }
         }
+      } catch (err) {
+        logger.error('[PuzzleLogic] Failed to automatically load Lichess Daily Puzzle:', err)
       }
+    }
 
+    if (!loadedDaily) {
       if (queuePuzzles.value.length === 0) {
-        queuePuzzles.value = await fetchPuzzleBatch(activeCat.value, 4)
+        if (activeCat.value === 'Personal Mistake') {
+          if (curriculumStore.personalPuzzles.length === 0) {
+            await curriculumStore.generatePersonalPuzzles()
+          }
+          if (queuePuzzles.value.length === 0) {
+            queuePuzzles.value = [...curriculumStore.personalPuzzles]
+          }
+        }
+
+        if (queuePuzzles.value.length === 0) {
+          const now = new Date()
+          const queue = userStore.puzzleQueue || []
+          const due = queue
+            .filter(q => new Date(q.next_review) <= now)
+            .sort((a, b) => new Date(a.next_review).getTime() - new Date(b.next_review).getTime())
+            .slice(0, 10)
+
+          if (due.length > 0) {
+            uiStore.addToast(`Loading ${due.length} review puzzles...`, 'info')
+            for (const item of due) {
+              const p = await fetchPuzzleById(item.puzzle_id)
+              if (p) queuePuzzles.value.push(p)
+            }
+          }
+        }
+
+        if (queuePuzzles.value.length === 0) {
+          queuePuzzles.value = await fetchPuzzleBatch(activeCat.value, 4)
+        }
       }
-    }
-    
-    currentPuzzle.value = queuePuzzles.value.shift() || null
-    if (currentPuzzle.value) {
-      store.loadPosition(currentPuzzle.value.fen, 'puzzle')
-      store.playerColor = puzzleColor.value
-    }
-    puzzleStep.value = 0
-    puzzleStartTime.value = Date.now()
+      
+      currentPuzzle.value = queuePuzzles.value.shift() || null
+      if (currentPuzzle.value) {
+        store.loadPosition(currentPuzzle.value.fen, 'puzzle')
+        store.playerColor = puzzleColor.value
+      }
+      puzzleStep.value = 0
+      puzzleStartTime.value = Date.now()
 
       if (queuePuzzles.value.length < 3 && activeCat.value !== 'Personal Mistake') {
         const more = await fetchPuzzleBatch(activeCat.value, 3)
         queuePuzzles.value.push(...more)
       }
+    }
     } finally {
       isLoading.value = false
     }
@@ -204,18 +237,9 @@ export function usePuzzleLogic() {
   }
 
   async function importLichessDaily() {
-    const data = await fetchDailyPuzzle()
-    if (data) {
-      currentPuzzle.value = {
-        id: `lichess-${data.puzzle.id}`,
-        title: 'Lichess Daily Puzzle',
-        rating: data.puzzle.rating,
-        themes: data.puzzle.themes,
-        fen: data.game.fen,
-        lastMove: data.puzzle.initialMove,
-        solution: data.puzzle.solution,
-        category: 'External'
-      }
+    const dailyPuzzle = await fetchLichessDaily()
+    if (dailyPuzzle) {
+      currentPuzzle.value = dailyPuzzle
       activeCat.value = 'mixed'
     }
   }

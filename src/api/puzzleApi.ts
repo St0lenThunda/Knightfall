@@ -3,6 +3,7 @@ import assessmentPuzzlesData from '../data/assessmentPuzzles.json'
 import { supabase } from './supabaseClient'
 import { logger } from '../utils/logger'
 import { Chess as ChessEngine } from 'chess.js'
+import { Storage, StorageKey } from '../utils/storage'
 
 export interface Puzzle {
   id: string
@@ -223,3 +224,70 @@ export async function fetchMultiplePuzzlesById(ids: string[]): Promise<Puzzle[]>
   }
   return results
 }
+
+/**
+ * Fetches the daily puzzle from Lichess.
+ * Checks local storage cache first to avoid redundant API queries.
+ * If cached puzzle exists and matches today's date, it returns the cached puzzle.
+ * Otherwise, it fetches from the Lichess API, validates the puzzle legality,
+ * saves to local cache, and returns the formatted Puzzle.
+ * 
+ * @returns Promise<Puzzle | null> - The Lichess daily puzzle or null if it fails
+ */
+export async function fetchLichessDaily(): Promise<Puzzle | null> {
+  // Extract today's date in YYYY-MM-DD format (local time zone representation)
+  const today = new Date().toISOString().split('T')[0]
+  
+  // 1. Check local cache first to see if we already downloaded it today
+  const cachedDate = Storage.get<string>(StorageKey.LICHESS_DAILY_FETCH_DATE, '')
+  const cachedPuzzle = Storage.get<Puzzle | null>(StorageKey.LICHESS_DAILY_PUZZLE, null)
+  
+  // If the cached date matches today's date and we have a valid puzzle object, return it
+  if (cachedDate === today && cachedPuzzle) {
+    logger.info('[PuzzleAPI] Loading Lichess Daily Puzzle from local cache.')
+    return cachedPuzzle
+  }
+  
+  logger.info('[PuzzleAPI] Fetching Lichess Daily Puzzle from Lichess API...')
+  try {
+    const response = await fetch('https://lichess.org/api/puzzle/daily')
+    if (!response.ok) {
+      logger.error(`[PuzzleAPI] Lichess Daily API call failed: ${response.statusText}`)
+      return null
+    }
+    
+    const data = await response.json()
+    if (!data || !data.puzzle || !data.game) {
+      logger.error('[PuzzleAPI] Invalid Lichess daily puzzle payload structure.')
+      return null
+    }
+    
+    // Map Lichess response schema to Knightfall's Puzzle schema
+    const puzzle: Puzzle = {
+      id: `lichess-${data.puzzle.id}`,
+      title: 'Lichess Daily Puzzle',
+      rating: data.puzzle.rating,
+      themes: data.puzzle.themes || [],
+      fen: data.game.fen,
+      lastMove: data.puzzle.initialMove || '',
+      solution: data.puzzle.solution,
+      category: 'External'
+    }
+    
+    // Validate the solution moves to ensure the position isn't corrupt/illegal
+    if (!isPuzzleLegal(puzzle)) {
+      logger.error(`[PuzzleAPI] Fetched Lichess Daily Puzzle ${puzzle.id} is corrupt (illegal solution).`)
+      return null
+    }
+    
+    // Save to local cache to prevent duplicate fetches today
+    Storage.set(StorageKey.LICHESS_DAILY_FETCH_DATE, today)
+    Storage.set(StorageKey.LICHESS_DAILY_PUZZLE, puzzle)
+    
+    return puzzle
+  } catch (err) {
+    logger.error('[PuzzleAPI] Exception during Lichess Daily Puzzle fetch:', err)
+    return null
+  }
+}
+

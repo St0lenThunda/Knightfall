@@ -25,7 +25,7 @@ export const StorageKey = {
   LICHESS_USERNAME: 'knightfall_lichess_username',
   LICHESS_TOKEN: 'knightfall_lichess_token',
   CHESSCOM_TOKEN: 'knightfall_chesscom_token',
-  COMPLETED_LESSONS: 'knightfall_completed_lessons',
+  COMPLETED_QUESTS: 'knightfall_completed_quests',
   ADMIN_CACHE_HITS: 'admin_cache_hits',
   ADMIN_CACHE_MISSES: 'admin_cache_misses',
   ADMIN_TOTAL_TOKENS: 'admin_total_tokens',
@@ -47,6 +47,8 @@ export const StorageKey = {
   ANALYSIS_SHOW_POSITIONAL_HEALTH: 'kf_analysis_show_positional_health',
   ANALYSIS_SHOW_CRITICAL_LINES: 'kf_analysis_show_critical_lines',
   ANALYSIS_SHOW_EVAL_BAR: 'kf_analysis_show_eval_bar',
+  LICHESS_DAILY_PUZZLE: 'kf_lichess_daily_puzzle',
+  LICHESS_DAILY_FETCH_DATE: 'kf_lichess_daily_fetch_date',
 } as const;
 
 export type StorageKeyType = typeof StorageKey[keyof typeof StorageKey];

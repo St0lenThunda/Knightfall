@@ -3,64 +3,68 @@ import { computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useUserStore } from '../../stores/userStore'
 import { useCoachStore } from '../../stores/coachStore'
+import { useCurriculumStore } from '../../stores/curriculumStore'
 
 const router = useRouter()
 const userStore = useUserStore()
 const coachStore = useCoachStore()
+const curriculumStore = useCurriculumStore()
 
-const curriculum = [
-  {
-    title: 'Foundations',
-    icon: '🏰',
-    lessons: [
-      { id: 'basics-board', name: 'The Board & Coordinates' },
-      { id: 'basics-movement', name: 'Piece Movement' },
-      { id: 'basics-principles', name: 'Opening Principles' }
-    ]
-  },
-  {
-    title: 'Tactical Mastery',
-    icon: '⚔️',
-    lessons: [
-      { id: 'tactics-forks', name: 'Forks & Double Attacks' },
-      { id: 'tactics-pins', name: 'Pins & Skewers' }
-    ]
-  },
-  {
-    title: 'Strategic Command',
-    icon: '🧭',
-    lessons: [
-      { id: 'strategy-pawns', name: 'Pawn Structures' },
-      { id: 'strategy-outposts', name: 'Outposts' }
-    ]
-  }
-]
+// Filter out Shadow Realm from standard curriculum for dashboard display
+const activeRealms = computed(() => {
+  return curriculumStore.realms.filter(r => r.id !== 'personal-realm')
+})
 
-function isCompleted(id: string) {
-  return userStore.completedLessons.includes(id)
+/**
+ * Checks the completion progress for a given realm.
+ * 
+ * @param realm - The realm object
+ * @returns number - The count of completed quests in the realm
+ */
+function getSubjectProgress(realm: any) {
+  return curriculumStore.getRealmProgress(realm.id)
 }
 
-function getSubjectProgress(subject: any) {
-  return subject.lessons.filter((l: any) => isCompleted(l.id)).length
+/**
+ * Calculates the percentage of completed quests in a realm.
+ * 
+ * @param realm - The realm object
+ * @returns number - Percentage from 0 to 100
+ */
+function getSubjectPct(realm: any) {
+  const total = curriculumStore.questsByRealm[realm.id]?.length || 1
+  return (getSubjectProgress(realm) / total) * 100
 }
 
-function getSubjectPct(subject: any) {
-  return (getSubjectProgress(subject) / subject.lessons.length) * 100
+/**
+ * Checks if all quests in a realm are completed.
+ * 
+ * @param realm - The realm object
+ * @returns boolean - True if the realm is fully completed
+ */
+function isSubjectDone(realm: any) {
+  const total = curriculumStore.questsByRealm[realm.id]?.length || 0
+  return getSubjectProgress(realm) === total
 }
 
-function isSubjectDone(subject: any) {
-  return getSubjectProgress(subject) === subject.lessons.length
-}
-
-function getSubjectStatus(subject: any) {
-  const prog = getSubjectProgress(subject)
+/**
+ * Gets a user-friendly status string for a realm based on progress.
+ * 
+ * @param realm - The realm object
+ * @returns string - 'LOCKED' | 'MASTERED' | 'IN PROGRESS'
+ */
+function getSubjectStatus(realm: any) {
+  const total = curriculumStore.questsByRealm[realm.id]?.length || 0
+  const prog = getSubjectProgress(realm)
   if (prog === 0) return 'LOCKED'
-  if (prog === subject.lessons.length) return 'MASTERED'
+  if (prog === total) return 'MASTERED'
   return 'IN PROGRESS'
 }
 
-const totalCompleted = computed(() => userStore.completedLessons.length)
+// Total number of completed quests
+const totalCompleted = computed(() => curriculumStore.completedQuestIds.length)
 
+// Display rank of the scholar
 const scholarRank = computed(() => {
   const count = totalCompleted.value
   if (count > 15) return 'Arch-Scholar'
@@ -69,15 +73,17 @@ const scholarRank = computed(() => {
   return 'Novice'
 })
 
+// Dynamically compute the next recommended quest for the player to pursue
 const nextLesson = computed(() => {
-  for (const subject of curriculum) {
-    for (const lesson of subject.lessons) {
-      if (!isCompleted(lesson.id)) {
-        return { ...lesson, subjectTitle: subject.title }
-      }
-    }
+  const nextQ = curriculumStore.quests.find(q => q.status === 'unlocked' && !curriculumStore.isQuestCompleted(q.id))
+  if (!nextQ) return null
+  const realm = curriculumStore.realms.find(r => r.id === nextQ.realmId)
+  return {
+    id: nextQ.id,
+    name: nextQ.title.split(': ')[1] || nextQ.title,
+    subjectTitle: realm ? realm.name : 'The Sanctum',
+    questType: nextQ.questType
   }
-  return null
 })
 
 const hasData = computed(() => userStore.pastGames.length > 0 || userStore.puzzleAttempts.length > 0)
@@ -122,7 +128,7 @@ const weaknesses = computed(() => {
     <header class="scholar-header">
       <div class="welcome-text">
         <h1 class="text-gradient">Welcome back, Scholar {{ userStore.profile?.username }}</h1>
-        <p class="muted">Your curriculum is waiting. You've completed {{ totalCompleted }} lessons this week.</p>
+        <p class="muted">Your curriculum is waiting. You've completed {{ totalCompleted }} quests this week.</p>
       </div>
       <div class="quick-stats">
         <div class="mini-stat">
@@ -140,27 +146,27 @@ const weaknesses = computed(() => {
       <!-- Primary Path: The Scholar's Journey -->
       <section class="scholar-path-section glass">
         <div class="section-header">
-          <h3>🏛️ The Academy</h3>
-          <RouterLink to="/academy" class="btn btn-ghost btn-sm">Enter Academy →</RouterLink>
+          <h3>🏛️ The Sanctum</h3>
+          <RouterLink to="/sanctum" class="btn btn-ghost btn-sm">Enter Sanctum →</RouterLink>
         </div>
         
         <div class="path-visualizer">
-          <div v-for="(subject, sIdx) in curriculum" :key="sIdx" class="path-node" :class="{ 'completed': isSubjectDone(subject) }">
-            <div class="node-icon">{{ subject.icon }}</div>
+          <div v-for="realm in activeRealms" :key="realm.id" class="path-node" :class="{ 'completed': isSubjectDone(realm) }">
+            <div class="node-icon">{{ realm.icon }}</div>
             <div class="node-details">
-              <div class="node-title">{{ subject.title }}</div>
+              <div class="node-title">{{ realm.name }}</div>
               <div class="node-progress">
                 <div class="progress-bar-bg">
-                  <div class="progress-bar-fill" :style="{ width: getSubjectPct(subject) + '%' }"></div>
+                  <div class="progress-bar-fill" :style="{ width: getSubjectPct(realm) + '%' }"></div>
                 </div>
-                <span>{{ getSubjectProgress(subject) }}/{{ subject.lessons.length }}</span>
+                <span>{{ getSubjectProgress(realm) }}/{{ curriculumStore.questsByRealm[realm.id]?.length || 0 }}</span>
               </div>
             </div>
-            <div class="node-status">{{ getSubjectStatus(subject) }}</div>
+            <div class="node-status">{{ getSubjectStatus(realm) }}</div>
           </div>
         </div>
 
-        <!-- Next Recommended Lesson -->
+        <!-- Next Recommended Quest -->
         <div class="next-lesson-cta" v-if="nextLesson">
           <div class="cta-label">CONTINUE STUDYING</div>
           <div class="cta-content">
@@ -169,7 +175,7 @@ const weaknesses = computed(() => {
               <div class="lesson-name">{{ nextLesson.name }}</div>
               <div class="lesson-subject">{{ nextLesson.subjectTitle }}</div>
             </div>
-            <button class="btn btn-primary" @click="router.push('/lesson/' + nextLesson.id)">Resume Lesson</button>
+            <button class="btn btn-primary" @click="nextLesson.questType === 'chronicle' ? router.push('/learn/' + nextLesson.id) : router.push('/lesson/' + nextLesson.id)">Resume Quest</button>
           </div>
         </div>
       </section>

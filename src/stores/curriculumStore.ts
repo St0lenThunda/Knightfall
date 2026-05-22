@@ -11,7 +11,11 @@ import { logger } from '../utils/logger'
 // --- Specialized Composables (Pillar Architecture) ---
 import { useAssessmentEngine } from './curriculum/useAssessmentEngine'
 
-export interface SkillNode {
+/**
+ * Represents a learning Quest in the curriculum (either a narrative Chronicle or a puzzle Trial).
+ * Quests are grouped into Realms and displayed both in the list-based Sanctum and map-based Path.
+ */
+export interface Quest {
   id: string
   title: string
   category: 'Opening' | 'Tactics' | 'Endgame' | 'Positional'
@@ -19,6 +23,12 @@ export interface SkillNode {
   icon: string
   status: 'locked' | 'unlocked' | 'completed'
   xp_reward: number
+  realmId: string
+  /**
+   * Distinguishes chronicle (narrative-first foundational) quests from trial (puzzle-drill) quests.
+   * Chronicle quests route to `/learn/:id`, trials route to `/lesson/:id`.
+   */
+  questType: 'chronicle' | 'trial'
 }
 
 export const useCurriculumStore = defineStore('curriculum', () => {
@@ -26,6 +36,14 @@ export const useCurriculumStore = defineStore('curriculum', () => {
   const selectedIslandId = ref<string | null>(null)
 
   const realms = ref([
+    {
+      id: 'foundations-realm',
+      name: 'The Grand Threshold',
+      icon: '🏛️',
+      description: 'The ancient gates where you learn the origins and rules of the sacred chess game.',
+      x: 400, y: 50,
+      categories: ['Opening', 'Tactics', 'Positional']
+    },
     { 
       id: 'tactics-realm', 
       name: 'The Iron Marches', 
@@ -68,35 +86,51 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     }
   ])
 
-  const nodes = ref<SkillNode[]>([
-    { id: 'forks-101', title: 'Tactics: Forks', category: 'Tactics', requirements: [], icon: '🍴', status: 'completed', xp_reward: 50 },
-    { id: 'pins-101', title: 'Tactics: Pins', category: 'Tactics', requirements: [], icon: '📍', status: 'completed', xp_reward: 50 },
-    { id: 'skewers-101', title: 'Tactics: Skewers', category: 'Tactics', requirements: ['forks-101'], icon: '🍢', status: 'unlocked', xp_reward: 50 },
-    { id: 'outposts-201', title: 'Position: Outposts', category: 'Positional', requirements: ['pins-101'], icon: '🏰', status: 'locked', xp_reward: 75 },
-    { id: 'zwischenzug-301', title: 'Expert: Zwischenzug', category: 'Tactics', requirements: ['skewers-101'], icon: '⚡', status: 'locked', xp_reward: 100 },
-    { id: 'x-ray-101', title: 'Tactics: X-Ray', category: 'Tactics', requirements: ['zwischenzug-301'], icon: '🩻', status: 'locked', xp_reward: 50 },
-    { id: 'smothered-mate', title: 'Mate: Smothered', category: 'Tactics', requirements: ['x-ray-101'], icon: '🐎', status: 'locked', xp_reward: 80 },
-    { id: 'back-rank-mate', title: 'Mate: Back Rank', category: 'Tactics', requirements: ['smothered-mate'], icon: '🧱', status: 'locked', xp_reward: 60 },
-    { id: 'greek-gift', title: 'Sacrifice: Greek Gift', category: 'Tactics', requirements: ['back-rank-mate'], icon: '🎁', status: 'locked', xp_reward: 90 },
-    { id: 'knight-endings', title: 'Endgame: Knights', category: 'Endgame', requirements: ['greek-gift'], icon: '🐴', status: 'locked', xp_reward: 70 },
-    { id: 'rook-endings', title: 'Endgame: Rooks', category: 'Endgame', requirements: ['knight-endings'], icon: '🏯', status: 'locked', xp_reward: 75 },
-    { id: 'pawn-promotion', title: 'Endgame: Pawns', category: 'Endgame', requirements: ['rook-endings'], icon: '👑', status: 'locked', xp_reward: 65 },
-    { id: 'opposition-201', title: 'Endgame: Opposition', category: 'Endgame', requirements: ['pawn-promotion'], icon: '⚖️', status: 'locked', xp_reward: 85 },
-    { id: 'e4-opening', title: 'Opening: King Pawn', category: 'Opening', requirements: ['opposition-201'], icon: '👑', status: 'locked', xp_reward: 50 },
-    { id: 'd4-opening', title: 'Opening: Queen Pawn', category: 'Opening', requirements: ['e4-opening'], icon: '👸', status: 'locked', xp_reward: 50 },
-    { id: 'sicilian-defense', title: 'Opening: Sicilian', category: 'Opening', requirements: ['d4-opening'], icon: '🐉', status: 'locked', xp_reward: 70 },
-    { id: 'caro-kann', title: 'Opening: Caro-Kann', category: 'Opening', requirements: ['sicilian-defense'], icon: '🐢', status: 'locked', xp_reward: 65 },
-    { id: 'french-defense', title: 'Opening: French', category: 'Opening', requirements: ['caro-kann'], icon: '🥖', status: 'locked', xp_reward: 60 },
-    { id: 'ruy-lopez', title: 'Opening: Ruy Lopez', category: 'Opening', requirements: ['french-defense'], icon: '🇪🇸', status: 'locked', xp_reward: 75 },
-    { id: 'grandmaster-peak', title: 'The Peak', category: 'Tactics', requirements: ['ruy-lopez'], icon: '⛰️', status: 'locked', xp_reward: 250 },
+  const quests = ref<Quest[]>([
+    // ─── CHAPTER 0: THE GRAND GAME BEGINS (Foundations) ───
+    // These 10 chronicle quests form the "Mentor's Path" — narrative-first lessons
+    // for absolute beginners who have never played chess.
+    { id: 'found-origins', title: 'Foundations: The Origin of Chess', category: 'Opening', requirements: [], icon: '♟️', status: 'unlocked', xp_reward: 30, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-board', title: 'Foundations: The Board', category: 'Opening', requirements: ['found-origins'], icon: '🗺️', status: 'locked', xp_reward: 30, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-pawns', title: 'Foundations: The Pawns', category: 'Opening', requirements: ['found-board'], icon: '🪖', status: 'locked', xp_reward: 40, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-knights', title: 'Foundations: The Knights', category: 'Opening', requirements: ['found-pawns'], icon: '♞', status: 'locked', xp_reward: 40, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-bishops', title: 'Foundations: The Bishops', category: 'Opening', requirements: ['found-knights'], icon: '⛪', status: 'locked', xp_reward: 40, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-rooks', title: 'Foundations: The Rooks', category: 'Opening', requirements: ['found-bishops'], icon: '🏯', status: 'locked', xp_reward: 40, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-queens', title: 'Foundations: The Queens', category: 'Opening', requirements: ['found-rooks'], icon: '👑', status: 'locked', xp_reward: 50, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-kings', title: 'Foundations: The Kings', category: 'Opening', requirements: ['found-queens'], icon: '🤴', status: 'locked', xp_reward: 50, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-check', title: 'Foundations: Check & Checkmate', category: 'Tactics', requirements: ['found-kings'], icon: '⚔️', status: 'locked', xp_reward: 60, questType: 'chronicle', realmId: 'foundations-realm' },
+    { id: 'found-principles', title: 'Foundations: The 3 Core Principles', category: 'Positional', requirements: ['found-check'], icon: '🧠', status: 'locked', xp_reward: 75, questType: 'chronicle', realmId: 'foundations-realm' },
+
+    // ─── CHAPTER 1: TACTICS ───
+    // Requires completing the Foundations chapter before unlocking.
+    { id: 'forks-101', title: 'Tactics: Forks', category: 'Tactics', requirements: ['found-principles'], icon: '🍴', status: 'locked', xp_reward: 50, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'pins-101', title: 'Tactics: Pins', category: 'Tactics', requirements: [], icon: '📍', status: 'completed', xp_reward: 50, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'skewers-101', title: 'Tactics: Skewers', category: 'Tactics', requirements: ['forks-101'], icon: '🍢', status: 'unlocked', xp_reward: 50, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'outposts-201', title: 'Position: Outposts', category: 'Positional', requirements: ['pins-101'], icon: '🏰', status: 'locked', xp_reward: 75, questType: 'trial', realmId: 'strategy-realm' },
+    { id: 'zwischenzug-301', title: 'Expert: Zwischenzug', category: 'Tactics', requirements: ['skewers-101'], icon: '⚡', status: 'locked', xp_reward: 100, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'x-ray-101', title: 'Tactics: X-Ray', category: 'Tactics', requirements: ['zwischenzug-301'], icon: '🩻', status: 'locked', xp_reward: 50, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'smothered-mate', title: 'Mate: Smothered', category: 'Tactics', requirements: ['x-ray-101'], icon: '🐎', status: 'locked', xp_reward: 80, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'back-rank-mate', title: 'Mate: Back Rank', category: 'Tactics', requirements: ['smothered-mate'], icon: '🧱', status: 'locked', xp_reward: 60, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'greek-gift', title: 'Sacrifice: Greek Gift', category: 'Tactics', requirements: ['back-rank-mate'], icon: '🎁', status: 'locked', xp_reward: 90, questType: 'trial', realmId: 'tactics-realm' },
+    { id: 'knight-endings', title: 'Endgame: Knights', category: 'Endgame', requirements: ['greek-gift'], icon: '🐴', status: 'locked', xp_reward: 70, questType: 'trial', realmId: 'endgame-realm' },
+    { id: 'rook-endings', title: 'Endgame: Rooks', category: 'Endgame', requirements: ['knight-endings'], icon: '🏯', status: 'locked', xp_reward: 75, questType: 'trial', realmId: 'endgame-realm' },
+    { id: 'pawn-promotion', title: 'Endgame: Pawns', category: 'Endgame', requirements: ['rook-endings'], icon: '👑', status: 'locked', xp_reward: 65, questType: 'trial', realmId: 'endgame-realm' },
+    { id: 'opposition-201', title: 'Endgame: Opposition', category: 'Endgame', requirements: ['pawn-promotion'], icon: '⚖️', status: 'locked', xp_reward: 85, questType: 'trial', realmId: 'endgame-realm' },
+    { id: 'e4-opening', title: 'Opening: King Pawn', category: 'Opening', requirements: ['opposition-201'], icon: '👑', status: 'locked', xp_reward: 50, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'd4-opening', title: 'Opening: Queen Pawn', category: 'Opening', requirements: ['e4-opening'], icon: '👸', status: 'locked', xp_reward: 50, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'sicilian-defense', title: 'Opening: Sicilian', category: 'Opening', requirements: ['d4-opening'], icon: '🐉', status: 'locked', xp_reward: 70, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'caro-kann', title: 'Opening: Caro-Kann', category: 'Opening', requirements: ['sicilian-defense'], icon: '🐢', status: 'locked', xp_reward: 65, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'french-defense', title: 'Opening: French', category: 'Opening', requirements: ['caro-kann'], icon: '🥖', status: 'locked', xp_reward: 60, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'ruy-lopez', title: 'Opening: Ruy Lopez', category: 'Opening', requirements: ['french-defense'], icon: '🇪🇸', status: 'locked', xp_reward: 75, questType: 'trial', realmId: 'opening-realm' },
+    { id: 'grandmaster-peak', title: 'The Peak', category: 'Tactics', requirements: ['ruy-lopez'], icon: '⛰️', status: 'locked', xp_reward: 250, questType: 'trial', realmId: 'tactics-realm' },
   ])
 
-
-
-  const completedNodeIds = ref<string[]>([])
+  const completedQuestIds = ref<string[]>([])
 
   /**
-   * Fetches the user's completed nodes from Supabase.
+   * Fetches the user's completed quests from Supabase.
+   * 
+   * @param userId - The unique identifier of the user
    */
   async function fetchProgress(userId: string) {
     const { data, error } = await supabase
@@ -105,32 +139,52 @@ export const useCurriculumStore = defineStore('curriculum', () => {
       .eq('user_id', userId)
     
     if (!error && data) {
-      completedNodeIds.value = data.map(d => d.node_id)
-      updateNodeStatuses()
+      completedQuestIds.value = data.map(d => d.node_id)
+      updateQuestStatuses()
       generatePersonalLessons() // Refresh personalized content
     }
   }
 
-  function updateNodeStatuses() {
-    nodes.value.forEach(node => {
-      if (completedNodeIds.value.includes(node.id)) {
-        node.status = 'completed'
-      } else if (node.requirements.every(reqId => completedNodeIds.value.includes(reqId))) {
-        node.status = 'unlocked'
+  /**
+   * Updates the locking and status state of all quests based on requirements.
+   */
+  function updateQuestStatuses() {
+    quests.value.forEach(quest => {
+      if (completedQuestIds.value.includes(quest.id)) {
+        quest.status = 'completed'
+      } else if (quest.requirements.every(reqId => completedQuestIds.value.includes(reqId))) {
+        quest.status = 'unlocked'
       } else {
-        node.status = 'locked'
+        quest.status = 'locked'
       }
     })
   }
 
-  async function completeNode(userId: string, nodeId: string) {
+  /**
+   * Marks a quest as complete in Supabase, updates local state,
+   * and bridges with user gamification to sync badges.
+   * 
+   * @param userId - The unique identifier of the user
+   * @param questId - The unique identifier of the quest
+   */
+  async function completeQuest(userId: string, questId: string) {
     const { error } = await supabase
       .from('user_skill_progress')
-      .insert([{ user_id: userId, node_id: nodeId }])
+      .insert([{ user_id: userId, node_id: questId }])
     
     if (!error) {
-      completedNodeIds.value.push(nodeId)
-      updateNodeStatuses()
+      completedQuestIds.value.push(questId)
+      updateQuestStatuses()
+      
+      // Bridge gamification progress
+      try {
+        const userStore = useUserStore()
+        if (userStore.markQuestComplete) {
+          userStore.markQuestComplete(questId)
+        }
+      } catch (e) {
+        logger.error('[Curriculum] Failed to trigger gamification sync:', e)
+      }
     }
   }
 
@@ -346,17 +400,57 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     logger.info(`[Curriculum] Generated ${personalLessons.value.length} thematic lessons.`)
   }
 
-  const nextNodes = computed(() => nodes.value.filter(n => n.status === 'unlocked'))
+  const nextQuests = computed(() => quests.value.filter(q => q.status === 'unlocked'))
+
+  /**
+   * Groups all quests by their respective realms.
+   * Useful for list-based view mapping in the Sanctum.
+   */
+  const questsByRealm = computed(() => {
+    const groups: Record<string, Quest[]> = {}
+    realms.value.forEach(realm => {
+      // Filter quests belonging to this specific realm
+      groups[realm.id] = quests.value.filter(q => q.realmId === realm.id)
+    })
+    return groups
+  })
+
+  /**
+   * Checks if a specific quest is completed by its ID.
+   * 
+   * @param questId - The unique identifier of the quest
+   * @returns boolean - True if the quest is completed
+   */
+  function isQuestCompleted(questId: string): boolean {
+    return completedQuestIds.value.includes(questId)
+  }
+
+  /**
+   * Calculates the completion progress for a given realm.
+   * Returns the count of completed quests.
+   * 
+   * @param realmId - The unique identifier of the realm
+   * @returns number - Number of completed quests in this realm
+   */
+  function getRealmProgress(realmId: string): number {
+    const realmQuests = questsByRealm.value[realmId] || []
+    if (realmQuests.length === 0) return 0
+    // Count how many quests in this realm are completed
+    return realmQuests.filter(q => isQuestCompleted(q.id)).length
+  }
 
   const assessment = useAssessmentEngine()
 
   return {
     ...assessment,
-    nodes,
-    completedNodeIds,
+    quests,
+    completedQuestIds,
     fetchProgress,
-    completeNode,
-    nextNodes,
+    completeQuest,
+    nextQuests,
+    questsByRealm,
+    isQuestCompleted,
+    getRealmProgress,
     viewMode,
     selectedIslandId,
     realms,

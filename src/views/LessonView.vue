@@ -18,11 +18,11 @@ const userStore = useUserStore()
 const curriculum = useCurriculumStore()
 const uiStore = useUiStore()
 
-const nodeId = route.params.id as string
-const node = computed(() => {
-  const staticNode = curriculum.nodes.find(n => n.id === nodeId)
-  if (staticNode) return staticNode
-  return curriculum.personalLessons.find(l => l.id === nodeId)
+const questId = route.params.id as string
+const quest = computed(() => {
+  const staticQuest = curriculum.quests.find(q => q.id === questId)
+  if (staticQuest) return staticQuest
+  return curriculum.personalLessons.find(l => l.id === questId)
 })
 
 const puzzles = ref<Puzzle[]>([])
@@ -38,22 +38,22 @@ const progress = computed(() => {
 })
 
 onMounted(async () => {
-  if (!node.value) {
+  if (!quest.value) {
     // If not found, maybe we need to generate them first?
     await curriculum.generatePersonalLessons()
-    if (!node.value) {
+    if (!quest.value) {
       router.push('/path')
       return
     }
   }
 
   try {
-    if (node.value.puzzles) {
+    if (quest.value.puzzles) {
       // Personal lesson already has puzzles
-      puzzles.value = node.value.puzzles
+      puzzles.value = quest.value.puzzles
     } else {
-      // Fetch 5 puzzles matching the node's theme/category
-      const batch = await fetchPuzzleBatch(node.value.category.toLowerCase(), 5)
+      // Fetch 5 puzzles matching the quest's theme/category
+      const batch = await fetchPuzzleBatch(quest.value.category.toLowerCase(), 5)
       puzzles.value = batch
     }
     loadCurrentStep()
@@ -82,6 +82,13 @@ function loadCurrentStep() {
   playerColor.value = engineSide === 'w' ? 'b' : 'w' // User plays the OTHER side
   
   store.loadPosition(p.fen, 'puzzle')
+  
+  // CRITICAL: We must override the store's playerColor with the user's actual color.
+  // Because store.loadPosition sets store.playerColor to the FEN's starting turn
+  // (which is the opponent's side, since the opponent plays the first move).
+  // Without overriding this, store.isPlayersTurn will evaluate to false when the
+  // user tries to move, locking the board.
+  store.playerColor = playerColor.value
   
   if (typeof store.setDrill === 'function') {
     store.setDrill(p.solution)
@@ -162,8 +169,8 @@ async function handleMoveResult(result: string) {
 async function finishLesson() {
   lessonComplete.value = true
   if (userStore.profile?.id) {
-    await curriculum.completeNode(userStore.profile.id, nodeId)
-    userStore.addXP(node.value?.xp_reward || 50)
+    await curriculum.completeQuest(userStore.profile.id, questId)
+    userStore.addXP(quest.value?.xp_reward || 50)
   }
 }
 </script>
@@ -198,11 +205,11 @@ async function finishLesson() {
         <Transition name="fade" mode="out-in">
           <div v-if="isExplanationMode" class="explanation-slide">
             <div class="node-meta">
-              <span class="icon">{{ node?.icon }}</span>
-              <h2>{{ node?.title }}</h2>
+              <span class="icon">{{ quest?.icon }}</span>
+              <h2>{{ quest?.title }}</h2>
             </div>
             <p class="text-secondary">
-              {{ node?.category === 'Tactics' ? 'Tactical patterns like this appear frequently in winning games. Find the winning continuation.' : 'Mastering this positional concept will give you a long-term advantage.' }}
+              {{ quest?.category === 'Tactics' ? 'Tactical patterns like this appear frequently in winning games. Find the winning continuation.' : 'Mastering this positional concept will give you a long-term advantage.' }}
             </p>
             <div class="tip glass-xs">
               <strong>Coach's Tip:</strong> Look for unprotected pieces or king safety issues.
@@ -220,16 +227,16 @@ async function finishLesson() {
     <div v-else class="completion-card glass animated-fade-in">
       <div class="confetti">🎉</div>
       <h1>Lesson Complete!</h1>
-      <p>You've mastered <strong>{{ node?.title }}</strong>.</p>
+      <p>You've mastered <strong>{{ quest?.title }}</strong>.</p>
       
       <div class="rewards-row">
         <div class="reward">
-          <span class="val">+{{ node?.xp_reward }}</span>
+          <span class="val">+{{ quest?.xp_reward }}</span>
           <span class="lbl">XP EARNED</span>
         </div>
         <div class="reward">
           <span class="val">✅</span>
-          <span class="lbl">SKILL UNLOCKED</span>
+          <span class="lbl">QUEST COMPLETE</span>
         </div>
       </div>
 

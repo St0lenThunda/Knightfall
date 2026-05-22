@@ -84,7 +84,7 @@ const getNextUnlock = computed(() => {
                   <div class="xp-table mt-4">
                     <div class="xp-row"><span>Tactical Drill Solved</span><span class="text-green">+15 XP</span></div>
                     <div class="xp-row"><span>Daily Gauntlet Cleared</span><span class="text-teal">+25 XP</span></div>
-                    <div class="xp-row"><span>Academy Lesson Mastered</span><span class="text-gold">+50 XP</span></div>
+                    <div class="xp-row"><span>Sanctum Quest Mastered</span><span class="text-gold">+50 XP</span></div>
                   </div>
                 </div>
 

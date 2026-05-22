@@ -24,13 +24,12 @@
 
         <!-- STANDARD CURRICULUM -->
         <SanctumSubjectCard 
-          v-for="(subject, idx) in curriculum" 
-          :key="idx"
-          :subject="subject"
-          :progress="getSubjectProgress(subject)"
-          :isCompleted="isCompleted"
-          @openLesson="openLesson"
-          @toggleComplete="toggleComplete"
+          v-for="realm in activeRealms" 
+          :key="realm.id"
+          :realm="realm"
+          :quests="curriculumStore.questsByRealm[realm.id] || []"
+          :progress="curriculumStore.getRealmProgress(realm.id)"
+          @openQuest="openQuest"
         />
       </div>
     </div>
@@ -38,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
@@ -49,7 +48,6 @@ import SanctumShadowRealm from '../components/sanctum/SanctumShadowRealm.vue'
 import SanctumSubjectCard from '../components/sanctum/SanctumSubjectCard.vue'
 
 // Pillar Composables
-import { useSanctumCurriculum } from '../composables/sanctum/useSanctumCurriculum'
 import { useSanctumActions } from '../composables/sanctum/useSanctumActions'
 
 // Core Stores
@@ -57,14 +55,17 @@ const userStore = useUserStore()
 const uiStore = useUiStore()
 const curriculumStore = useCurriculumStore()
 
+// Filter out Shadow Realm from standard curriculum
+const activeRealms = computed(() => {
+  return curriculumStore.realms.filter(r => r.id !== 'personal-realm')
+})
+
 // Initialize Pillar Logic
-const { curriculum, isCompleted, getSubjectProgress } = useSanctumCurriculum()
 const { 
   scanForMistakes, 
   recalibratePath, 
-  openLesson, 
+  openQuest, 
   openPersonalPuzzle, 
-  toggleComplete,
   isProcessing,
   isGenerating
 } = useSanctumActions()

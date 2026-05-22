@@ -42,7 +42,6 @@ export const useGameStore = defineStore('game', () => {
   const forceGameOver = ref(false)
   const resignationWinner = ref<'w' | 'b' | null>(null)
   const loadedGameId = ref<string | null>(null)
-  const playerColor = ref<'w' | 'b'>('w')
   const sessionStartTime = ref(Date.now())
   const lastMoveDuration = ref(0)
 
@@ -58,6 +57,13 @@ export const useGameStore = defineStore('game', () => {
     return mode.value === 'vs-computer' && boardLogic.turn.value !== boardLogic.playerColor.value
   })
 
+  /**
+   * Computes whether it is currently the user's turn to play.
+   * 
+   * In local/analysis modes, the user can move at any time.
+   * In vs-computer or puzzle/drill modes, the user can only move if the current
+   * board turn matches the user's player color.
+   */
   const isPlayersTurn = computed(() => {
     if (!gameActive.value) return false
     
@@ -66,7 +72,9 @@ export const useGameStore = defineStore('game', () => {
     
     // In vs-computer or puzzle mode, user can only move if it's their color's turn
     if (mode.value === 'vs-computer' || mode.value === 'puzzle') {
-      return boardLogic.turn.value === playerColor.value
+      // Single Source of Truth (SSOT): We check the board logic's playerColor directly
+      // to avoid any race conditions or asynchronous desync between store variables.
+      return boardLogic.turn.value === boardLogic.playerColor.value
     }
     
     return false
@@ -124,17 +132,20 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
-  // Sync playerColor with boardLogic
-  watch(playerColor, (newColor) => {
-    boardLogic.playerColor.value = newColor
-  })
+  // No sync needed: boardLogic.playerColor is the Single Source of Truth
 
   // --- ACTIONS ---
 
+  /**
+   * Initializes and starts a new game with the specified mode and player color.
+   * 
+   * @param newMode - The gameplay mode (local, vs-computer, etc.)
+   * @param color - The user's player color ('w' or 'b')
+   * @param tc - Optional time control configuration
+   */
   function newGame(newMode: GameMode, color: 'w' | 'b' = 'w', tc?: any) {
     mode.value = newMode
-    playerColor.value = color
-    // CRITICAL: Synchronize color immediately to prevent async watcher races
+    // Single Source of Truth (SSOT): Directly set the board logic player color
     boardLogic.playerColor.value = color
     
     boardLogic.loadPosition('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', 'live')
@@ -352,8 +363,9 @@ export const useGameStore = defineStore('game', () => {
    /**
     * Populates the Chess.js instance with standard PGN headers based on current match context.
     */
-   function injectPgnHeaders() {
-     const isWhite = playerColor.value === 'w'
+    function injectPgnHeaders() {
+      // Access the board logic's playerColor as the Single Source of Truth
+      const isWhite = boardLogic.playerColor.value === 'w'
      const pName = userStore.profile?.username || 'Guest'
      const oName = mode.value === 'vs-computer' ? bots.activeBot.value.name : 'Player 2'
      
@@ -490,6 +502,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Orchestration State
     mode,
+    playerColor: boardLogic.playerColor, // Expose boardLogic's playerColor directly as the Single Source of Truth
     gameStarted,
     forceGameOver,
     resignationWinner,
@@ -536,15 +549,19 @@ export const useGameStore = defineStore('game', () => {
       }
       return success
     },
+    /**
+     * Loads a specific chess position from a FEN string.
+     * 
+     * @param fen - The FEN string representing the position
+     * @param newMode - The game mode for the loaded position (defaults to 'live')
+     */
     loadPosition(fen: string, newMode: GameMode = 'live') {
       logger.info(`[GameStore] Loading position. Mode: ${newMode}, FEN: ${fen}`)
       mode.value = newMode
       loadedGameId.value = null // Position load is always unsaved
-      boardLogic.loadPosition(fen, newMode as any)
       
-      // CRITICAL: Synchronize the store's playerColor with the board's turn
-      // This ensures that for puzzles/drills, the store knows who the player is.
-      playerColor.value = boardLogic.playerColor.value
+      // boardLogic.loadPosition automatically sets boardLogic.playerColor to the FEN's starting turn
+      boardLogic.loadPosition(fen, newMode as any)
       
       gameStarted.value = true
       forceGameOver.value = false

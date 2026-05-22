@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useCurriculumStore, type SkillNode } from '../stores/curriculumStore'
+import { useCurriculumStore, type Quest } from '../stores/curriculumStore'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
 
@@ -14,19 +14,39 @@ onMounted(async () => {
   }
 })
 
-function handleNodeClick(node: SkillNode) {
-  if (node.status === 'locked') return
-  router.push(`/lesson/${node.id}`)
+/**
+ * Handles clicks on a quest node in the map.
+ * Navigates to chronicle (narrative foundations) or trial (puzzle drill) based on questType.
+ * 
+ * @param quest - The clicked Quest node
+ */
+function handleNodeClick(quest: Quest) {
+  if (quest.status === 'locked') return
+  
+  // Chronicle quests use the narrative-first view (/learn/:id),
+  // while trial quests use the puzzle-drill view (/lesson/:id).
+  if (quest.questType === 'chronicle') {
+    router.push(`/learn/${quest.id}`)
+  } else {
+    router.push(`/lesson/${quest.id}`)
+  }
 }
 
-function getNodeClass(node: SkillNode) {
+/**
+ * Computes CSS classes for a given quest node based on its completion/locking status.
+ * 
+ * @param quest - The Quest node
+ * @returns Object mapping CSS classes to boolean state
+ */
+function getNodeClass(quest: Quest) {
   return {
-    'node-locked': node.status === 'locked',
-    'node-unlocked': node.status === 'unlocked',
-    'node-completed': node.status === 'completed',
+    'node-locked': quest.status === 'locked',
+    'node-unlocked': quest.status === 'unlocked',
+    'node-completed': quest.status === 'completed',
   }
 }
 </script>
+
 
 <template>
   <div class="page path-page ghostly-path">
@@ -49,13 +69,13 @@ function getNodeClass(node: SkillNode) {
 
     <div class="path-container">
       <div 
-        v-for="(node, index) in curriculum.nodes" 
+        v-for="(node, index) in curriculum.quests" 
         :key="node.id"
         class="node-row"
         :class="`row-align-${index % 4}`"
       >
         <!-- High-Contrast Gold Trail -->
-        <div v-if="index < curriculum.nodes.length - 1" class="gold-trail"></div>
+        <div v-if="index < curriculum.quests.length - 1" class="gold-trail"></div>
 
         <div 
           class="quest-node"
@@ -74,7 +94,7 @@ function getNodeClass(node: SkillNode) {
           </div>
 
           <!-- Bouncing Gold Knight -->
-          <div v-if="node.status === 'unlocked' && !curriculum.completedNodeIds.includes(node.id)" class="active-indicator">
+          <div v-if="node.status === 'unlocked' && !curriculum.completedQuestIds.includes(node.id)" class="active-indicator">
             ♘
           </div>
         </div>
@@ -116,12 +136,12 @@ function getNodeClass(node: SkillNode) {
             <span class="stat-lbl">GOLD XP</span>
           </div>
           <div class="stat-item">
-            <span class="stat-val">{{ curriculum.completedNodeIds.length }} / 20</span>
+            <span class="stat-val">{{ curriculum.completedQuestIds.length }} / {{ curriculum.quests.length }}</span>
             <span class="stat-lbl">PROGRESS</span>
           </div>
         </div>
         <div class="progress-track-outer">
-          <div class="progress-track-inner" :style="{ width: (curriculum.completedNodeIds.length / curriculum.nodes.length * 100) + '%' }"></div>
+          <div class="progress-track-inner" :style="{ width: (curriculum.completedQuestIds.length / curriculum.quests.length * 100) + '%' }"></div>
         </div>
       </div>
     </div>

@@ -74,8 +74,8 @@ export function useNavigation() {
     // Normalize path for comparison (strip query for base checks)
     const [basePath, queryStr] = path.split('?')
     
-    // 1. Academy sub-route mapping (Lessons are part of the Academy context)
-    if (basePath === '/academy' && currentPath.startsWith('/lesson')) return true
+    // 1. Sanctum sub-route mapping (Quests/Lessons/Learn are part of the Sanctum context)
+    if (basePath === '/sanctum' && (currentPath.startsWith('/lesson') || currentPath.startsWith('/learn'))) return true
     
     // 2. Query Parameter logic (Soul Mapping vs War Room)
     if (queryStr === 'tab=dna') {
@@ -128,7 +128,7 @@ export function useNavigation() {
         title: 'Training',
         showTitle: true,
         items: [
-          { path: '/academy', icon: '⚔️', label: 'Sanctum', badge: 'ACTIVE', auth: true },
+          { path: '/sanctum', icon: '⚔️', label: 'Sanctum', badge: 'ACTIVE', auth: true },
           { path: '/puzzles', icon: '⚡', label: 'Siege Trials', badge: 'NEW', auth: false },
           { path: '/gauntlet', icon: '🔥', label: 'The Great Gauntlet', badge: null, auth: true },
         ].filter(i => !i.auth || !!userStore.session)

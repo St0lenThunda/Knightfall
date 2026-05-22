@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Academy Header
+ * Sanctum Header
  * 
  * Displays the main title, user badges, DNA status, and global 
  * training actions (Scan/Recalibrate).
@@ -32,7 +32,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
         <div class="badges-showcase glass" v-if="badges && badges.length > 0">
           <div 
             v-for="badge in badges" :key="badge.id" 
-            class="academy-badge" 
+            class="sanctum-badge" 
             :style="{ borderColor: badge.color }" 
             :data-tooltip="badge.name"
           >
@@ -109,7 +109,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
   align-items: center;
 }
 
-.academy-badge {
+.sanctum-badge {
   width: 32px;
   height: 32px;
   display: flex;
@@ -122,7 +122,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
   transition: all 0.2s ease;
 }
 
-.academy-badge:hover {
+.sanctum-badge:hover {
   transform: translateY(-2px) scale(1.1);
   background: rgba(255, 255, 255, 0.1);
 }

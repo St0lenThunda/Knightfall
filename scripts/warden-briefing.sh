@@ -29,7 +29,7 @@ Active Files: $STATS
 GLOBAL_PATTERNS="/Users/thunda/Desktop/Development/spectral-suite/patterns"
 FABRIC_BIN=$(command -v fabric || echo "/Users/thunda/.local/bin/fabric")
 
-if [ -f "$FABRIC_BIN" ] && "$FABRIC_BIN" --version >/dev/null 2>&1; then
+if [ -n "$USE_FABRIC" ] && [ -f "$FABRIC_BIN" ] && "$FABRIC_BIN" --version >/dev/null 2>&1; then
     echo "Piping context into Fabric..."
     if "$FABRIC_BIN" --listpatterns | grep -q "knightfall_warden"; then
         echo "$CONTEXT" | "$FABRIC_BIN" --pattern "knightfall_warden" > "$TEMP_REPORT"
@@ -37,7 +37,7 @@ if [ -f "$FABRIC_BIN" ] && "$FABRIC_BIN" --version >/dev/null 2>&1; then
         echo "$CONTEXT" | "$FABRIC_BIN" --pattern "summarize" > "$TEMP_REPORT" || echo "FABRIC_FAIL" > "$TEMP_REPORT"
     fi
 else
-    echo "⚠️ Fabric engine unreachable. Activating manual synthesis..."
+    echo "⚠️ Fabric engine unreachable or disabled. Activating manual synthesis..."
     echo "FABRIC_FAIL" > "$TEMP_REPORT"
 fi
 

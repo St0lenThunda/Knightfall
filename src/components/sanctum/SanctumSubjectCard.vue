@@ -1,63 +1,69 @@
 <script setup lang="ts">
+import type { Quest } from '../../stores/curriculumStore'
+
 /**
- * Academy Subject Card
+ * Sanctum Realm Card
  * 
- * A reusable container for a curriculum subject, displaying 
- * its title, description, and list of lessons with completion status.
+ * Displays a specific curriculum realm, its title, icon, description,
+ * and the list of quests inside it with their locking/completion states.
  */
 defineProps<{
-  subject: {
-    title: string
+  realm: {
+    id: string
+    name: string
     icon: string
     description: string
-    lessons: Array<{ id: string, name: string }>
   }
+  quests: Quest[]
   progress: number
-  isCompleted: (id: string) => boolean
 }>()
 
-defineEmits(['openLesson', 'toggleComplete'])
+defineEmits(['openQuest'])
 </script>
 
 <template>
   <div class="subject-card glass">
     <div class="subject-header">
-      <div class="subject-icon">{{ subject.icon }}</div>
+      <div class="subject-icon">{{ realm.icon }}</div>
       <div class="subject-info">
-        <h2 class="subject-title">{{ subject.title }}</h2>
-        <p class="subject-desc text-muted">{{ subject.description }}</p>
+        <h2 class="subject-title">{{ realm.name }}</h2>
+        <p class="subject-desc text-muted">{{ realm.description }}</p>
       </div>
       
-      <!-- Subject Progress -->
+      <!-- Realm Progress -->
       <div class="subject-progress">
-        <div class="progress-text">{{ progress }} / {{ subject.lessons.length }}</div>
+        <div class="progress-text">{{ progress }} / {{ quests.length }}</div>
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" :style="{ width: (progress / subject.lessons.length * 100) + '%' }"></div>
+          <div class="progress-bar-fill" :style="{ width: (quests.length > 0 ? (progress / quests.length * 100) : 0) + '%' }"></div>
         </div>
       </div>
     </div>
     
     <div class="lessons-grid">
       <div 
-        v-for="(lesson, lIdx) in subject.lessons" 
-        :key="lIdx" 
+        v-for="(quest, qIdx) in quests" 
+        :key="quest.id" 
         class="lesson-item" 
-        :class="{ 'is-completed': isCompleted(lesson.id) }"
+        :class="{ 
+          'is-completed': quest.status === 'completed',
+          'is-locked': quest.status === 'locked'
+        }"
       >
-        <div class="lesson-number">{{ lIdx + 1 }}</div>
-        <div class="lesson-details" @click="$emit('openLesson', lesson.id)">
-          <div class="lesson-name">{{ lesson.name }}</div>
-          <div class="lesson-status" :class="isCompleted(lesson.id) ? 'text-green' : 'text-muted'">
-            {{ isCompleted(lesson.id) ? 'Completed' : 'Not Started' }}
+        <div class="lesson-number">{{ qIdx + 1 }}</div>
+        <div class="lesson-details" @click="quest.status !== 'locked' && $emit('openQuest', quest)">
+          <div class="lesson-name">{{ quest.title }}</div>
+          <div class="lesson-status" :class="quest.status === 'completed' ? 'text-green' : quest.status === 'locked' ? 'text-muted' : 'text-amber'">
+            {{ quest.status === 'completed' ? 'Completed' : quest.status === 'locked' ? 'Locked' : 'Unlocked' }}
           </div>
         </div>
         
         <button 
           class="btn btn-ghost btn-icon lesson-action" 
-          @click="$emit('toggleComplete', lesson.id)"
-          :title="isCompleted(lesson.id) ? 'Completed' : 'Mark as Complete'"
+          @click="quest.status !== 'locked' && $emit('openQuest', quest)"
+          :disabled="quest.status === 'locked'"
+          :title="quest.status === 'completed' ? 'Completed' : quest.status === 'locked' ? 'Locked' : 'Start Quest'"
         >
-          {{ isCompleted(lesson.id) ? '✅' : '▶' }}
+          {{ quest.status === 'completed' ? '✅' : quest.status === 'locked' ? '🔒' : '▶' }}
         </button>
       </div>
     </div>
@@ -150,7 +156,7 @@ defineEmits(['openLesson', 'toggleComplete'])
   transition: all 0.2s ease;
 }
 
-.lesson-item:not(.is-completed):hover {
+.lesson-item:not(.is-completed):not(.is-locked):hover {
   background: rgba(139, 92, 246, 0.1);
   border-color: var(--accent);
   transform: translateY(-2px);
@@ -160,6 +166,17 @@ defineEmits(['openLesson', 'toggleComplete'])
   background: rgba(45, 212, 191, 0.05);
   border-color: rgba(45, 212, 191, 0.2);
   opacity: 0.7;
+}
+
+.lesson-item.is-locked {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: transparent;
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.lesson-item.is-locked .lesson-details {
+  cursor: not-allowed;
 }
 
 .lesson-number {

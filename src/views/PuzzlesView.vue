@@ -111,7 +111,7 @@
         :queue="queuePuzzles"
         :weakness="weakness"
         :shadowStats="userStore.shadowRealmStats"
-        @view-academy="router.push('/academy')"
+        @view-sanctum="router.push('/sanctum')"
       />
     </div>
   </div>
