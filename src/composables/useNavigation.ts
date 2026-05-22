@@ -148,7 +148,14 @@ export function useNavigation() {
           { path: '/opening-lab', icon: '⚒️', label: 'Stratagem Forge', badge: null, auth: true },
           { path: '/settings', icon: '🗝️', label: 'Codex of Rites', badge: null, auth: false },
         ].filter(i => !i.auth || !!userStore.session)
-      }
+      },
+      ...(userStore.isAdmin ? [{
+        title: 'Administration',
+        showTitle: true,
+        items: [
+          { path: '/admin', icon: '👑', label: 'Archivist Command', auth: true }
+        ]
+      }] : [])
     ].filter(section => section.items.length > 0) // Final pass: Purge empty sections
   })
 

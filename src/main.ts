@@ -41,6 +41,7 @@ const router = createRouter({
     { path: '/assessment', component: () => import('./views/OnboardingGauntlet.vue') },
     { path: '/dna-reveal', component: () => import('./views/DnaRevealView.vue') },
     { path: '/reset-password', component: () => import('./views/ResetPasswordView.vue') },
+    { path: '/admin', component: () => import('./views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   ],
 })
 
@@ -50,6 +51,9 @@ const router = createRouter({
  * Protects routes marked with `meta.requiresAuth` by checking the
  * Supabase session before allowing navigation. Unauthenticated users
  * are redirected to the home page.
+ * 
+ * Routes with `meta.requiresAdmin` are further checked against the database
+ * to verify the user has the 'admin' role.
  */
 router.beforeEach(async (to) => {
   const { data: { session } } = await supabase.auth.getSession()
@@ -65,6 +69,22 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAuth && !session) {
     return { path: '/' }
+  }
+
+  if (to.meta.requiresAdmin) {
+    if (!session) return { path: '/' }
+    
+    // Query profiles role to verify administrative privileges directly from db
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      logger.warn(`[Router] Access denied: User ${session.user.id} (${session.user.email}) attempted to access admin page without permission.`)
+      return { path: '/' }
+    }
   }
 })
 

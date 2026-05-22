@@ -53,6 +53,12 @@ export const useAdminStore = defineStore('admin', () => {
   const isFetching = ref(false)
   const lastUpdated = ref<Date | null>(null)
 
+  // --- USER DIRECTORY STATE ---
+  /** List of user profiles retrieved from search directory */
+  const users = ref<any[]>([])
+  /** Loader state for directory search operation */
+  const isFetchingUsers = ref(false)
+
   // --- COMPUTED ---
   const hitRate = computed(() => {
     const total = cacheHits.value + cacheMisses.value
@@ -169,6 +175,62 @@ export const useAdminStore = defineStore('admin', () => {
     if (isBlur) blurEvents.value++
   }
 
+  /**
+   * Fetches the user directory from the profiles table.
+   * If a search query is provided, filters by username or email.
+   * 
+   * @param searchQuery - The search text to filter profiles by
+   */
+  async function fetchUsers(searchQuery = '') {
+    isFetchingUsers.value = true
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('id, username, email, rating, hearts, xp, role, created_at')
+        .order('username', { ascending: true })
+
+      if (searchQuery.trim()) {
+        const cleanQuery = `%${searchQuery.trim()}%`
+        query = query.or(`username.ilike.${cleanQuery},email.ilike.${cleanQuery}`)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      users.value = data || []
+    } catch (err) {
+      logger.error('[AdminStore] Failed to fetch users directory:', err)
+      users.value = []
+    } finally {
+      isFetchingUsers.value = false
+    }
+  }
+
+  /**
+   * Calls the database RPC admin_purge_user to delete a user and
+   * all their associated gameplay and account records.
+   * 
+   * @param targetUserId - The UUID of the user to be purged
+   */
+  async function purgeUser(targetUserId: string) {
+    try {
+      logger.warn(`[AdminStore] Calling admin_purge_user RPC for user ID: ${targetUserId}`)
+      const { error } = await supabase.rpc('admin_purge_user', {
+        target_user_id: targetUserId
+      })
+
+      if (error) throw error
+
+      // Remove the purged user from the local users list
+      users.value = users.value.filter(u => u.id !== targetUserId)
+      logger.info(`[AdminStore] Purged user ${targetUserId} successfully.`)
+      return { success: true }
+    } catch (err) {
+      logger.error('[AdminStore] Failed to purge user:', err)
+      return { success: false, error: err }
+    }
+  }
+
   return {
     cacheCount,
     cacheHits,
@@ -209,6 +271,10 @@ export const useAdminStore = defineStore('admin', () => {
     analysisToPlayRatio,
     recordMovePlayed,
     engineReboots,
-    recordEngineReboot
+    recordEngineReboot,
+    users,
+    isFetchingUsers,
+    fetchUsers,
+    purgeUser
   }
 })

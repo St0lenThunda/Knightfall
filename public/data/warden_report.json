@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-22T08:21:34Z",
+  "timestamp": "2026-05-22T09:36:06Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: e23f8aa - docs(adr): add historical ADRs 017-021 and resolve CI failures (Antonio Moses)\nb60bb2a - feat(sanctum): add foundational lessons, unify terminology, and cache daily puzzles (Antonio Moses)\nf90d988 - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\nb1284bd - feat(sanctum): rename Academy to Sanctum, add conditional UI based on vault state, update reactive puzzle count, add test (Antonio Moses)\n3f6961c - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: 579e80e - feat(sanctum): add quiz passing threshold, centralize XP rewards, and fix lesson completion database sync (Antonio Moses)\ne23f8aa - docs(adr): add historical ADRs 017-021 and resolve CI failures (Antonio Moses)\nb60bb2a - feat(sanctum): add foundational lessons, unify terminology, and cache daily puzzles (Antonio Moses)\nf90d988 - Merge branch 'implement-onboarding-flow' into duolingo (Antonio Moses)\nb1284bd - feat(sanctum): rename Academy to Sanctum, add conditional UI based on vault state, update reactive puzzle count, add test (Antonio Moses)",
   "metrics": {
-    "files_scanned":      398,
+    "files_scanned":      402,
     "integrity_score": 98
   }
 }
