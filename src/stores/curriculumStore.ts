@@ -251,6 +251,12 @@ export const useCurriculumStore = defineStore('curriculum', () => {
           const evalBefore = prevEval.score || 0.3
           const evalAfter = ev.score || 0
 
+          // If the user played the engine's suggested best move, it's not a mistake,
+          // even if the evaluation dropped (horizon effect).
+          if (moves[i].lan === prevEval.bestMove || moves[i].san === prevEval.bestMove) {
+            return
+          }
+
           // Use TaggingService for deterministic classification
           const tag = TaggingService.identifyMistake(
             fenBefore,

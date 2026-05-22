@@ -53,7 +53,7 @@ export class TaggingService {
         evalDrop,
         movePlayed,
         bestMove,
-        explanation: bestMove
+        explanation: (bestMove && movePlayed !== bestMove)
           ? `${movePlayed || 'This move'} deviates from known theory. **${bestMove}** was the book move here — it avoids a known tactical trap and keeps the position within safe opening principles.`
           : `${movePlayed || 'This move'} falls into a known opening trap. Review the theory for this line to avoid losing tempo or material early.`
       }
@@ -78,7 +78,7 @@ export class TaggingService {
         evalDrop,
         movePlayed,
         bestMove,
-        explanation: bestMove
+        explanation: (bestMove && movePlayed !== bestMove)
           ? `${movePlayed || 'This move'} leaves ${pieceType} undefended. **${bestMove}** was needed to protect the material or create a counter-threat. Always check: "Does my move leave anything hanging?"`
           : `${movePlayed || 'This move'} loses ${pieceType} — a ${evalDrop.toFixed(1)}-pawn swing. Scan for undefended pieces before committing to a move.`
       }
@@ -94,7 +94,7 @@ export class TaggingService {
         evalDrop,
         movePlayed,
         bestMove,
-        explanation: bestMove
+        explanation: (bestMove && movePlayed !== bestMove)
           ? `The position was winning (${evalBefore > 0 ? '+' : ''}${evalBefore.toFixed(1)}), but ${movePlayed || 'this move'} let the advantage slip away. **${bestMove}** was a forcing continuation that would have converted the advantage decisively.`
           : `A winning position was squandered. The advantage dropped from ${evalBefore > 0 ? '+' : ''}${evalBefore.toFixed(1)} to near equality. Look for checks, captures, and threats when you're ahead.`
       }
@@ -108,7 +108,7 @@ export class TaggingService {
       evalDrop,
       movePlayed,
       bestMove,
-      explanation: bestMove
+      explanation: (bestMove && movePlayed !== bestMove)
         ? moveCount > 40
           ? `${movePlayed || 'This move'} is imprecise in the endgame. **${bestMove}** was more accurate — in endgames, every tempo matters. Focus on king activity and pawn advancement.`
           : `${movePlayed || 'This move'} weakens the position by ${evalDrop.toFixed(1)} pawns. **${bestMove}** maintains better piece coordination and long-term structure.`
