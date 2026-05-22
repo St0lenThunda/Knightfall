@@ -3,230 +3,411 @@
     "id": "cjAgz",
     "title": "Trapped in the Center",
     "rating": 2140,
-    "themes": ["middlegame", "tactics", "advantage"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "advantage"
+    ],
     "fen": "r2qk2r/3b1pp1/1pQ1pB1p/p2p4/2nPP3/2N2N2/PP3PPP/R3KB1R b KQkq - 0 1",
     "lastMove": "h4f6",
-    "solution": ["g7f6", "c6b7", "c4d6", "b7a8", "d8a8"],
-    "category": "tactics"
+    "solution": [
+      "g7f6",
+      "c6b7",
+      "c4d6",
+      "b7a8",
+      "d8a8"
+    ],
+    "category": "tactics",
+    "explanation": "The opponent's queen has stepped aggressively into your territory. Look for a way to challenge her while opening lines for your rooks."
   },
   {
     "id": "backrank1",
     "title": "Basic Back-Rank Mate",
     "rating": 950,
-    "themes": ["endgame", "mate", "backRankMate"],
+    "themes": [
+      "endgame",
+      "mate",
+      "backRankMate"
+    ],
     "fen": "4r1k1/5ppp/8/8/8/8/2Q2PPP/6K1 b - - 0 1",
     "lastMove": "c1c2",
-    "solution": ["e8e1"],
-    "category": "endgame"
+    "solution": [
+      "e8e1"
+    ],
+    "category": "endgame",
+    "explanation": "The enemy king is trapped behind its own pawn shield. Deliver a check on the 8th rank to exploit the lack of 'luft'."
   },
   {
     "id": "smother1",
     "title": "Smothered Mate",
     "rating": 1450,
-    "themes": ["middlegame", "mate", "smotheredMate"],
+    "themes": [
+      "middlegame",
+      "mate",
+      "smotheredMate"
+    ],
     "fen": "r1bR2nk/1p4pp/p7/4N3/P7/8/1P3PPP/6K1 w - - 0 1",
     "lastMove": "d8a8",
-    "solution": ["e5f7"],
-    "category": "mixed"
+    "solution": [
+      "e5f7"
+    ],
+    "category": "mixed",
+    "explanation": "The king is completely blocked by its own pieces. Look for a knight leap that delivers an inescapable check."
   },
   {
     "id": "queenTrap",
     "title": "Queen Trap",
     "rating": 1820,
-    "themes": ["middlegame", "trappedPiece"],
+    "themes": [
+      "middlegame",
+      "trappedPiece"
+    ],
     "fen": "r1b1kbnr/pppp1ppp/8/4p3/1n2P1Qq/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
     "lastMove": "h4g4",
-    "solution": ["g1f3", "h4g5", "f3g5"],
-    "category": "opening"
+    "solution": [
+      "g1f3",
+      "h4g5",
+      "f3g5"
+    ],
+    "category": "opening",
+    "explanation": "The opponent's queen has ventured out too early. Coordinate your minor pieces to cut off all her escape squares."
   },
   {
     "id": "fork1",
     "title": "Knight Fork",
     "rating": 1100,
-    "themes": ["middlegame", "tactics", "fork"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "fork"
+    ],
     "fen": "r1bqkb1r/ppp2ppp/2np1n2/4p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1",
     "lastMove": "d7d6",
-    "solution": ["c4f7", "e8f7", "f3g5", "f7g8", "g5e6"],
-    "category": "tactics"
+    "solution": [
+      "c4f7",
+      "e8f7",
+      "f3g5",
+      "f7g8",
+      "g5e6"
+    ],
+    "category": "tactics",
+    "explanation": "Look for a powerful knight jump that simultaneously attacks the king and another high-value piece."
   },
   {
     "id": "pin1",
     "title": "Exploiting the Pin",
     "rating": 1250,
-    "themes": ["middlegame", "tactics", "pin"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "pin"
+    ],
     "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQ1RK1 w kq - 8 6",
     "lastMove": "c5b6",
-    "solution": ["f3g5", "e8g8", "c3d5"],
-    "category": "tactics"
+    "solution": [
+      "f3g5",
+      "e8g8",
+      "c3d5"
+    ],
+    "category": "tactics",
+    "explanation": "The opponent's knight cannot move without exposing the king or a heavy piece. Apply more pressure to the pinned piece."
   },
   {
     "id": "skewer1",
     "title": "Absolute Skewer",
     "rating": 1300,
-    "themes": ["endgame", "tactics", "skewer"],
+    "themes": [
+      "endgame",
+      "tactics",
+      "skewer"
+    ],
     "fen": "8/8/8/8/8/k1R5/8/K6r w - - 0 1",
     "lastMove": "Rh1",
-    "solution": ["c3c1"],
-    "category": "tactics"
+    "solution": [
+      "c3c1"
+    ],
+    "category": "tactics",
+    "explanation": "Attack the valuable piece on the same line as the king. When it moves out of check, the piece behind it will fall."
   },
   {
     "id": "discovered1",
     "title": "Discovered Check",
     "rating": 1400,
-    "themes": ["middlegame", "tactics", "discoveredAttack"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "discoveredAttack"
+    ],
     "fen": "rn1qk2r/pbpp1ppp/1p2pn2/8/1bPP4/2b1PN2/PP1B1PPP/R2QKB1R w KQkq - 0 7",
     "lastMove": "b4c3",
-    "solution": ["d2c3"],
-    "category": "tactics"
+    "solution": [
+      "d2c3"
+    ],
+    "category": "tactics",
+    "explanation": "Move your piece out of the way to unveil a devastating attack from a long-range piece hidden behind it."
   },
   {
     "id": "deflection1",
     "title": "Deflection Sacrifice",
     "rating": 1650,
-    "themes": ["middlegame", "tactics", "deflection"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "deflection"
+    ],
     "fen": "rn1qkb1r/pbpp1ppp/1p2pn2/8/2PP4/2N1PN2/PP1B1PPP/R2QKB1R b KQkq - 1 6",
     "lastMove": "f1d3",
-    "solution": ["f6e4"],
-    "category": "tactics"
+    "solution": [
+      "f6e4"
+    ],
+    "category": "tactics",
+    "explanation": "Sacrifice a piece to forcefully draw a key defender away from its critical post."
   },
   {
     "id": "undermining1",
     "title": "Remove the Defender",
     "rating": 1550,
-    "themes": ["middlegame", "tactics", "undermining"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "undermining"
+    ],
     "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 1 5",
     "lastMove": "e4e5",
-    "solution": ["f3g5"],
-    "category": "tactics"
+    "solution": [
+      "f3g5"
+    ],
+    "category": "tactics",
+    "explanation": "Identify the piece defending the key square or target, and eliminate it to destroy the opponent's defensive structure."
   },
   {
     "id": "decoy1",
     "title": "Decoy into Mate",
     "rating": 1900,
-    "themes": ["middlegame", "tactics", "decoy", "mate"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "decoy",
+      "mate"
+    ],
     "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
     "lastMove": "e7e5",
-    "solution": ["f6e4"],
-    "category": "tactics"
+    "solution": [
+      "f6e4"
+    ],
+    "category": "tactics",
+    "explanation": "Sacrifice material to drag the enemy king onto a vulnerable square where it can be mated."
   },
   {
     "id": "pawnrace1",
     "title": "Pawn Race",
     "rating": 1200,
-    "themes": ["endgame", "pawnEndgame"],
+    "themes": [
+      "endgame",
+      "pawnEndgame"
+    ],
     "fen": "8/1k6/8/8/8/8/7P/K7 w - - 0 1",
     "lastMove": "a7b7",
-    "solution": ["h2h4", "b7c7", "h4h5", "c7d7", "h5h6", "d7e7", "h6h7"],
-    "category": "endgame"
+    "solution": [
+      "h2h4",
+      "b7c7",
+      "h4h5",
+      "c7d7",
+      "h5h6",
+      "d7e7",
+      "h6h7"
+    ],
+    "category": "endgame",
+    "explanation": "It's a pure calculation test! Push your pawn. Count carefully to ensure your pawn promotes before the opponent's."
   },
   {
     "id": "opposition1",
     "title": "King Opposition",
     "rating": 1400,
-    "themes": ["endgame", "pawnEndgame", "opposition"],
+    "themes": [
+      "endgame",
+      "pawnEndgame",
+      "opposition"
+    ],
     "fen": "8/8/8/8/3k4/8/3K4/8 w - - 0 1",
     "lastMove": "d4e4",
-    "solution": ["d2e2"],
-    "category": "endgame"
+    "solution": [
+      "d2e2"
+    ],
+    "category": "endgame",
+    "explanation": "Step directly in front of the enemy king to seize the 'opposition'. Force them to give way so you can escort your pawn."
   },
   {
     "id": "lucena1",
     "title": "Lucena Position",
     "rating": 2100,
-    "themes": ["endgame", "rookEndgame", "lucena"],
+    "themes": [
+      "endgame",
+      "rookEndgame",
+      "lucena"
+    ],
     "fen": "2K5/P7/8/1r6/8/8/k7/8 w - - 0 1",
     "lastMove": "b5e5",
-    "solution": ["a7a8q"],
-    "category": "endgame"
+    "solution": [
+      "a7a8q"
+    ],
+    "category": "endgame",
+    "explanation": "This is the classic Lucena position. Use your rook to build a bridge and shield your king from checks so your pawn can promote."
   },
   {
     "id": "philidor1",
     "title": "Philidor Defense",
     "rating": 1900,
-    "themes": ["endgame", "rookEndgame", "philidor"],
+    "themes": [
+      "endgame",
+      "rookEndgame",
+      "philidor"
+    ],
     "fen": "8/8/8/4k3/8/5K2/r7/8 w - - 0 1",
     "lastMove": "a2e2",
-    "solution": ["f3e3"],
-    "category": "endgame"
+    "solution": [
+      "f3e3"
+    ],
+    "category": "endgame",
+    "explanation": "The Philidor position is the ultimate drawing technique. Keep your rook on the 3rd rank until the pawn pushes, then move it to the 8th rank to deliver endless checks."
   },
   {
     "id": "knightpawn1",
     "title": "Knight vs Pawn",
     "rating": 1600,
-    "themes": ["endgame", "knightEndgame"],
+    "themes": [
+      "endgame",
+      "knightEndgame"
+    ],
     "fen": "8/8/8/8/8/k7/1N5p/K7 w - - 0 1",
     "lastMove": "h2h1q",
-    "solution": ["b2c4", "a3b3", "c4d2", "b3c3", "d2f1"],
-    "category": "endgame"
+    "solution": [
+      "b2c4",
+      "a3b3",
+      "c4d2",
+      "b3c3",
+      "d2f1"
+    ],
+    "category": "endgame",
+    "explanation": "A knight alone struggles to stop an edge pawn. Maneuver carefully to blockade the pawn or fork the king and pawn."
   },
   {
     "id": "bishoppawn1",
     "title": "Bishop vs Pawn",
     "rating": 1500,
-    "themes": ["endgame", "bishopEndgame"],
+    "themes": [
+      "endgame",
+      "bishopEndgame"
+    ],
     "fen": "8/8/8/8/8/k7/1B5p/K7 w - - 0 1",
     "lastMove": "h2h1q",
-    "solution": ["b2e5"],
-    "category": "endgame"
+    "solution": [
+      "b2e5"
+    ],
+    "category": "endgame",
+    "explanation": "Use your bishop's long-range diagonal control to safely stop the advancing pawn from a distance."
   },
   {
     "id": "overworked1",
     "title": "Overworked Piece",
     "rating": 1750,
-    "themes": ["middlegame", "tactics", "deflector"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "deflector"
+    ],
     "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
     "lastMove": "e7e5",
-    "solution": ["f6e4"],
-    "category": "endgame"
+    "solution": [
+      "f6e4"
+    ],
+    "category": "endgame",
+    "explanation": "Find the opponent's piece that is trying to defend two targets at once. Force it to abandon one of its duties."
   },
   {
     "id": "scholar1",
     "title": "Scholar's Mate Defense",
     "rating": 800,
-    "themes": ["opening", "mate", "defense"],
+    "themes": [
+      "opening",
+      "mate",
+      "defense"
+    ],
     "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
     "lastMove": "f3g3",
-    "solution": ["g8f6"],
-    "category": "opening"
+    "solution": [
+      "g8f6"
+    ],
+    "category": "opening",
+    "explanation": "The opponent is trying to execute the famous Scholar's Mate. Develop your pieces actively while blocking the deadly threat on f7."
   },
   {
     "id": "legal1",
     "title": "Legal's Mate",
     "rating": 1500,
-    "themes": ["opening", "mate", "sacrifice"],
+    "themes": [
+      "opening",
+      "mate",
+      "sacrifice"
+    ],
     "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1P3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R b KQkq - 1 5",
     "lastMove": "f3e5",
-    "solution": ["d8e7"],
-    "category": "opening"
+    "solution": [
+      "d8e7"
+    ],
+    "category": "opening",
+    "explanation": "Sacrifice your Queen! The resulting sequence will use your minor pieces to deliver a beautiful checkmate in the center of the board."
   },
   {
     "id": "fools1",
     "title": "Fool's Mate Defense",
     "rating": 700,
-    "themes": ["opening", "mate", "defense"],
+    "themes": [
+      "opening",
+      "mate",
+      "defense"
+    ],
     "fen": "rnbqkbnr/pppp1ppp/8/4p3/5PP1/8/PPPPP2P/RNBQKBNR b KQkq - 0 2",
     "lastMove": "g2g4",
-    "solution": ["d8h4"],
-    "category": "opening"
+    "solution": [
+      "d8h4"
+    ],
+    "category": "opening",
+    "explanation": "The opponent has recklessly weakened their kingside diagonals. Deliver the fastest checkmate in chess."
   },
   {
     "id": "intermediate1",
     "title": "Zwischenzug",
     "rating": 1850,
-    "themes": ["middlegame", "tactics", "intermezzo"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "intermezzo"
+    ],
     "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
     "lastMove": "e7e5",
-    "solution": ["f6e4"],
-    "category": "mixed"
+    "solution": [
+      "f6e4"
+    ],
+    "category": "mixed",
+    "explanation": "Don't automatically recapture! Throw in a surprising forcing move (a check or threat) to disrupt the opponent's plans before taking the material."
   },
   {
     "id": "clearance1",
     "title": "Fischer's Clearance Bolt",
     "rating": 1950,
-    "themes": ["middlegame", "tactics", "clearance"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "clearance"
+    ],
     "fen": "3r1rk1/pp3pbp/2p1p1p1/1q2P3/4N3/P3B3/1PQ3PP/3R1RK1 w - - 0 1",
     "lastMove": "b5b4",
-    "solution": ["f1f6", "g7f6", "e4f6"],
+    "solution": [
+      "f1f6",
+      "g7f6",
+      "e4f6"
+    ],
     "category": "tactics",
     "explanation": "Bobby Fischer played Rf6! not to win material immediately, but to block the f-pawn and clear the f6 square for a deadly knight check."
   },
@@ -234,10 +415,17 @@
     "id": "xray1",
     "title": "X-Ray Attack",
     "rating": 1600,
-    "themes": ["middlegame", "tactics", "xrayAttack"],
+    "themes": [
+      "middlegame",
+      "tactics",
+      "xrayAttack"
+    ],
     "fen": "r1bqkb1r/ppp1p1pp/2np1n2/5p2/3PP3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 1 5",
     "lastMove": "e7e5",
-    "solution": ["f6e4"],
-    "category": "mixed"
+    "solution": [
+      "f6e4"
+    ],
+    "category": "mixed",
+    "explanation": "Your long-range piece is exerting pressure 'through' an enemy piece. Exploit this hidden tension to win material."
   }
 ]
