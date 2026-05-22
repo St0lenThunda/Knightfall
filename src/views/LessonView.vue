@@ -239,7 +239,11 @@ async function finishLesson() {
           </div>
           <div v-else class="drill-info">
             <h3>Find the Best Move</h3>
-            <p class="text-secondary">Step {{ currentPuzzleIndex + 1 }} of 5</p>
+            <p class="text-secondary" style="margin-bottom: var(--space-6);">Step {{ currentPuzzleIndex + 1 }} of {{ puzzles.length }}</p>
+            
+            <div class="tip glass-xs">
+              <strong>Coach's Tip:</strong> {{ currentPuzzle?.explanation || 'Take your time. Identify the opponent\'s last move and search for forcing checks, captures, and threats.' }}
+            </div>
           </div>
         </Transition>
       </div>
