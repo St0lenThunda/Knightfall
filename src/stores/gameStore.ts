@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { logger } from '../utils/logger'
 import { useAntiCheat } from '../composables/useAntiCheat'
 import { Storage, StorageKey } from '../utils/storage'
+import { Chess } from 'chess.js'
 
 // Pillars
 import { useBoardLogic } from './game/useBoardLogic'
@@ -246,6 +247,20 @@ export const useGameStore = defineStore('game', () => {
       makeMove(boardLogic.selectedSquare.value, sq)
     } else {
       boardLogic.selectSquare(sq)
+      
+      // Sandbox Free Movement: Show legal moves for out-of-turn pieces in analysis mode
+      if (mode.value === 'analysis') {
+        const piece = boardLogic.chess.value.get(sq)
+        if (piece && piece.color !== boardLogic.chess.value.turn()) {
+          const tempChess = new Chess(boardLogic.chess.value.fen())
+          const fenParts = tempChess.fen().split(' ')
+          fenParts[1] = piece.color
+          // Disable castling rights if we flip turn to avoid chess.js load errors
+          fenParts[2] = '-'
+          tempChess.load(fenParts.join(' '))
+          boardLogic.legalMoveSquares.value = tempChess.moves({ square: sq, verbose: true }).map((m: any) => m.to)
+        }
+      }
     }
   }
 
@@ -257,21 +272,24 @@ export const useGameStore = defineStore('game', () => {
     // Only allow moves if the game is active and it's the player's turn
     if (!gameActive.value) return null
     
-    // We allow moves from the store itself (e.g. computer responses) by bypassing this check if needed,
-    // but for user-initiated moves via the UI, we check isPlayersTurn.
-    // NOTE: In Knightfall, all moves (user and computer) currently flow through makeMove.
-    // However, computer responses in puzzles are triggered by store.makeMove explicitly.
-    // If we block makeMove, we block the computer too!
-    
-    // REFINED LOGIC: We only block if it's a "User Mode" and not the turn.
-    // But wait, the computer move in vs-computer mode is triggered by triggerBotMove -> makeMove.
-    // So we need to distinguish between User and System.
-    
-    // Actually, the simplest way is to only gate the UI entry point: selectSquare.
-
-    // If the player makes a move while the engine was thinking (e.g. for eval bar), stop it
+    // If the player makes a move while the engine was thinking, stop it
     if (engineStore.isAnalyzing) {
       engineStore.stop()
+    }
+
+    // Sandbox Free Movement: Force turn alignment before executing move
+    if (mode.value === 'analysis') {
+      let fromSq = typeof fromOrUci === 'string' && !to ? fromOrUci.slice(0, 2) : fromOrUci
+      const piece = boardLogic.chess.value.get(fromSq)
+      if (piece && piece.color !== boardLogic.chess.value.turn()) {
+        const fenParts = boardLogic.chess.value.fen().split(' ')
+        fenParts[1] = piece.color
+        // Strip castling rights to prevent strict FEN validation errors on turn flip
+        fenParts[2] = '-'
+        const savedHistory = [...boardLogic.moveHistory.value]
+        boardLogic.chess.value.load(fenParts.join(' '))
+        boardLogic.moveHistory.value = savedHistory
+      }
     }
 
     const move = boardLogic.makeMove(fromOrUci, to, promotion)
