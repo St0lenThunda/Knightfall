@@ -17,11 +17,20 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   const hearts = computed(() => profile.value?.hearts ?? 5)
   const xp = computed(() => profile.value?.xp ?? 0)
   const streak = computed(() => profile.value?.streak ?? 0)
-  const maxHearts = 5
-
   // --- Leveling Engine (The XP Logic) ---
   // We use a quadratic formula: Level = floor(sqrt(XP / 100)) + 1
   const currentLevel = computed(() => Math.floor(Math.sqrt(xp.value / 100)) + 1)
+  
+  const maxHearts = computed(() => {
+    const lvl = currentLevel.value
+    if (lvl >= 50) return 10
+    if (lvl >= 40) return 9
+    if (lvl >= 30) return 8
+    if (lvl >= 20) return 7
+    if (lvl >= 10) return 6
+    return 5
+  })
+
   const xpForNextLevel = computed(() => Math.pow(currentLevel.value, 2) * 100)
   const xpForCurrentLevel = computed(() => Math.pow(currentLevel.value - 1, 2) * 100)
 
@@ -104,14 +113,34 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   /** Awards XP to the user and persists to Supabase. */
   async function addXP(amount: number) {
     if (!profile.value) return
+    const oldMaxHearts = maxHearts.value
     const newXP = (profile.value.xp || 0) + amount
+    
+    // Calculate new level to see if max hearts increased
+    const newLevel = Math.floor(Math.sqrt(newXP / 100)) + 1
+    let newMaxHearts = 5
+    if (newLevel >= 50) newMaxHearts = 10
+    else if (newLevel >= 40) newMaxHearts = 9
+    else if (newLevel >= 30) newMaxHearts = 8
+    else if (newLevel >= 20) newMaxHearts = 7
+    else if (newLevel >= 10) newMaxHearts = 6
+
+    let heartsToSave = profile.value.hearts
+    if (newMaxHearts > oldMaxHearts) {
+      heartsToSave = newMaxHearts // Instantly max out on milestone
+    }
     
     const { error } = await supabase
       .from('profiles')
-      .update({ xp: newXP })
+      .update({ xp: newXP, hearts: heartsToSave })
       .eq('id', profile.value.id)
     
-    if (!error) profile.value.xp = newXP
+    if (!error) {
+      profile.value.xp = newXP
+      if (newMaxHearts > oldMaxHearts) {
+        profile.value.hearts = heartsToSave
+      }
+    }
   }
 
   /** Deducts a heart for a blunder. */
@@ -131,7 +160,7 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   /** Adds a heart, up to the maximum. */
   async function gainHeart(): Promise<number> {
     if (!profile.value) return 0
-    if (profile.value.hearts >= maxHearts) return profile.value.hearts
+    if (profile.value.hearts >= maxHearts.value) return profile.value.hearts
     const newHearts = profile.value.hearts + 1
     
     const { error } = await supabase
@@ -146,12 +175,13 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   /** Refills hearts to max. */
   async function refillHearts() {
     if (!profile.value) return
+    const targetHearts = maxHearts.value
     const { error } = await supabase
       .from('profiles')
-      .update({ hearts: 5 })
+      .update({ hearts: targetHearts })
       .eq('id', profile.value.id)
     
-    if (!error) profile.value.hearts = 5
+    if (!error) profile.value.hearts = targetHearts
   }
 
   /** Updates the daily streak logic based on activity. */
