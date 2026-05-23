@@ -9,6 +9,65 @@
 
 Knightfall is a modern chess web application focused on **skill development through deep analytics**. It combines an interactive chess engine, AI-powered coaching, adaptive puzzle training, and persistent player profiles into a single cohesive experience. Every session you play feeds a living Weakness DNA model that directs your training toward your actual blind spots through a thematic, high-fidelity "Cathedral of Analysis" interface.
 
+## 📸 A Guided Tour of Knightfall
+
+<details open>
+<summary><b>1. Onboard Assessment</b></summary>
+<br/>
+<p align="center">
+  <img src="./public/screenshots/00-onboarding.png" alt="Onboard Assessment" width="800"/>
+</p>
+<p>
+<i>Begin your journey by declaring your skill level and completing an initial assessment puzzle to seed your Weakness DNA.</i>
+</p>
+</details>
+
+<details>
+<summary><b>2. Strategic Briefing (Home)</b></summary>
+<br/>
+<p align="center">
+  <img src="./public/screenshots/01-cathedral.png" alt="Strategic Briefing Dashboard" width="800"/>
+</p>
+<p>
+<i>The moment you enter Knightfall, you are greeted by your Strategic Briefing. Here, your Weakness DNA is calculated, and your daily training regimen is forged.</i>
+</p>
+</details>
+
+<details>
+<summary><b>3. Engaging in Combat (Play)</b></summary>
+<br/>
+<p align="center">
+  <img src="./public/screenshots/02-play.png" alt="Live Gameplay" width="800"/>
+</p>
+<p>
+<i>Play against a highly tuned Stockfish engine wrapped in medieval gothic aesthetics. Every move is tracked and fed into your profile's heuristic engine.</i>
+</p>
+</details>
+
+<details>
+<summary><b>4. The Oracle's Review (Analysis)</b></summary>
+<br/>
+<p align="center">
+  <img src="./public/screenshots/03-analysis.png" alt="AI Coaching Analysis" width="800"/>
+</p>
+<p>
+<i>Post-game, the Oracle analyzes your blunders. It doesn't just give you engine lines; it provides narrative, strategic coaching to help you understand the 'why' behind the mistakes.</i>
+</p>
+</details>
+
+<details>
+<summary><b>5. Siege Trials (Puzzles)</b></summary>
+<br/>
+<p align="center">
+  <img src="./public/screenshots/04-puzzles.png" alt="Siege Trials Training" width="800"/>
+</p>
+<p>
+<i>Adaptive puzzle queue driven by your Weakness DNA. Train specific tactical motifs with a progressive hint system and detailed feedback.</i>
+</p>
+</details>
+
+---
+
 ## Features
 
 ### 🏛️ The Cathedral (Home)

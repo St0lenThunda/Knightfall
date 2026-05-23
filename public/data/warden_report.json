@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-22T19:19:08Z",
+  "timestamp": "2026-05-22T22:20:26Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: ab3114c - feat: engine throttling and lesson flow improvements (Antonio Moses)\nfdfc948 - feat(onboarding): decompose gauntlet into subcomponents and optimize system reactivity (Antonio Moses)\nc7d4905 - feat(admin): implement secure administrative cockpit, user purging, and fix curriculum RLS progress sync (Antonio Moses)\n579e80e - feat(sanctum): add quiz passing threshold, centralize XP rewards, and fix lesson completion database sync (Antonio Moses)\ne23f8aa - docs(adr): add historical ADRs 017-021 and resolve CI failures (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: 6fd1d55 - feat(user): implement dynamic max hearts tied to rank progression milestones (Antonio Moses)\n80e7675 - feat(ui): add max hearts indication to gauntlet and sanctum completion toasts (Antonio Moses)\nb13924f - refactor(data): remove redundant text from lessons 8, 9, and 10 (Antonio Moses)\n942fd8f - refactor(data): remove redundant text in found-bishops lesson slide (Antonio Moses)\n23660ea - feat(settings): toggle coordinate assist in UI and limit toast by default (Antonio Moses)",
   "metrics": {
     "files_scanned":      416,
     "integrity_score": 98
