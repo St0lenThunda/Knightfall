@@ -131,7 +131,7 @@ const weaknesses = computed(() => {
     <!-- Welcome Header -->
     <header class="scholar-header">
       <div class="welcome-text">
-        <h1 class="text-gradient" style="display: flex; align-items: center; gap: 8px;">
+        <h1 class="text-gradient">
           Welcome back, Scholar {{ userStore.profile?.username }} 
           <span class="rank-icon" :title="userStore.currentLevelName">{{ rankIcons[userStore.currentRankBase] || '♙' }}</span>
         </h1>
@@ -250,10 +250,8 @@ const weaknesses = computed(() => {
 .mini-stat .val { font-size: 1.5rem; font-weight: 900; color: var(--accent-bright); text-align: center; }
 
 .rank-icon {
-  font-size: 1.8rem;
   color: var(--gold);
   text-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
-  line-height: 1;
 }
 
 .scholar-grid {
