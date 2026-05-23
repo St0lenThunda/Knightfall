@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 import { logger } from '../utils/logger'
 import { useAntiCheat } from '../composables/useAntiCheat'
 import { Storage, StorageKey } from '../utils/storage'
-import { Chess } from 'chess.js'
+import { Chess, type Square, type PieceSymbol, type Move } from 'chess.js'
+import type { MoveEvaluation } from './library/types'
 
 // Pillars
 import { useBoardLogic } from './game/useBoardLogic'
@@ -153,7 +154,7 @@ export const useGameStore = defineStore('game', () => {
    * @param color - The user's player color ('w' or 'b')
    * @param tc - Optional time control configuration
    */
-  function newGame(newMode: GameMode, color: 'w' | 'b' = 'w', tc?: any) {
+  function newGame(newMode: GameMode, color: 'w' | 'b' = 'w', tc?: TimeControl) {
     mode.value = newMode
     // Single Source of Truth (SSOT): Directly set the board logic player color
     boardLogic.playerColor.value = color
@@ -240,7 +241,7 @@ export const useGameStore = defineStore('game', () => {
    * Orchestrates square selection and move execution.
    * If a square is already selected and the new square is a legal move, execute it.
    */
-  function selectSquare(sq: any) {
+  function selectSquare(sq: Square) {
     if (!isPlayersTurn.value) return
     
     if (boardLogic.selectedSquare.value && boardLogic.legalMoveSquares.value.includes(sq)) {
@@ -268,7 +269,7 @@ export const useGameStore = defineStore('game', () => {
    * High-level move execution. 
    * Orchestrates the move, clock updates, and Anti-Cheat tracking.
    */
-  function makeMove(fromOrUci: any, to?: any, promotion?: any) {
+  function makeMove(fromOrUci: Square | string, to?: Square, promotion?: PieceSymbol) {
     // Only allow moves if the game is active and it's the player's turn
     if (!gameActive.value) return null
     
@@ -279,7 +280,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Sandbox Free Movement: Force turn alignment before executing move
     if (mode.value === 'analysis') {
-      let fromSq = typeof fromOrUci === 'string' && !to ? fromOrUci.slice(0, 2) : fromOrUci
+      let fromSq = typeof fromOrUci === 'string' && !to ? (fromOrUci.slice(0, 2) as Square) : (fromOrUci as Square)
       const piece = boardLogic.chess.value.get(fromSq)
       if (piece && piece.color !== boardLogic.chess.value.turn()) {
         const fenParts = boardLogic.chess.value.fen().split(' ')
@@ -315,7 +316,7 @@ export const useGameStore = defineStore('game', () => {
     return move
   }
 
-  function handleMove(move: any) {
+  function handleMove(move: Move) {
     if (move && typeof move === 'object' && mode.value === 'vs-computer' && !boardLogic.isGameOver.value) {
       clock.applyIncrement(move.color)
       
@@ -556,7 +557,7 @@ export const useGameStore = defineStore('game', () => {
     resign,
     isGameOver,
     saveGame,
-    loadPgn(pgn: string, newMode: GameMode = 'live', id?: string, extra?: any) {
+    loadPgn(pgn: string, newMode: GameMode = 'live', id?: string, extra?: { evals?: MoveEvaluation[], tags?: string[], moveTags?: string[] }) {
       logger.info(`[GameStore] Loading PGN. Mode: ${newMode}, ID: ${id}`)
       mode.value = newMode
       loadedGameId.value = id || null

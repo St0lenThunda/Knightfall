@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef, onMounted, onUnmounted } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
 import { useSettingsStore } from './settingsStore'
 import { useAdminStore } from './adminStore'
 import { logger } from '../utils/logger'
@@ -67,8 +67,57 @@ export const useEngineStore = defineStore('engine', () => {
   // ---------------------------------------------------------------------
   // Inactivity auto-throttling (priority #1)
   // ---------------------------------------------------------------------
-  const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000 // 3 minutes
+  /**
+   * The duration of inactivity (in milliseconds) before the engine is throttled.
+   * Set to 3 minutes (180,000 ms) to balance user analysis reading time with
+   * saving CPU and battery when the user has stepped away.
+   */
+  const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000
+
+  /**
+   * The interval (in milliseconds) within which user activity resets are ignored.
+   * Set to 2 seconds (2000 ms) to avoid thrashing the CPU with constant timer
+   * clear/set cycles on high-frequency events like mousemove.
+   */
+  const ACTIVITY_THROTTLE_MS = 2000
+
   let inactivityTimer: ReturnType<typeof setTimeout> | null = null
+  let lastActivityTime = 0
+  let wasAnalyzingBeforeThrottle = false
+
+  /**
+   * User interaction events that demonstrate activity and should reset
+   * the inactivity timer.
+   */
+  const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+
+  /**
+   * Stops Stockfish calculations and sets the throttled state.
+   * Remembers whether the engine was actively analyzing before throttling occurred.
+   */
+  function throttleEngine() {
+    if (isThrottled.value) return
+    logger.warn('[Engine] Auto-throttling due to 3 min inactivity or hidden tab')
+    wasAnalyzingBeforeThrottle = isAnalyzing.value
+    stop()
+    isThrottled.value = true
+  }
+
+  /**
+   * Restores the engine from throttled state.
+   * If the engine was actively analyzing when throttled, automatically restarts
+   * the analysis on the last evaluated position.
+   */
+  function resumeEngine() {
+    if (!isThrottled.value) return
+    logger.info('[Engine] Resuming engine from throttle')
+    isThrottled.value = false
+    resetInactivityTimer()
+    if (wasAnalyzingBeforeThrottle && lastAnalyzedFen) {
+      analyze(lastAnalyzedFen, lastAnalyzedDepth, lastAnalyzedBot || undefined)
+    }
+    wasAnalyzingBeforeThrottle = false
+  }
 
   /**
    * Reset the inactivity timeout. Called whenever the user or the app
@@ -77,42 +126,63 @@ export const useEngineStore = defineStore('engine', () => {
   function resetInactivityTimer() {
     if (inactivityTimer) clearTimeout(inactivityTimer)
     inactivityTimer = setTimeout(() => {
-      logger.warn('[Engine] Auto-throttling due to 3 min inactivity or hidden tab')
-      stop()
-      isThrottled.value = true
+      throttleEngine()
     }, INACTIVITY_TIMEOUT_MS)
     isThrottled.value = false
   }
 
   /**
+   * Throttled callback for handling user activity events.
+   * Resets the inactivity timer or resumes the engine if it was throttled.
+   */
+  function handleUserActivity() {
+    const now = Date.now()
+    if (now - lastActivityTime < ACTIVITY_THROTTLE_MS) return
+    lastActivityTime = now
+
+    if (isThrottled.value) {
+      resumeEngine()
+    } else {
+      resetInactivityTimer()
+    }
+  }
+
+  /**
    * Handle page visibility changes. When the tab becomes hidden we immediately
-   * stop the engine to avoid unnecessary CPU work.
+   * stop/throttle the engine to avoid unnecessary CPU work. When the tab
+   * becomes visible, we automatically resume calculations.
    */
   function onVisibilityChange() {
     if (document.hidden) {
       logger.info('[Engine] Tab hidden – stopping engine')
-      stop()
-      isThrottled.value = true
+      throttleEngine()
     } else {
-      // Tab visible again – next analysis call will reset the timer.
-      logger.info('[Engine] Tab visible – engine can be re-started')
+      logger.info('[Engine] Tab visible – resuming engine')
+      resumeEngine()
     }
   }
 
-  // Register listeners when the store is first used
-  onMounted(() => {
-    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
-      document.addEventListener('visibilitychange', onVisibilityChange)
-    }
-  })
+  // Register listeners immediately when the store is instantiated
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    ACTIVITY_EVENTS.forEach(event => {
+      document.addEventListener(event, handleUserActivity, { passive: true })
+    })
+  }
 
-  // Clean up listeners when the store is destroyed
-  onUnmounted(() => {
+  /**
+   * Cleans up event listeners and timers.
+   * Useful for testing and manual store disposal.
+   */
+  function cleanup() {
     if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      ACTIVITY_EVENTS.forEach(event => {
+        document.removeEventListener(event, handleUserActivity)
+      })
     }
     if (inactivityTimer) clearTimeout(inactivityTimer)
-  })
+  }
 
   // ---------------------------------------------------------------------
   // Command dispatcher
@@ -491,9 +561,11 @@ export const useEngineStore = defineStore('engine', () => {
 
     // Reset inactivity timer – a new analysis request means the user is active.
     resetInactivityTimer()
+    isThrottled.value = false
+    wasAnalyzingBeforeThrottle = false
     
-    // 1. Idempotency Check: Don't re-analyze exactly the same state
-    if (lastAnalyzedFen === fen && lastAnalyzedDepth === depth && !isRebooting.value) {
+    // 1. Idempotency Check: Don't re-analyze exactly the same state if already analyzing
+    if (isAnalyzing.value && lastAnalyzedFen === fen && lastAnalyzedDepth === depth && !isRebooting.value) {
       return
     }
 
@@ -569,6 +641,7 @@ export const useEngineStore = defineStore('engine', () => {
     activeArchetype,
     activeBot,
     isMortalThinking,
-    isRebooting
+    isRebooting,
+    cleanup
   }
 })

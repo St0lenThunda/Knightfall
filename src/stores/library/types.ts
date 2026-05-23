@@ -1,3 +1,15 @@
+export interface MoveEvaluation {
+  score: number
+  isMate: boolean
+  bestMove?: string
+}
+
+export interface GameTelemetry {
+  blurCount: number
+  suspicionScore: number
+  isBusted: boolean
+}
+
 export interface LibraryGame {
   id: string
   pgn: string
@@ -17,7 +29,7 @@ export interface LibraryGame {
   moveTags?: string[] // Move-specific quality tags (brilliant, blunder, etc)
   analysisCache?: Record<string, string>
   clocks?: number[]
-  evals?: any[]
+  evals?: MoveEvaluation[]
   acpl?: number
   missedWins?: number
   theoreticalAccuracy?: number
@@ -29,13 +41,10 @@ export interface LibraryGame {
   terminalState?: string
   termination?: string
   cloudId?: string // Native Supabase UUID for cloud push
-  telemetry?: {
-    blurCount: number
-    suspicionScore: number
-    isBusted: boolean
-  }
+  telemetry?: GameTelemetry
   userSide?: 'white' | 'black' | 'none'
   isSynthesized?: boolean // Confirmed synthesized via full engine pass
+  isCuratedGame?: boolean
 }
 
 export interface OpeningNode {
@@ -73,4 +82,14 @@ export interface ConstellationLayout {
   nodes: GraphNode[]
   edges: GraphEdge[]
   maxWeight: number
+}
+
+export interface OpeningStat {
+  name: string
+  games: number
+  eco: string
+  description: string
+  winPct: number
+  lossPct: number
+  drawPct: number
 }

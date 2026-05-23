@@ -1,5 +1,6 @@
 import { ref, shallowRef, watch, type Ref } from 'vue'
 import type { LibraryGame } from './types'
+import { useUserStore } from '../userStore'
 
 /**
  * Composable for library filtering and sorting.
@@ -17,7 +18,7 @@ import type { LibraryGame } from './types'
  */
 export function useLibraryFilter(
   games: Ref<LibraryGame[]>,
-  userStore: any,
+  userStore: ReturnType<typeof useUserStore>,
   searchQuery: Ref<string>,
   filterResult: Ref<string>,
   selectedTag: Ref<string>,
@@ -84,12 +85,13 @@ export function useLibraryFilter(
 
     // 5. Sorting
     result.sort((a, b) => {
-      let valA: any, valB: any
+      let valA: string | number = ''
+      let valB: string | number = ''
       switch(sortBy.value) {
-        case 'date': valA = a.date; valB = b.date; break
+        case 'date': valA = a.date || ''; valB = b.date || ''; break
         case 'movesCount': valA = a.movesCount; valB = b.movesCount; break
-        case 'player': valA = a.white; valB = b.white; break
-        case 'opening': valA = a.eco; valB = b.eco; break
+        case 'player': valA = a.white || ''; valB = b.white || ''; break
+        case 'opening': valA = a.eco || ''; valB = b.eco || ''; break
         default: valA = a.addedAt; valB = b.addedAt
       }
       
@@ -116,7 +118,7 @@ export function useLibraryFilter(
   }
 
   // Watch for list changes to update tags (debounced)
-  let tagDebounce: any = null
+  let tagDebounce: ReturnType<typeof setTimeout> | null = null
   watch(() => games.value, () => {
     if (tagDebounce) clearTimeout(tagDebounce)
     tagDebounce = setTimeout(updateTagCloud, 1000)

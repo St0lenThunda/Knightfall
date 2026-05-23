@@ -1,6 +1,8 @@
 import { computed, type Ref } from 'vue'
-import type { LibraryGame } from '../libraryStore'
+import type { LibraryGame, OpeningStat } from '../library/types'
 import type { Prescription } from '../coachStore'
+import type { Puzzle } from '../../api/puzzleApi'
+import type { PuzzleAttempt } from '../userStore'
 
 /**
  * Coach Prescriptions Composable
@@ -9,9 +11,9 @@ import type { Prescription } from '../coachStore'
  */
 export function useCoachPrescriptions(
   games: Ref<LibraryGame[]>,
-  openingStats: Ref<any[]>,
-  personalPuzzles: Ref<any[]>,
-  puzzleAttempts: Ref<any[]>,
+  openingStats: Ref<OpeningStat[]>,
+  personalPuzzles: Ref<Puzzle[]>,
+  puzzleAttempts: Ref<PuzzleAttempt[]>,
   isMe: (name: string) => boolean
 ) {
   
@@ -127,7 +129,7 @@ export function useCoachPrescriptions(
       return rx
     }
 
-    const viable = stats.filter((s: any) => s.games >= 2)
+    const viable = stats.filter((s: OpeningStat) => s.games >= 2)
     if (viable.length > 0) {
       const worst = [...viable].sort((a, b) => a.winPct - b.winPct)[0]
       if (worst.winPct < 40) {
@@ -151,7 +153,7 @@ export function useCoachPrescriptions(
     }
 
     // Signal 3: One-trick pony detection
-    const totalGames = stats.reduce((s: number, o: any) => s + o.games, 0)
+    const totalGames = stats.reduce((s: number, o: OpeningStat) => s + o.games, 0)
     const topPct = stats.length > 0 ? Math.round((stats[0].games / totalGames) * 100) : 0
     if (topPct > 60 && totalGames > 10) {
       rx.push({ id: 'one-trick', icon: '🔁', title: 'Predictable Repertoire', desc: `${topPct}% of your repertoire is ${stats[0].name}.`, link: '/opening-lab', linkText: 'Expand Repertoire →', severity: 'warning', category: 'opening' })

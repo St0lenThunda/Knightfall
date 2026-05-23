@@ -173,16 +173,6 @@ const isActivePersona = (personaName: string): boolean => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: rgba(10, 10, 15, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
 
 .archetype-modal {
   width: 100%;

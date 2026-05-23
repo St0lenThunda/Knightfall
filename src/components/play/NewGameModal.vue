@@ -173,17 +173,7 @@ function finalize() {
 
 <style scoped>
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.85);
-
-  z-index: 9999;
-  display: flex;
   align-items: flex-start;
-  justify-content: center;
   padding-top: 5vh;
 }
 

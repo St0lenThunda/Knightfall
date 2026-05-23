@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-23T10:16:17Z",
+  "timestamp": "2026-05-23T15:51:36Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: a2e25b7 - docs: update README screenshots and automated capture script - Fully automated Playwright script to capture README visuals dynamically from the live database. - Fixed auth routing intercept to correctly capture the authenticated Strategic Briefing (Cathedral) view. - Removed mocks to ensure screenshots display accurate Lichess/Chesscom DNA arrays. - Updated README.md \"Guided Tour\" section with the real, live data screenshots. (Antonio Moses)\n6fd1d55 - feat(user): implement dynamic max hearts tied to rank progression milestones (Antonio Moses)\n80e7675 - feat(ui): add max hearts indication to gauntlet and sanctum completion toasts (Antonio Moses)\nb13924f - refactor(data): remove redundant text from lessons 8, 9, and 10 (Antonio Moses)\n942fd8f - refactor(data): remove redundant text in found-bishops lesson slide (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: 50f7d28 - feat(router): centralize page titles and icons in route metadata as SSOT (Antonio Moses)\na2e25b7 - docs: update README screenshots and automated capture script - Fully automated Playwright script to capture README visuals dynamically from the live database. - Fixed auth routing intercept to correctly capture the authenticated Strategic Briefing (Cathedral) view. - Removed mocks to ensure screenshots display accurate Lichess/Chesscom DNA arrays. - Updated README.md \"Guided Tour\" section with the real, live data screenshots. (Antonio Moses)\n6fd1d55 - feat(user): implement dynamic max hearts tied to rank progression milestones (Antonio Moses)\n80e7675 - feat(ui): add max hearts indication to gauntlet and sanctum completion toasts (Antonio Moses)\nb13924f - refactor(data): remove redundant text from lessons 8, 9, and 10 (Antonio Moses)",
   "metrics": {
-    "files_scanned":      417,
+    "files_scanned":      419,
     "integrity_score": 98
   }
 }

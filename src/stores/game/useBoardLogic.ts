@@ -1,7 +1,13 @@
 import { ref, computed, shallowRef } from 'vue'
-import { Chess, type Square, type Color, type PieceSymbol } from 'chess.js'
+import { Chess, type Square, type Color, type PieceSymbol, type Move } from 'chess.js'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { ensureKingsExist } from '../../utils/fenUtils'
+import type { MoveEvaluation } from '../library/types'
+
+export interface MoveRecord extends Move {
+  fen: string
+  moveNumber: number
+}
 
 /**
  * useBoardLogic
@@ -21,7 +27,7 @@ export function useBoardLogic() {
    */
   const dummyKingSquares = ref<Square[]>([])
   const lastMove = ref<{ from: string; to: string } | null>(null)
-  const moveHistory = ref<any[]>([])
+  const moveHistory = ref<MoveRecord[]>([])
   const viewIndex = ref(-1)
   const playerColor = ref<Color>('w')
   const isThinking = ref(false)
@@ -96,7 +102,7 @@ export function useBoardLogic() {
     if (viewIndex.value < moveHistory.value.length - 1) goToMove(viewIndex.value + 1)
   }
 
-  function loadPgn(pgn: string, mode: 'live' | 'puzzle' | 'analysis' = 'live', _id?: string, extra?: { evals?: any[], tags?: any[], moveTags?: string[] }) {
+  function loadPgn(pgn: string, mode: 'live' | 'puzzle' | 'analysis' = 'live', _id?: string, extra?: { evals?: MoveEvaluation[], tags?: string[], moveTags?: string[] }) {
     try {
       safeLoadPgn(chess.value, pgn)
       const history = chess.value.history({ verbose: true })
@@ -151,9 +157,9 @@ export function useBoardLogic() {
     legalMoveSquares.value = []
   }
 
-  function makeMove(fromOrUci: any, to?: Square, promotion: PieceSymbol = 'q') {
+  function makeMove(fromOrUci: Square | string, to?: Square, promotion: PieceSymbol = 'q') {
     try {
-      let moveParams: any = { promotion }
+      const moveParams: { from?: Square; to?: Square; promotion?: PieceSymbol } = { promotion }
       let from: Square, finalTo: Square
       
       if (typeof fromOrUci === 'string' && !to) {

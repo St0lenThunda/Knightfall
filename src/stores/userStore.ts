@@ -76,6 +76,28 @@ export interface PuzzleAttempt {
   created_at: string
 }
 
+export interface QueuePuzzleItem {
+  puzzle_id: string
+  next_review: string
+}
+
+export interface DatabaseMatchRow {
+  id: string
+  created_at: string
+  white_id?: string | null
+  black_id?: string | null
+  white_username: string
+  black_username: string
+  white_rating?: number | null
+  black_rating?: number | null
+  white_accuracy?: number | null
+  black_accuracy?: number | null
+  result: string
+  pgn: string
+  eco?: string | null
+  opening?: string | null
+}
+
 /**
  * Knightfall User Store: The primary identity and progression hub.
  * 
@@ -89,7 +111,7 @@ export const useUserStore = defineStore('user', () => {
   const profile = ref<UserProfile | null>(null)
   const pastGames = ref<PastGame[]>([])
   const puzzleAttempts = ref<PuzzleAttempt[]>([])
-  const puzzleQueue = ref<any[]>([])
+  const puzzleQueue = ref<QueuePuzzleItem[]>([])
 
   // --- SUB-COMPOSABLES (Logic Decomposition) ---
   const identity = useUserIdentity(profile)
@@ -182,7 +204,7 @@ export const useUserStore = defineStore('user', () => {
     }
 
     if (matchesRes.data) {
-      pastGames.value = matchesRes.data.map((row: any) => {
+      pastGames.value = matchesRes.data.map((row: DatabaseMatchRow) => {
         const isWhite = identity.isMe(row.white_username)
         const result = row.result === '1-0' ? (isWhite ? 'win' : 'loss') 
           : row.result === '0-1' ? (isWhite ? 'loss' : 'win')
@@ -195,9 +217,9 @@ export const useUserStore = defineStore('user', () => {
           black: row.black_username,
           result: result as 'win' | 'loss' | 'draw',
           opening: row.opening || row.eco || 'Unknown',
-          opponentRating: isWhite ? row.black_rating : row.white_rating,
-          accuracy: isWhite ? row.white_accuracy : row.black_accuracy,
-          rating: isWhite ? row.white_rating : row.black_rating,
+          opponentRating: isWhite ? (row.black_rating || undefined) : (row.white_rating || undefined),
+          accuracy: isWhite ? (row.white_accuracy || undefined) : (row.black_accuracy || undefined),
+          rating: isWhite ? (row.white_rating || undefined) : (row.black_rating || undefined),
           userSide: isWhite ? 'white' : 'black'
         }
       })

@@ -3,6 +3,8 @@ import { Chess } from 'chess.js'
 import { logger } from '../../utils/logger'
 import { type LibraryGame } from './types'
 import { useUserStore } from '../userStore'
+import type { useLibraryIdb } from './useLibraryIdb'
+import type { useLibrarySync } from './useLibrarySync'
 
 /**
  * useLibraryIntegrity: The forensic and maintenance layer for the Knightfall Vault.
@@ -16,8 +18,8 @@ import { useUserStore } from '../userStore'
 export function useLibraryIntegrity(
   games: ShallowRef<LibraryGame[]>,
   userStore: ReturnType<typeof useUserStore>,
-  idb: any, 
-  cloud: any, 
+  idb: ReturnType<typeof useLibraryIdb>, 
+  cloud: ReturnType<typeof useLibrarySync>, 
   loadGames: () => Promise<void>,
   // Receive shared state from the main store
   isProcessingIntegrity: Ref<boolean>,
@@ -99,8 +101,8 @@ export function useLibraryIntegrity(
   async function purgeUnfinishedGames() {
     const allGames = await idb.loadGames()
     const unfinishedIds = allGames
-      .filter((g: any) => g.result === '*' || g.result === '?' || !g.result)
-      .map((g: any) => g.id)
+      .filter((g: LibraryGame) => g.result === '*' || g.result === '?' || !g.result)
+      .map((g: LibraryGame) => g.id)
 
     if (unfinishedIds.length === 0) return 0
 

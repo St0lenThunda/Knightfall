@@ -7,6 +7,7 @@ import { useUserStore } from './userStore'
 import { useUiStore } from './uiStore'
 import { useLibraryStore } from './libraryStore'
 import { logger } from '../utils/logger'
+import type { Puzzle } from '../api/puzzleApi'
 
 // --- Specialized Composables (Pillar Architecture) ---
 import { useAssessmentEngine } from './curriculum/useAssessmentEngine'
@@ -30,6 +31,15 @@ export interface Quest {
    * Chronicle quests route to `/learn/:id`, trials route to `/lesson/:id`.
    */
   questType: 'chronicle' | 'trial'
+}
+
+export interface PersonalLesson {
+  id: string
+  title: string
+  category: string
+  icon: string
+  puzzles: Puzzle[]
+  xp_reward: number
 }
 
 export const useCurriculumStore = defineStore('curriculum', () => {
@@ -228,7 +238,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     }
   }
 
-  const personalPuzzles = ref<any[]>([])
+  const personalPuzzles = ref<Puzzle[]>([])
   const isGenerating = ref(false)
 
   /**
@@ -372,7 +382,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     const library = useLibraryStore()
     
     isGenerating.value = true
-    const newPuzzles: any[] = []
+    const newPuzzles: Puzzle[] = []
 
     try {
       // 1. Try to fetch from Supabase (Production Path)
@@ -471,7 +481,7 @@ export const useCurriculumStore = defineStore('curriculum', () => {
     }
   }
 
-  const personalLessons = ref<any[]>([])
+  const personalLessons = ref<PersonalLesson[]>([])
 
   /**
    * Generates thematic lessons by grouping personal puzzles by theme.
@@ -481,14 +491,14 @@ export const useCurriculumStore = defineStore('curriculum', () => {
       await generatePersonalPuzzles()
     }
 
-    const themeGroups: Record<string, any[]> = {}
+    const themeGroups: Record<string, Puzzle[]> = {}
     personalPuzzles.value.forEach(p => {
       const mainTheme = p.themes[0] || 'General Improvement'
       if (!themeGroups[mainTheme]) themeGroups[mainTheme] = []
       themeGroups[mainTheme].push(p)
     })
 
-    const newLessons: any[] = []
+    const newLessons: PersonalLesson[] = []
     Object.entries(themeGroups).forEach(([theme, puzzles]) => {
       if (puzzles.length >= 2) {
         newLessons.push({

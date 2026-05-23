@@ -1,28 +1,16 @@
-# ðŸ“Œ Pinned Context
+# 📌 Pinned Context
 
-> Last pinned: 2026-05-22 15:34
-> Session: System Analysis & Suggestions (v0.42.1)
+> Last pinned: 2026-05-23
+> Session: Store TypeScript Strictness (v0.44.0)
 
-## What Was Done
-- [x] **[P0] Administrative Command Center (v0.42.1)**: Built a secure, role-verified administration view with user search and dual-confirmation purging RPC ("Rite of Oblivion").
-- [x] **[P0] Foundational Lessons (Chapter 0)**: Implemented 10 story-driven, interactive lessons with narrative slides, quizzes, and live board verification challenges.
-- [x] **[P0] Lesson Completion & Quiz XP Fixes**: Implemented 70% passing threshold for quizzes, disabled duplicate XP on repeat runs, and solved the progress synchronization foreign key issue.
-- [x] **[P0] [Bug] DnaReveal Fanfare Fix (v0.42.2)**: Resolved the template ref binding bug in [DnaRevealView.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/DnaRevealView.vue) to restore the rank-up particle fanfare.
-- [x] **[P0] [Engine] Stockfish MultiPV Reactivity (v0.42.2)**: Converted `multiPvs` in [engineStore.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/stores/engineStore.ts) to `shallowRef` to prevent CPU-heavy recursive observer wrapping.
-- [x] **[P1] Board Interactivity Fix**: Eliminated duplicate `playerColor` state between `gameStore` and `boardLogic` to resolve chessboard lockups.
-- [x] **[P1] Lichess Daily Puzzle Cache**: Integrated local cache check to skip daily puzzle network fetches and save attempts automatically to Supabase.
-- [x] **[P1] [Logging] Storage Guidelines Compliance (v0.42.2)**: Replaced raw `console.error` calls with `logger.error` in [storage.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/utils/storage.ts).
-- [x] **[P1] System Audit & Analysis**: Completed a full system-wide audit of performance, maintainability, quality, and security, creating [analysis_results.md](file:///Users/thunda/.gemini/antigravity/brain/a0caaaaa-2f8c-4709-8b0d-c41f1e9d8853/analysis_results.md).
-- [x] **[P2] [Performance] Web Worker Cleanup (v0.42.2)**: Deleted the obsolete Web Worker file [libraryFilter.worker.ts](file:///Users/thunda/Desktop/Development/Knightfall/src/workers/libraryFilter.worker.ts).
-- [x] **[P1] [Maintainability] Decompose OnboardingGauntlet (v0.42.2)**: Refactor [OnboardingGauntlet.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/OnboardingGauntlet.vue) to split landing, Scholar's Mate, and diagnostic assessment steps into isolated components, resolving type errors and syntax warnings.
+## What Was Done (v0.44.0)
+- [ ] **[P2] [Maintainability] Store TypeScript Strictness**: Eliminate `any` types for store parameters and composable variables.
 
 ## What's Next
-- [ ] **[P0] [Engine] Stockfish Inactivity Auto-Throttling**: Auto-stop Stockfish worker calculations after 3 minutes of user inactivity or hidden tab state to save battery and reduce CPU load.
-- [ ] **[P1] [Maintainability] Decompose GameDetailsModal**: Refactor [GameDetailsModal.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/components/library/GameDetailsModal.vue) (796 lines) by moving tab layouts into sub-components.
-- [ ] **[P1] [Maintainability] Decompose FoundationLessonView**: Refactor [FoundationLessonView.vue](file:///Users/thunda/Desktop/Development/Knightfall/src/views/FoundationLessonView.vue) (665 lines) by separating quiz and slide review overlays.
-- [ ] **[P1] [Maintainability] Backdrop CSS Consolidation**: Consolidate copy-pasted backdrop overlay styles into a global CSS class in [style.css](file:///Users/thunda/Desktop/Development/Knightfall/src/style.css).
 - [ ] **[P2] [Security] RLS Policy Integration Testing**: Write an automated test suite to assert that cross-user progress records in `user_skill_progress` are rejected by Supabase RLS.
-- [ ] **[P2] [Maintainability] Store TypeScript Strictness**: Eliminate `any` types for store parameters and composable variables.
+
+## 📜 Historical Archive
+- [x] **[v0.43.0] Stockfish Inactivity Auto-Throttling (P0)**, **Decomposed FoundationLessonView (P1)**, **Backdrop CSS Consolidation (P1)**, and **Decomposed GameDetailsModal (P1)**.
 
 ## ðŸ“Œ Pinned Future Layers (Foundations Upgrade Path)
 
@@ -63,11 +51,8 @@
 - HMR Sync: Visibility violation scores in the Anti-Cheat may occasionally lag during HMR.
 
 ## Hot Files
-- `src/views/OnboardingGauntlet.vue` (Onboarding steps to decompose)
-- `src/components/library/GameDetailsModal.vue` (Modal tabs to decompose)
-- `src/views/DnaRevealView.vue` & `src/composables/useDnaFanfare.ts` (Elo fanfare particle bug)
-- `src/stores/engineStore.ts` (Stockfish MultiPV optimization)
-- `src/utils/storage.ts` (Logging compliance)
+- `src/stores/` (Store typescript strictness cleanup)
+- `tests/` or `supabase/` (RLS Policy Integration Testing)
 
 ## Session Notes
-Completed the foundational lessons path, quiz XP validation, and administrative purging RPC. Conducted a system-wide audit and found a visual bug in `DnaRevealView` where Elo reveal particles never spawn due to unbound template refs, as well as dead code in `libraryFilter.worker.ts` and reactivity overhead in the Stockfish MultiPV stream. Pinned these findings as next-up objectives.’ Layer 3 (AI Dojo Master). Building Approach E now.
+Completed v0.43.0 refactoring & maintainability release: implemented Stockfish worker auto-throttling on inactivity/tab hiding with auto-resumption; refactored FoundationLessonView to delegate logic to useFoundationLesson composable; consolidated modal-overlay styles; patched useNavigation syntax error. Initiated v0.44.0 work targeting Store TypeScript strictness.

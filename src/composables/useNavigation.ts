@@ -176,7 +176,6 @@ export function useNavigation() {
         ]
       }] : [])
     ].filter(section => section.items.length > 0) // Final pass: Purge empty sections
-  }) 0) // Final pass: Purge empty sections
   })
 
   return {

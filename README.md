@@ -1,6 +1,6 @@
 # ♞ Knightfall
 
-> **Version**: v0.38.0 ("Cathedral of Analysis")
+> **Version**: v0.44.0 ("Refactoring & Store TypeScript Strictness")
 > **Build Status**: 🟢 100% Unit Test Pass Rate
 
 ---

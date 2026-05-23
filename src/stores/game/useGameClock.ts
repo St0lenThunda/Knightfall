@@ -27,7 +27,7 @@ export function useGameClock() {
   const blackTime = ref(600)
   const timeOutWinner = ref<Color | null>(null)
   
-  let clockInterval: any = null
+  let clockInterval: ReturnType<typeof setInterval> | null = null
 
   function stopClock() {
     if (clockInterval) {

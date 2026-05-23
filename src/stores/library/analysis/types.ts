@@ -1,10 +1,7 @@
 import { useAnalysisWorker } from './worker'
+import type { MoveEvaluation } from '../types'
 
-export interface Evaluation {
-  score: number
-  isMate: boolean
-  bestMove?: string
-}
+export type Evaluation = MoveEvaluation
 
 export interface EngineInstance {
   engine: ReturnType<typeof useAnalysisWorker>
