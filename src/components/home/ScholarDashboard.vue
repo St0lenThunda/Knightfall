@@ -4,11 +4,13 @@ import { useRouter, RouterLink } from 'vue-router'
 import { useUserStore } from '../../stores/userStore'
 import { useCoachStore } from '../../stores/coachStore'
 import { useCurriculumStore } from '../../stores/curriculumStore'
+import { useLibraryStore } from '../../stores/libraryStore'
 
 const router = useRouter()
 const userStore = useUserStore()
 const coachStore = useCoachStore()
 const curriculumStore = useCurriculumStore()
+const libraryStore = useLibraryStore()
 
 // Filter out Shadow Realm from standard curriculum for dashboard display
 const activeRealms = computed(() => {
@@ -64,14 +66,7 @@ function getSubjectStatus(realm: any) {
 // Total number of completed quests
 const totalCompleted = computed(() => curriculumStore.completedQuestIds.length)
 
-// Display rank of the scholar
-const scholarRank = computed(() => {
-  const count = totalCompleted.value
-  if (count > 15) return 'Arch-Scholar'
-  if (count > 10) return 'Grand Sage'
-  if (count > 5) return 'Adept'
-  return 'Novice'
-})
+// Display rank of the scholar (removed manual logic, uses userStore.currentLevelName)
 
 // Dynamically compute the next recommended quest for the player to pursue
 const nextLesson = computed(() => {
@@ -133,7 +128,11 @@ const weaknesses = computed(() => {
       <div class="quick-stats">
         <div class="mini-stat">
           <span class="label">RANK</span>
-          <span class="val">{{ scholarRank }}</span>
+          <span class="val">{{ userStore.currentLevelName }}</span>
+        </div>
+        <div class="mini-stat">
+          <span class="label">PERFORMANCE RATING</span>
+          <span class="val">{{ libraryStore.stats?.performanceRating || 1200 }}</span>
         </div>
         <div class="mini-stat">
           <span class="label">ACADEMIC XP</span>
