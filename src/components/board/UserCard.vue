@@ -101,7 +101,7 @@ const emit = defineEmits(['login', 'signup', 'logout'])
 .user-info {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
   cursor: pointer;
   flex: 1;
 }
