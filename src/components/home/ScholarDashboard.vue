@@ -68,6 +68,15 @@ const totalCompleted = computed(() => curriculumStore.completedQuestIds.length)
 
 // Display rank of the scholar (removed manual logic, uses userStore.currentLevelName)
 
+const rankIcons: Record<string, string> = {
+  pawn: '♙',
+  knight: '♘',
+  bishop: '♗',
+  rook: '♖',
+  queen: '♕',
+  king: '♔'
+}
+
 // Dynamically compute the next recommended quest for the player to pursue
 const nextLesson = computed(() => {
   const nextQ = curriculumStore.quests.find(q => q.status === 'unlocked' && !curriculumStore.isQuestCompleted(q.id))
@@ -122,8 +131,11 @@ const weaknesses = computed(() => {
     <!-- Welcome Header -->
     <header class="scholar-header">
       <div class="welcome-text">
-        <h1 class="text-gradient">Welcome back, Scholar {{ userStore.profile?.username }}</h1>
-        <p class="muted">Your curriculum is waiting. You've completed {{ totalCompleted }} quests this week.</p>
+        <h1 class="text-gradient" style="display: flex; align-items: center; gap: 8px;">
+          Welcome back, Scholar {{ userStore.profile?.username }} 
+          <span class="rank-icon" :title="userStore.currentLevelName">{{ rankIcons[userStore.currentRankBase] || '♙' }}</span>
+        </h1>
+        <p class="muted" style="margin-top: 4px;">Your curriculum is waiting. You've completed {{ totalCompleted }} quests this week.</p>
       </div>
       <div class="quick-stats">
         <div class="mini-stat">
@@ -232,10 +244,17 @@ const weaknesses = computed(() => {
   border-bottom: 1px solid var(--border);
 }
 
-.quick-stats { display: flex; gap: var(--space-6); }
-.mini-stat { display: flex; flex-direction: column; align-items: flex-end; }
+.quick-stats { display: flex; gap: var(--space-8); }
+.mini-stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .mini-stat .label { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; }
-.mini-stat .val { font-size: 1.5rem; font-weight: 900; color: var(--accent-bright); }
+.mini-stat .val { font-size: 1.5rem; font-weight: 900; color: var(--accent-bright); text-align: center; }
+
+.rank-icon {
+  font-size: 1.8rem;
+  color: var(--gold);
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
+  line-height: 1;
+}
 
 .scholar-grid {
   display: grid;
