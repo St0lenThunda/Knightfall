@@ -199,18 +199,23 @@ export const useCurriculumStore = defineStore('curriculum', () => {
           userStore.markQuestComplete(questId)
         }
 
-        // Find the quest content to get the correct, configured XP reward
         const quest = quests.value.find(q => q.id === questId)
         if (quest) {
           const xp = quest.xp_reward || 50
           userStore.addXP(xp)
           
-          if (userStore.gainHeart) {
+          let earnedHeart = false
+          if (userStore.gainHeart && userStore.hearts < userStore.maxHearts) {
             userStore.gainHeart()
+            earnedHeart = true
           }
           
           const uiStore = useUiStore()
-          uiStore.addToast(`+${xp} XP & +1 ❤️ earned!`, 'success')
+          if (earnedHeart) {
+            uiStore.addToast(`+${xp} XP & +1 ❤️ earned!`, 'success')
+          } else {
+            uiStore.addToast(`+${xp} XP earned! (Hearts Maxed)`, 'success')
+          }
         }
       } catch (e) {
         logger.error('[Curriculum] Failed to trigger gamification sync:', e)

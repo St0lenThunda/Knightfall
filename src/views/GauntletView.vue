@@ -116,8 +116,15 @@ function finishGauntlet() {
   clearInterval(timerInterval)
   
   const today = new Date().toISOString().split('T')[0]
+  const earnedHeart = userStore.hearts < userStore.maxHearts
+  
   userStore.submitGauntletResult(today, timer.value)
-  uiStore.addToast(`🔥 Gauntlet Completed! +XP & +1 ❤️ Earned!`, 'success', 10000)
+  
+  if (earnedHeart) {
+    uiStore.addToast(`🔥 Gauntlet Completed! +XP & +1 ❤️ Earned!`, 'success', 10000)
+  } else {
+    uiStore.addToast(`🔥 Gauntlet Completed! +XP Earned! (Hearts Maxed)`, 'success', 10000)
+  }
 }
 
 
