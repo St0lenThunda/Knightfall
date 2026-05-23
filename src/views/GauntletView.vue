@@ -117,7 +117,7 @@ function finishGauntlet() {
   
   const today = new Date().toISOString().split('T')[0]
   userStore.submitGauntletResult(today, timer.value)
-  uiStore.addToast(`🔥 Gauntlet Completed in ${timer.value}s!`, 'success', 10000)
+  uiStore.addToast(`🔥 Gauntlet Completed! +XP & +1 ❤️ Earned!`, 'success', 10000)
 }
 
 
@@ -173,8 +173,8 @@ onUnmounted(() => {
       
       <div class="stats-grid">
         <div class="stat-box">
-          <label>Today's Rank</label>
-          <div class="val">#--</div>
+          <label>Rewards</label>
+          <div class="val" style="font-size: 1.4rem;">+25 XP, +1 ❤️</div>
         </div>
         <div class="stat-box">
           <label>Avg Time/Puzzle</label>

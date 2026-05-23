@@ -24,11 +24,12 @@ const emit = defineEmits(['login', 'signup', 'logout'])
           <div class="user-rating">
             <span class="badge badge-gold" data-tooltip="Your overall performance rating.">
               ♔ {{ libraryStore.stats?.performanceRating || 1200 }} 
-              <span class="info-icon">ⓘ</span>
             </span>
             <span class="badge badge-primary" data-tooltip="Your total scholar experience.">
               ✨ {{ userStore.xp || 0 }} XP 
-              <span class="info-icon">ⓘ</span>
+            </span>
+            <span class="badge badge-rose" data-tooltip="Your remaining lives. Play lessons or gauntlet to restore.">
+              ❤️ {{ userStore.profile?.hearts ?? 5 }} / 5
             </span>
           </div>
         </div>
@@ -136,9 +137,9 @@ const emit = defineEmits(['login', 'signup', 'logout'])
   padding: 6px;
 }
 
-.info-icon {
-  font-size: 0.6rem;
-  opacity: 0.5;
-  margin-left: 2px;
+.badge-rose {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--rose);
+  border-color: rgba(244, 63, 94, 0.3);
 }
 </style>
