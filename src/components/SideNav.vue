@@ -158,6 +158,9 @@ const isDev = import.meta.env.DEV
   padding: var(--space-6) 0;
   gap: var(--space-4);
 }
+.sidenav.collapsed .sidenav-sections {
+  overflow: visible;
+}
 
 /* Mobile logic */
 @media (max-width: 1024px) {

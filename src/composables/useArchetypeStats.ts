@@ -5,31 +5,36 @@ import type { AssessmentResult } from '../stores/curriculum/useAssessmentEngine'
 export const archetypes = [
   { 
     id: 'storm', 
-    name: 'The Storm', 
+    name: 'Storm Form', 
+    persona: 'The Vanguard',
     icon: '⚡', 
-    description: 'A whirlwind of tactical energy. You rely on instinct and lightning-fast pattern recognition to overwhelm opponents before they can react.'
+    description: 'A whirlwind of tactical energy. Operating at maximum tempo, you rely on instinct and lightning-fast pattern recognition to overwhelm opponents before they can react.'
   },
   { 
     id: 'oracle', 
-    name: 'The Oracle', 
+    name: 'Oracle Form', 
+    persona: 'The Grand Strategist',
     icon: '👁️', 
-    description: 'A master of deep visualization. You see the board not as it is, but as it will be, calculating lines that others fear to tread.'
+    description: 'A master of deep visualization. Calculating long-term plans and deep theoretical opening lines that others fear to tread.'
   },
   { 
     id: 'technician', 
-    name: 'The Technician', 
+    name: 'Sentinel Form', 
+    persona: 'The Ironclad',
     icon: '⚙️', 
-    description: 'Precision personified. Your endgame technique and positional accuracy make you a grinder who converts the smallest advantages into victory.'
+    description: 'Precision personified. Converting simplified positions and endgame advantages with unyielding accuracy.'
   },
   { 
     id: 'rogue', 
-    name: 'The Rogue', 
+    name: 'Rogue Form', 
+    persona: 'The Vanguard',
     icon: '🗡️', 
-    description: 'Unpredictable and sharp. You thrive in chaos, finding unconventional solutions and tactical swindles when your back is against the wall.'
+    description: 'Unpredictable and sharp. Thriving in tactical chaos, finding unconventional solutions and tactical swindles when your back is against the wall.'
   },
   {
     id: 'student',
-    name: 'The Apprentice',
+    name: 'Initiate Form',
+    persona: 'The Squire',
     icon: '🌱',
     description: 'A balanced seeker of wisdom. Your DNA is still forming, showing potential across all categories as you build your unique style.'
   }

@@ -5,14 +5,13 @@ import WarRoomActivity from './warroom/WarRoomActivity.vue'
 import WarRoomStats from './warroom/WarRoomStats.vue'
 import WarRoomAcademy from './warroom/WarRoomAcademy.vue'
 import WarRoomDNA from './warroom/WarRoomDNA.vue'
-import WarRoomIntegrity from './warroom/WarRoomIntegrity.vue'
 import WarRoomIntelligence from './warroom/WarRoomIntelligence.vue'
 
 defineProps<{
   joinedDate: string
 }>()
 
-defineEmits(['showBadgeModal', 'showWipeConfirm', 'toggleIntel', 'deduplicateVault', 'switchTab'])
+defineEmits(['showBadgeModal', 'toggleIntel', 'switchTab'])
 </script>
 
 <template>
@@ -45,12 +44,6 @@ defineEmits(['showBadgeModal', 'showWipeConfirm', 'toggleIntel', 'deduplicateVau
         />
       </div>
     </div>
-
-    <!-- 6. Data Management Tools -->
-    <WarRoomIntegrity 
-      @deduplicateVault="$emit('deduplicateVault')" 
-      @showWipeConfirm="$emit('showWipeConfirm')" 
-    />
 
     <!-- 7. Global Intelligence HUD -->
     <WarRoomIntelligence @toggleIntel="$emit('toggleIntel')" />

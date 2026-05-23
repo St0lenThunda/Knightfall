@@ -1,7 +1,10 @@
 <template>
   <div class="puzzles-header">
     <div>
-      <h2>⚡ Siege Trials</h2>
+      <h2 style="display: flex; align-items: center; gap: var(--space-2);">
+        <span>{{ routeMeta.icon }}</span>
+        <span>{{ routeMeta.title }}</span>
+      </h2>
       <p class="muted" style="font-size: 0.9rem;">Targeted by your Weakness DNA</p>
     </div>
     <div class="puzzle-stats">
@@ -18,6 +21,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Siege Trials',
+  icon: route?.meta?.icon || '⚡'
+}))
+
 /**
  * PuzzleHeader
  * 

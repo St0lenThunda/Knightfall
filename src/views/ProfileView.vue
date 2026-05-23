@@ -22,9 +22,7 @@
             v-if="activeTab === 'overview'" 
             :joined-date="joinedDate"
             @show-badge-modal="showBadgeModal = true"
-            @show-wipe-confirm="showWipeConfirm = true"
             @toggle-intel="toggleIntel"
-            @deduplicate-vault="deduplicateVault"
             @switch-tab="activeTab = $event"
           />
 
@@ -49,13 +47,6 @@
 
     <!-- Global Overlays & Modals -->
     <BadgeShowcaseModal :visible="showBadgeModal" @close="showBadgeModal = false" />
-    
-    <NuclearWipeModal 
-      :visible="showWipeConfirm" 
-      :is-wiping="isWiping" 
-      @cancel="showWipeConfirm = false" 
-      @confirm="handleNuclearReset" 
-    />
 
     <Teleport to="body">
       <Transition name="fade">
@@ -109,23 +100,23 @@ import LibraryLab from '../components/library/LibraryLab.vue'
 
 // Modals
 import BadgeShowcaseModal from '../components/profile/modals/BadgeShowcaseModal.vue'
-import NuclearWipeModal from '../components/profile/modals/NuclearWipeModal.vue'
 
 // Pillar Composables
 import { useProfileNavigation } from '../composables/profile/useProfileNavigation'
 import { useProfileActions } from '../composables/profile/useProfileActions'
+import { useCurriculumStore } from '../stores/curriculumStore'
 
 // Styles
 import '../assets/profile.css'
 
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
+const curriculumStore = useCurriculumStore()
 
 // Initialize Pillar Logic
 const { activeTab, tabs } = useProfileNavigation()
 const { 
-  isWiping, isInitialSync, showWipeConfirm, showLabModal, showBadgeModal,
-  handleNuclearReset, finishInitialSync 
+  isInitialSync, showLabModal, showBadgeModal, finishInitialSync 
 } = useProfileActions()
 
 // Computed metadata
@@ -137,6 +128,16 @@ const joinedDate = computed(() => userStore.profile?.created_at ? new Date(userS
 onMounted(async () => {
   await libraryStore.loadGames()
   finishInitialSync()
+  
+  // Load quest completion progress
+  if (userStore.profile?.id) {
+    await curriculumStore.fetchProgress(userStore.profile.id)
+  } else if (userStore.completedQuests?.length > 0) {
+    curriculumStore.completedQuestIds = [...userStore.completedQuests]
+  }
+  
+  // Retrieve and generate tactical ghosts for the profile diagnostics panel
+  await curriculumStore.generatePersonalPuzzles()
 })
 
 /**
@@ -148,10 +149,6 @@ function toggleIntel() {
   } else {
     libraryStore.startBulkAnalysis()
   }
-}
-
-function deduplicateVault() {
-  libraryStore.deduplicate()
 }
 </script>
 

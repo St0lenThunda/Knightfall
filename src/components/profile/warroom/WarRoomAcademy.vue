@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import { useCurriculumStore } from '../../../stores/curriculumStore'
 import { useUserStore } from '../../../stores/userStore'
 import { useUiStore } from '../../../stores/uiStore'
+import { archetypes } from '../../../composables/useArchetypeStats'
 
 const curriculumStore = useCurriculumStore()
 const userStore = useUserStore()
@@ -24,24 +25,94 @@ const sanctumCompletion = computed(() => {
 })
 
 /**
- * Maps the 5-stage assessment results to a visual progress state.
+ * Dynamic calculation of the 5 core learning disciplines (realms) in the Scholar's Sanctum.
+ * Returns detailed tooltip descriptions and current quest completion progress.
  */
-const pathStages = [
-  { id: 'tactics', label: 'Tactics', icon: '⚔️' },
-  { id: 'calculation', label: 'Visualization', icon: '👁️' },
-  { id: 'endgame', label: 'Technique', icon: '⏳' },
-  { id: 'strategy', label: 'Insight', icon: '🧭' },
-  { id: 'speed', label: 'Instinct', icon: '⚡' }
-]
+const pathStages = computed(() => {
+  /**
+   * Helper to format quest completion progress for a given realm.
+   * 
+   * @param realmId - The identifier of the target realm
+   */
+  const getProgressString = (realmId: string) => {
+    const realmQuests = curriculumStore.quests.filter(q => q.realmId === realmId)
+    const completed = realmQuests.filter(q => curriculumStore.completedQuestIds.includes(q.id)).length
+    const total = realmQuests.length
+    return `${completed}/${total} completed`
+  }
 
-const getStageStatus = (id: string) => {
-  const result = curriculumStore.results.find(r => r.stage === id)
-  if (result) return 'complete'
-  if (curriculumStore.currentStage === id) return 'active'
+  return [
+    { 
+      id: 'foundations-realm', 
+      label: 'Foundations', 
+      icon: '🏛️', 
+      tooltip: `Foundations: Basic board rules and piece mechanics (${getProgressString('foundations-realm')})` 
+    },
+    { 
+      id: 'opening-realm', 
+      label: 'Openings', 
+      icon: '🗺️', 
+      tooltip: `Openings: Classic systems and starting guidelines (${getProgressString('opening-realm')})` 
+    },
+    { 
+      id: 'tactics-realm', 
+      label: 'Tactics', 
+      icon: '⚔️', 
+      tooltip: `Tactics: Calculation patterns and forced checkmates (${getProgressString('tactics-realm')})` 
+    },
+    { 
+      id: 'strategy-realm', 
+      label: 'Strategy', 
+      icon: '🏰', 
+      tooltip: `Strategy: Positional plans and pawn structure insights (${getProgressString('strategy-realm')})` 
+    },
+    { 
+      id: 'endgame-realm', 
+      label: 'Endgames', 
+      icon: '⏳', 
+      tooltip: `Endgames: Conversion techniques and theoretical checkmates (${getProgressString('endgame-realm')})` 
+    }
+  ]
+})
+
+/**
+ * Calculates whether a Sanctum realm is locked, active (in progress), or completed.
+ * 
+ * @param realmId - The identifier of the realm
+ * @returns 'complete' | 'active' | 'locked'
+ */
+const getRealmStatus = (realmId: string) => {
+  const realmQuests = curriculumStore.quests.filter(q => q.realmId === realmId)
+  if (realmQuests.length === 0) return 'locked'
+  
+  const completed = realmQuests.filter(q => curriculumStore.completedQuestIds.includes(q.id)).length
+  const total = realmQuests.length
+  
+  // Complete: All quests inside the realm are solved
+  if (completed === total && total > 0) return 'complete'
+  
+  // Active: User has accessed/unlocked at least one quest but hasn't finished them all
+  const hasAccess = realmQuests.some(q => q.status === 'unlocked' || curriculumStore.completedQuestIds.includes(q.id))
+  if (hasAccess) return 'active'
+  
+  // Locked: All quests within the realm remain locked
   return 'locked'
 }
 
-const activeArchetype = computed(() => userStore.profile?.archetype || 'The Unwritten Page')
+/**
+ * Computed property to find the active archetype definition object.
+ */
+const activeArchetypeObj = computed(() => {
+  const archId = userStore.profile?.archetype?.toLowerCase()
+  return archetypes.find(a => a.id === archId) || null
+})
+
+/**
+ * Computed name of the player's core archetype persona (e.g. The Vanguard).
+ */
+const activeArchetype = computed(() => {
+  return activeArchetypeObj.value?.persona || 'The Squire'
+})
 
 /**
  * The count of tactical patterns the user has recently failed.
@@ -56,9 +127,17 @@ const activeGhosts = computed(() => curriculumStore.personalPuzzles.length)
         <h3>The Knight's Path</h3>
         <p class="muted">Academic Mastery & Personal Diagnostics</p>
       </div>
-      <div class="archetype-pill" @click="uiStore.isArchetypeModalOpen = true" style="cursor: pointer;">
-        <span class="label">PROFILE</span>
-        <span class="val">{{ activeArchetype }}</span>
+      <div 
+        class="archetype-pill" 
+        @click="uiStore.isArchetypeModalOpen = true" 
+        style="cursor: pointer;"
+        :data-tooltip="'Active Form: ' + (activeArchetypeObj?.name || 'Initiate Form')"
+      >
+        <span class="label">ARCHETYPE</span>
+        <span class="val">
+          <span v-if="activeArchetypeObj?.icon" style="margin-right: 4px;">{{ activeArchetypeObj.icon }}</span>
+          {{ activeArchetype.toUpperCase() }}
+        </span>
       </div>
     </div>
 
@@ -67,18 +146,34 @@ const activeGhosts = computed(() => curriculumStore.personalPuzzles.length)
       <div class="metric-card path-progress">
         <div class="metric-label">
           DIAGNOSTIC STATUS
-          <span class="info-trigger" data-tooltip="Tracks your progress through the 5 assessment stages. Complete these to finalize your Soul Map.">ⓘ</span>
+          <span class="info-trigger" data-tooltip="Tracks your progress through the 5 disciplines of the Scholar's Sanctum. Complete all quests in a realm to master it.">ⓘ</span>
         </div>
         <div class="path-steps">
           <div 
             v-for="stage in pathStages" 
             :key="stage.id" 
             class="path-step" 
-            :class="getStageStatus(stage.id)"
-            :data-tooltip="stage.label"
+            :class="getRealmStatus(stage.id)"
+            :data-tooltip="stage.tooltip"
           >
             <span class="step-icon">{{ stage.icon }}</span>
             <div class="step-indicator"></div>
+          </div>
+        </div>
+
+        <!-- Legend Key -->
+        <div class="path-legend">
+          <div class="legend-item">
+            <span class="legend-dot complete"></span>
+            <span>Completed</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot active"></span>
+            <span>In Progress</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot"></span>
+            <span>Locked</span>
           </div>
         </div>
       </div>
@@ -202,7 +297,7 @@ const activeGhosts = computed(() => curriculumStore.personalPuzzles.length)
   position: relative;
   flex: 1;
 }
-.path-step:not(:last-child)::after {
+.path-step:not(:last-child)::before {
   content: '';
   position: absolute;
   top: 35px;
@@ -212,7 +307,7 @@ const activeGhosts = computed(() => curriculumStore.personalPuzzles.length)
   background: var(--border);
   z-index: 1;
 }
-.path-step.complete:not(:last-child)::after { background: var(--teal-dim); }
+.path-step.complete:not(:last-child)::before { background: var(--teal-dim); }
 
 .step-icon {
   font-size: 1.2rem;
@@ -253,5 +348,49 @@ const activeGhosts = computed(() => curriculumStore.personalPuzzles.length)
 
 @media (max-width: 900px) {
   .academy-metrics-grid { grid-template-columns: 1fr; }
+}
+
+/* --- PATH VISUALIZER LEGEND KEY --- */
+.path-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.legend-dot.complete {
+  background: var(--teal);
+  box-shadow: 0 0 8px var(--teal-dim);
+}
+
+.legend-dot.active {
+  background: var(--accent);
+  animation: pulse-dot-mini 2s infinite;
+}
+
+@keyframes pulse-dot-mini {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
 }
 </style>

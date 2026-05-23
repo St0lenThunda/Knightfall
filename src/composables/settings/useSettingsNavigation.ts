@@ -16,6 +16,7 @@ export function useSettingsNavigation() {
     { id: 'board', label: 'Board & Style', icon: '🎨' },
     { id: 'engine', label: 'Engine', icon: '🧠' },
     { id: 'identity', label: 'Identity & DNA', icon: '🧬' },
+    { id: 'maintenance', label: 'Maintenance', icon: '🛠️' },
   ]
 
   onMounted(() => {

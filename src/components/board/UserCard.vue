@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useLibraryStore } from '../../stores/libraryStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -8,6 +9,71 @@ const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 
 const emit = defineEmits(['login', 'signup', 'logout'])
+
+// --- TIMER FOR HEART REGENERATION COUNTDOWN ---
+const currentTime = ref(Date.now())
+let timerInterval: any = null
+
+onMounted(() => {
+  timerInterval = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 10000) // Update every 10 seconds for real-time reactivity
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
+})
+
+// Auto-regenerate hearts in real-time if the timer crosses the threshold
+watch(() => currentTime.value, async () => {
+  const hearts = userStore.profile?.hearts ?? 5
+  const maxHearts = userStore.maxHearts || 5
+  if (hearts < maxHearts && userStore.profile?.last_active_at) {
+    const lastActiveTime = new Date(userStore.profile.last_active_at).getTime()
+    const msElapsed = Date.now() - lastActiveTime
+    const fourHoursMs = 4 * 60 * 60 * 1000
+    if (msElapsed >= fourHoursMs) {
+      await userStore.checkAndApplyHeartRegeneration()
+    }
+  }
+})
+
+// --- TOOLTIP CALCULATIONS ---
+const xpTooltip = computed(() => {
+  const currentXp = userStore.xp || 0
+  const nextXp = userStore.xpForNextLevel || 100
+  return `${currentXp}/${nextXp} XP to next level`
+})
+
+const heartsTooltip = computed(() => {
+  const hearts = userStore.profile?.hearts ?? 5
+  const maxHearts = userStore.maxHearts || 5
+
+  if (hearts >= maxHearts) {
+    return `${hearts} of ${maxHearts} (Max Hearts)`
+  }
+
+  const lastActiveStr = userStore.profile?.last_active_at
+  if (!lastActiveStr) {
+    return `${hearts} of ${maxHearts} (Next heart in progress)`
+  }
+
+  const lastActiveTime = new Date(lastActiveStr).getTime()
+  const msElapsed = currentTime.value - lastActiveTime
+  const fourHoursMs = 4 * 60 * 60 * 1000
+
+  // The remaining milliseconds until the next 4-hour heart block
+  const msRemaining = fourHoursMs - (msElapsed % fourHoursMs)
+  
+  if (msRemaining <= 0 || isNaN(msRemaining)) {
+    return `${hearts} of ${maxHearts} (Next heart ready)`
+  }
+
+  const hours = Math.floor(msRemaining / (60 * 60 * 1000))
+  const minutes = Math.floor((msRemaining % (60 * 60 * 1000)) / (60 * 1000))
+
+  return `${hearts} of ${maxHearts} (Next in ${hours}h ${minutes}m)`
+})
 </script>
 
 <template>
@@ -22,13 +88,13 @@ const emit = defineEmits(['login', 'signup', 'logout'])
         <div class="user-info" @click="$emit('logout')" data-tooltip="Click to sign out">
           <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
           <div class="user-stats">
-            <div class="stat" data-tooltip="Performance Rating">
+            <div class="stat" data-tooltip="KnightFall ELO">
               <span class="icon" style="color: var(--gold);">♔</span> {{ libraryStore.stats?.performanceRating || 1200 }}
             </div>
-            <div class="stat" data-tooltip="Scholar XP">
+            <div class="stat" :data-tooltip="xpTooltip">
               <span class="icon">✨</span> {{ userStore.xp || 0 }}
             </div>
-            <div class="stat" data-tooltip="Hearts">
+            <div class="stat" :data-tooltip="heartsTooltip">
               <span class="icon">❤️</span> {{ userStore.profile?.hearts ?? 5 }}
             </div>
           </div>

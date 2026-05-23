@@ -62,22 +62,22 @@
 
                   <div class="detail-progress mt-8">
                     <div class="progress-header">
-                      <span class="status">{{ selectedBadge.earned ? 'ACHIEVED' : 'IN PROGRESS' }}</span>
-                      <span class="val">{{ selectedBadge.progressLabel }}</span>
-                    </div>
-                    <div class="progress-track-lg">
-                      <div class="progress-fill" :style="{ width: (selectedBadge.progress || 0) * 100 + '%', background: getPillarColor(selectedBadge.pillar) }"></div>
+                      <p class="status">{{ selectedBadge.earned ? 'ACHIEVED' : 'IN PROGRESS' }}</p>
+                      <div class="progress-track-lg">
+                        <div class="progress-fill" :style="{ width: (selectedBadge.progress || 0) * 100 + '%', background: getPillarColor(selectedBadge.pillar) }"></div>
+                      </div>
+                      <p class="val">{{ selectedBadge.progressLabel }}</p>
                     </div>
                   </div>
 
                   <div v-if="selectedBadge.earned" class="earned-date mt-6">
                     <span class="icon">✨</span>
-                    <span>Achievement Unlocked</span>
+                    <p>Achievement Unlocked</p>
                   </div>
                 </div>
                 <div v-else class="empty-detail">
                   <div class="placeholder-icon">🏅</div>
-                  <p class="muted">Select a badge to view details</p>
+                  <p>Select a badge to view details</p>
                 </div>
               </Transition>
             </div>
@@ -107,18 +107,18 @@ const coachStore = useCoachStore()
 const selectedBadge = ref<any>(null)
 
 const badgePillars = [
-  { id: 'tactics', label: 'Tactics', icon: '⚡' },
-  { id: 'strategy', label: 'Strategy', icon: '♟' },
-  { id: 'grind', label: 'Consistency', icon: '🔨' },
-  { id: 'vault', label: 'Curation', icon: '🗄️' },
+  { id: 'mastery', label: 'Mastery', icon: '⚡' },
+  { id: 'title', label: 'Strategy', icon: '♟' },
+  { id: 'ritual', label: 'Consistency', icon: '🔨' },
+  { id: 'milestone', label: 'Milestones', icon: '🎯' },
 ]
 
 function getPillarColor(pillar: string) {
   switch (pillar) {
-    case 'tactics': return 'var(--rose)'
-    case 'strategy': return 'var(--accent)'
-    case 'grind': return 'var(--gold)'
-    case 'vault': return 'var(--teal)'
+    case 'mastery': return 'var(--rose)'
+    case 'title': return 'var(--accent)'
+    case 'ritual': return 'var(--gold)'
+    case 'milestone': return 'var(--teal)'
     default: return 'var(--text-muted)'
   }
 }
@@ -195,32 +195,68 @@ function getPillarColor(pillar: string) {
   height: 64px;
   position: relative;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  opacity: 0.3;
-  filter: grayscale(1);
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /* The parent acts as the border container. Since standard borders are clipped 
+     by clip-path, we stack an inner clip-path inside a slightly larger outer clip-path. */
+  background: rgba(255, 255, 255, 0.1); 
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
 }
 
-.badge-hex-item.is-earned { opacity: 1; filter: none; }
-.badge-hex-item.is-selected { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--glow-color)); }
+/* Faint scale up and border highlight on hover */
+.badge-hex-item:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: rgba(255, 255, 255, 0.22);
+  opacity: 1;
+}
 
+/* Earned State: Border takes the pillar's thematic color */
+.badge-hex-item.is-earned {
+  background: var(--glow-color);
+  opacity: 1;
+}
+
+.badge-hex-item.is-earned:hover {
+  filter: drop-shadow(0 0 8px var(--glow-color));
+}
+
+/* Selected State: Scale up, glow drop-shadow, and thematic border */
+.badge-hex-item.is-selected {
+  transform: scale(1.1) translateY(-2px);
+  background: var(--glow-color);
+  filter: drop-shadow(0 0 14px var(--glow-color));
+  opacity: 1;
+}
+
+/* Inner Hexagon: Nested slightly smaller to expose parent background as a border */
 .badge-hex-inner {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 4px); /* Creates a crisp 2px border */
+  height: calc(100% - 4px);
   background: var(--bg-card);
   clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  border: 2px solid var(--border);
 }
 
-.badge-hex-item.is-selected .badge-hex-inner { border-color: var(--glow-color); }
+/* Locked items get a darker inner background and muted gray icon */
+.badge-hex-item:not(.is-earned) .badge-hex-inner {
+  background: var(--bg-surface);
+}
 
-.badge-hex-item.pillar-tactics   { --glow-color: var(--rose); }
-.badge-hex-item.pillar-strategy  { --glow-color: var(--accent); }
-.badge-hex-item.pillar-grind     { --glow-color: var(--gold); }
-.badge-hex-item.pillar-vault     { --glow-color: var(--teal); }
+.badge-hex-item:not(.is-earned) .icon {
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+
+.pillar-mastery   { --glow-color: var(--rose); }
+.pillar-title     { --glow-color: var(--accent); }
+.pillar-ritual    { --glow-color: var(--gold); }
+.pillar-milestone { --glow-color: var(--teal); }
 
 /* Detail Panel */
 .badge-detail-panel {
@@ -262,10 +298,10 @@ function getPillarColor(pillar: string) {
   letter-spacing: 0.1em;
 }
 
-.pillar-tag.pillar-tactics  { background: var(--rose-dim); color: var(--rose); }
-.pillar-tag.pillar-strategy { background: var(--accent-dim); color: var(--accent-bright); }
-.pillar-tag.pillar-grind    { background: var(--gold-dim); color: var(--gold); }
-.pillar-tag.pillar-vault    { background: var(--teal-dim); color: var(--teal); }
+.pillar-tag.pillar-mastery   { background: var(--rose-dim); color: var(--rose); }
+.pillar-tag.pillar-title     { background: var(--accent-dim); color: var(--accent-bright); }
+.pillar-tag.pillar-ritual    { background: var(--gold-dim); color: var(--gold); }
+.pillar-tag.pillar-milestone { background: var(--teal-dim); color: var(--teal); }
 
 .progress-track-lg {
   height: 8px;

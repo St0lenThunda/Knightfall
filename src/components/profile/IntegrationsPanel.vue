@@ -9,6 +9,11 @@ import { ref, onMounted } from 'vue'
 import { Storage, StorageKey } from '../../utils/storage'
 import { useUiStore } from '../../stores/uiStore'
 import { useUserStore } from '../../stores/userStore'
+import { useLibraryStore } from '../../stores/libraryStore'
+import { useCoachStore } from '../../stores/coachStore'
+
+const libraryStore = useLibraryStore()
+const coachStore = useCoachStore()
 
 const uiStore = useUiStore()
 const userStore = useUserStore()
@@ -62,6 +67,27 @@ function clearTokens() {
   chesscomHandle.value = ''
   Storage.remove(StorageKey.LICHESS_TOKEN)
   Storage.remove(StorageKey.CHESSCOM_TOKEN)
+}
+
+const activeSyncAction = ref<'refresh' | 'push' | 'recalculate' | null>(null)
+
+/**
+ * Executes a library sync action with UI feedback and button loading states.
+ * 
+ * @param action - The async libraryStore action to run
+ * @param type - The action type ('refresh' or 'push') for loading spinner state
+ * @param successMsg - Toast message to show on successful sync
+ */
+async function handleSyncAction(action: () => Promise<any>, type: 'refresh' | 'push' | 'recalculate', successMsg: string) {
+  activeSyncAction.value = type
+  try {
+    await action()
+    uiStore.addToast(successMsg, 'success')
+  } catch (err: any) {
+    uiStore.addToast(`Synchronization failure: ${err.message || 'Unknown error'}`, 'error')
+  } finally {
+    activeSyncAction.value = null
+  }
 }
 </script>
 
@@ -141,6 +167,61 @@ function clearTokens() {
               placeholder="Private key (if applicable)"
               class="kf-input"
             />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLOUD VAULT SYNCHRONIZATION -->
+    <div class="sync-section glass mt-8" v-if="userStore.profile">
+      <div class="panel-header">
+        <div class="icon-orb">☁️</div>
+        <div class="header-text">
+          <h2>Cloud Vault Synchronization</h2>
+          <p class="text-muted">Synchronize your local game vault and backups with the cloud.</p>
+        </div>
+      </div>
+      
+      <div class="sync-grid mt-6">
+        <div class="sync-card glass-sm">
+          <div class="sync-card-body">
+            <h4>Refresh Cloud DNA</h4>
+            <p class="muted-text">Sync local library with the cloud. Use this if you have played games on another device.</p>
+            <button 
+              class="btn btn-secondary btn-sm mt-4 w-full" 
+              :disabled="libraryStore.isProcessingIntegrity" 
+              @click="handleSyncAction(() => libraryStore.refreshCloudDna(), 'refresh', 'Cloud DNA refreshed successfully.')"
+            >
+              {{ activeSyncAction === 'refresh' ? 'Syncing...' : '🔄 Refresh Cloud DNA' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="sync-card glass-sm">
+          <div class="sync-card-body">
+            <h4>Push Vault to Cloud</h4>
+            <p class="muted-text">Back up your entire local collection to the cloud. Recommended after large PGN imports.</p>
+            <button 
+              class="btn btn-secondary btn-sm mt-4 w-full" 
+              :disabled="libraryStore.isProcessingIntegrity" 
+              @click="handleSyncAction(() => libraryStore.pushLocalGamesToCloud(), 'push', 'Vault successfully pushed to cloud.')"
+            >
+              {{ activeSyncAction === 'push' ? 'Backing up...' : '☁️ Push Vault to Cloud' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="sync-card glass-sm">
+          <div class="sync-card-body">
+            <h4>Recalculate Gameplay DNA</h4>
+            <p class="muted-text">Re-evaluate your Chess Persona and Active Form using the games and puzzles currently in your vault.</p>
+            <button 
+              class="btn btn-secondary btn-sm mt-4 w-full" 
+              :disabled="activeSyncAction !== null || libraryStore.isProcessingIntegrity" 
+              @click="handleSyncAction(() => coachStore.recalculateDnaProfile(), 'recalculate', 'Gameplay DNA recalculated and profile updated successfully.')"
+            >
+              {{ activeSyncAction === 'recalculate' ? 'Recalculating...' : '🧬 Recalculate DNA' }}
+            </button>
           </div>
         </div>
       </div>
@@ -298,4 +379,51 @@ function clearTokens() {
   display: flex;
   gap: var(--space-4);
 }
+
+.sync-section {
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.sync-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.sync-card {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255,255,255,0.03);
+  background: rgba(0, 0, 0, 0.2);
+  transition: all 0.3s var(--ease);
+}
+
+.sync-card:hover {
+  border-color: rgba(139, 92, 246, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.sync-card-body h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: white;
+}
+
+.sync-card-body .muted-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.mt-8 { margin-top: var(--space-8); }
+.mt-6 { margin-top: var(--space-6); }
+.mt-4 { margin-top: var(--space-4); }
+.w-full { width: 100%; }
 </style>

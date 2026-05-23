@@ -3,6 +3,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
+import { useUserStore } from '../stores/userStore'
+import { useCurriculumStore } from '../stores/curriculumStore'
 import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
 import ProgressBar from '@/components/common/ProgressBar.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -10,8 +12,15 @@ import { useRoute, useRouter } from 'vue-router'
 const libraryStore = useLibraryStore()
 const uiStore = useUiStore()
 const coachStore = useCoachStore()
+const userStore = useUserStore()
+const curriculumStore = useCurriculumStore()
 const route = useRoute()
 const router = useRouter()
+
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Stratagem Forge',
+  icon: route?.meta?.icon || '⚒️'
+}))
 
 const isLoading = ref(true)
 const selectedCategory = ref((route.query.tab as string) || 'repertoire')
@@ -57,10 +66,19 @@ const openingRx = computed(() => coachStore.openingPrescriptions)
 onMounted(async () => {
   isLoading.value = true
   
-  // Phase 1: Load Games
+  // Phase 1: Load Games & Progress in parallel
   loadingStage.value = 'Mapping game library...'
+  const loadTasks: Promise<any>[] = []
+  
   if (libraryStore.games.length === 0) {
-    await libraryStore.loadGames()
+    loadTasks.push(libraryStore.loadGames())
+  }
+  if (userStore.profile?.id) {
+    loadTasks.push(curriculumStore.fetchProgress(userStore.profile.id))
+  }
+  
+  if (loadTasks.length > 0) {
+    await Promise.all(loadTasks)
   }
   
   // Phase 2: Analyze Openings (Simulate some work for UX if too fast)
@@ -73,6 +91,38 @@ onMounted(async () => {
   
   isLoading.value = false
 })
+
+/**
+ * Maps an opening ID to its curriculum quest ID.
+ */
+function getLessonId(openingId: string): string | null {
+  const trainingMap: Record<string, string> = {
+    'italian': 'ruy-lopez',
+    'italian-game': 'ruy-lopez',
+    'sicilian': 'sicilian-defense',
+    'sicilian-defense': 'sicilian-defense',
+    'queens-gambit': 'd4-opening',
+    'caro-kann': 'caro-kann',
+    'caro-kann-defense': 'caro-kann',
+    'french': 'french-defense',
+    'french-defense': 'french-defense',
+    'ruy-lopez': 'ruy-lopez',
+    'kings-pawn': 'e4-opening',
+    'queens-pawn': 'd4-opening',
+    'london-system': 'd4-opening'
+  }
+  const normalizedId = openingId.toLowerCase().trim()
+  return trainingMap[normalizedId] || trainingMap[normalizedId.replace(/-defense$/, '')] || null
+}
+
+/**
+ * Checks if the lesson corresponding to the opening has been completed.
+ */
+function isOpeningCompleted(openingId: string): boolean {
+  const lessonId = getLessonId(openingId)
+  if (!lessonId) return false
+  return curriculumStore.isQuestCompleted(lessonId)
+}
 
 /**
  * Navigates to a specific lesson based on the opening ID.
@@ -113,7 +163,10 @@ function startTraining(openingId: string) {
   <div class="opening-lab container">
     <div class="lab-header">
       <div class="header-main">
-        <h1 class="title-lg gradient-text">Stratagem Forge</h1>
+        <h1 class="title-lg gradient-text" style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+        </h1>
         <p class="text-secondary">Master the first 10 moves. Build a bulletproof repertoire.</p>
       </div>
       
@@ -161,7 +214,10 @@ function startTraining(openingId: string) {
             <div class="card-top">
               <span class="opening-icon">{{ opening.icon }}</span>
               <div class="opening-name-wrap">
-                <h3 class="title-sm">{{ opening.name }}</h3>
+                <div class="opening-title-row">
+                  <h3 class="title-sm">{{ opening.name }}</h3>
+                  <span v-if="isOpeningCompleted(opening.id)" class="badge-completed-inline">✓ Mastered</span>
+                </div>
                 <p class="opening-desc">{{ opening.description }}</p>
                 <p class="games-count">{{ opening.games }} games analyzed</p>
               </div>
@@ -185,7 +241,10 @@ function startTraining(openingId: string) {
           <div v-for="opening in curatedOpenings" :key="opening.id" class="study-card glass-card">
             <div class="study-header">
               <span class="study-icon">{{ opening.icon }}</span>
-              <div class="badge-difficulty" :class="opening.difficulty.toLowerCase()">{{ opening.difficulty }}</div>
+              <div class="header-badges">
+                <span v-if="isOpeningCompleted(opening.id)" class="badge-completed">✓ Mastered</span>
+                <div class="badge-difficulty" :class="opening.difficulty.toLowerCase()">{{ opening.difficulty }}</div>
+              </div>
             </div>
             <h3 class="title-sm">{{ opening.name }}</h3>
             <p class="moves-text">{{ opening.moves }}</p>
@@ -194,7 +253,13 @@ function startTraining(openingId: string) {
                 <span class="label">Popularity</span>
                 <span class="val">{{ opening.popularity }}</span>
               </div>
-              <button class="btn btn-primary btn-sm" @click="startTraining(opening.id)">Study Theory</button>
+              <button 
+                class="btn btn-sm" 
+                :class="isOpeningCompleted(opening.id) ? 'btn-ghost' : 'btn-primary'" 
+                @click="startTraining(opening.id)"
+              >
+                {{ isOpeningCompleted(opening.id) ? 'Review Theory' : 'Study Theory' }}
+              </button>
             </div>
           </div>
         </div>
@@ -308,4 +373,44 @@ function startTraining(openingId: string) {
 .progress-bar-loading .fill { height: 100%; background: var(--accent-gradient); transition: width 0.4s ease; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Completion Badges */
+.header-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.badge-completed {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-completed-inline {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  margin-left: var(--space-2);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.opening-title-row {
+  display: flex;
+  align-items: center;
+}
 </style>

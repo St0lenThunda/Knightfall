@@ -19,7 +19,7 @@ const libraryStore = useLibraryStore()
       <template #stats>
         <span class="badge badge-primary">✨ {{ userStore.xp }} XP</span>
         <span class="badge badge-accent">{{ libraryStore.personalGames.length }} Snapshots</span>
-        <span class="badge badge-outline">App IQ: {{ libraryStore.performanceRating }}</span>
+        <span class="badge badge-outline">KnightFall ELO: {{ libraryStore.performanceRating }}</span>
       </template>
     </ProfileTabHeader>
     

@@ -264,18 +264,33 @@ export function useLibraryImport(
   }
 
   /**
-   * Fetches a PGN from a URL and imports it.
+   * Fetches a PGN or a zipped archive of PGNs from a remote URL and imports it into the library.
+   * Curated master collections (e.g. Capablanca, Kasparov) are stored as .zip files to optimize network transfer.
+   * 
+   * @param url - The remote endpoint to download the file from
+   * @param name - The human-readable name of the collection/source
    */
   async function importFromUrl(url: string, name: string = 'Web Import') {
     isImporting.value = true
     importProgress.value = 0
     try {
       const response = await fetch(url)
-      if (!response.ok) throw new Error('Network response was not ok')
-      const pgn = await response.text()
-      await importPgn(pgn, true, [name, 'Web Import'])
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`)
+      }
+      
+      // If the URL points to a zip archive, we process it as a binary blob.
+      // Otherwise, we read the content directly as raw PGN text.
+      if (url.toLowerCase().endsWith('.zip')) {
+        const blob = await response.blob()
+        await importPgnZip(blob, true, [name, 'Web Import'])
+      } else {
+        const pgn = await response.text()
+        await importPgn(pgn, true, [name, 'Web Import'])
+      }
     } catch (e) {
       logger.error('[Import] Failed to fetch PGN from URL', e)
+      throw e // Rethrow to let the caller (e.g., UI notifications) handle it
     } finally {
       isImporting.value = false
     }

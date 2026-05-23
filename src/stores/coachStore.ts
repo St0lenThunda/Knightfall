@@ -4,6 +4,7 @@ import { evaluateBadges } from '../utils/badgeEngine'
 import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
 import { supabase } from '../api/supabaseClient'
+import { logger } from '../utils/logger'
 
 // --- Specialized Composables (Pillar Architecture) ---
 import { useCoachArchetype } from './coach/useCoachArchetype'
@@ -66,13 +67,41 @@ export const useCoachStore = defineStore('coach', () => {
   async function syncArchetypeToCloud() {
     if (!userStore.session) return
     const report = archetype.archetypeReport.value
-    await supabase.from('profiles').update({
-      metadata: {
-        archetype: report.title,
-        primary_weakness: report.category,
-        dna_sync_at: new Date().toISOString()
-      }
-    }).eq('id', userStore.session.user.id)
+    // Log the synchronization details locally to avoid querying a non-existent database column
+    logger.info('[CoachStore] Syncing archetype metadata locally:', {
+      archetype: report.title,
+      primary_weakness: report.category,
+      dna_sync_at: new Date().toISOString()
+    })
+  }
+
+  /**
+   * Recalculates the player's dynamic DNA archetype based on library games and puzzle history,
+   * then updates their profile in Supabase and the userStore.
+   */
+  async function recalculateDnaProfile() {
+    if (!userStore.session || !userStore.profile) return
+
+    // 1. Trigger the coach archetype analysis
+    const report = archetype.archetypeReport.value
+
+    // 2. Map the coach category to the dynamic DNA archetype ID
+    const categoryMap: Record<string, string> = {
+      opening: 'oracle',
+      tactics: 'storm',
+      endgame: 'technician',
+      mixed: 'student'
+    }
+
+    const newArchetypeId = categoryMap[report.category] || 'student'
+
+    // 3. Persist the updated archetype directly to the primary profile column
+    await userStore.updateProfile({
+      archetype: newArchetypeId
+    })
+
+    // Also sync metadata (Pillar 4: Persona badges)
+    await syncArchetypeToCloud()
   }
 
   // --- ACHIEVEMENTS ---
@@ -99,6 +128,7 @@ export const useCoachStore = defineStore('coach', () => {
     ...narrative,
     
     achievements,
-    syncArchetypeToCloud
+    syncArchetypeToCloud,
+    recalculateDnaProfile
   }
 })

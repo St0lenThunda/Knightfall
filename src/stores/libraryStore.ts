@@ -264,6 +264,63 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
+  /**
+   * Automatically triggers a background cloud analysis pass for newly imported games.
+   * This parses moves, checks opening theory, and harvests blunders for the Shadow Realm.
+   */
+  async function triggerAutoAnalysis() {
+    logger.info('[Library] Import complete. Auto-triggering background cloud analysis pass.')
+    // We analyze up to 30 games in the background. A limit of 30 covers typical curated 
+    // or custom PGN uploads without overwhelming Lichess API rate limits.
+    cloud.analyzeLibraryWithCloud(30)
+  }
+
+  /**
+   * Imports a raw PGN string and automatically runs a background analysis pass.
+   * 
+   * @param pgnContent - The raw PGN string containing one or more games
+   * @param isCurated - Whether this is a system-curated collection
+   * @param extraTags - Additional tags to assign to the imported games
+   */
+  async function importPgnWithAnalysis(pgnContent: string, isCurated = false, extraTags: string[] = []) {
+    await importer.importPgn(pgnContent, isCurated, extraTags)
+    triggerAutoAnalysis()
+  }
+
+  /**
+   * Imports a zipped archive of PGN files and automatically runs a background analysis pass.
+   * 
+   * @param file - The JSZip-readable zip file or blob containing PGNs
+   * @param isCurated - Whether this is a system-curated collection
+   * @param tags - Additional tags to assign to the imported games
+   */
+  async function importPgnZipWithAnalysis(file: File | Blob, isCurated = true, tags: string[] = []) {
+    await importer.importPgnZip(file, isCurated, tags)
+    triggerAutoAnalysis()
+  }
+
+  /**
+   * Fetches a PGN or zipped archive from a URL and automatically runs a background analysis pass.
+   * 
+   * @param url - The remote endpoint to download from
+   * @param name - The human-readable collection name
+   */
+  async function importFromUrlWithAnalysis(url: string, name: string = 'Web Import') {
+    await importer.importFromUrl(url, name)
+    triggerAutoAnalysis()
+  }
+
+  /**
+   * Imports recent games for a Lichess player and automatically runs a background analysis pass.
+   * 
+   * @param username - The Lichess handle to import
+   * @param limit - Max number of recent games to retrieve
+   */
+  async function importFromLichessWithAnalysis(username: string, limit = 20) {
+    await importer.importFromLichess(username, limit)
+    triggerAutoAnalysis()
+  }
+
   // --- EXPOSED INTERFACE ---
   
   return {
@@ -350,11 +407,11 @@ export const useLibraryStore = defineStore('library', () => {
     purgeUnfinishedGames: integrity.purgeUnfinishedGames,
 
     // Import (Importer Pillar)
-    importPgn: importer.importPgn,
-    importPgnText: importer.importPgn,
-    importPgnZip: importer.importPgnZip,
-    importFromUrl: importer.importFromUrl,
-    importFromLichess: importer.importFromLichess,
+    importPgn: importPgnWithAnalysis,
+    importPgnText: importPgnWithAnalysis,
+    importPgnZip: importPgnZipWithAnalysis,
+    importFromUrl: importFromUrlWithAnalysis,
+    importFromLichess: importFromLichessWithAnalysis,
     saveGameToLibrary: importer.saveGameToLibrary,
 
     // Cloud (Sync Pillar)

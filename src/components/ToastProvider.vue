@@ -33,7 +33,8 @@ function getIcon(variant: ToastVariant) {
   if (variant === 'success') return '✨'
   if (variant === 'error') return '🚨'
   if (variant === 'warning') return '⚠️'
-  return '📡'
+  // The crystal ball represents info notifications (mystical Sanctum/DNA theme)
+  return '🔮'
 }
 </script>
 

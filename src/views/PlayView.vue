@@ -2,7 +2,10 @@
   <div class="page play-page">
     <div class="play-header">
       <div>
-        <h2>Direct Combat</h2>
+        <h2 style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+        </h2>
         <p class="muted subtitle">{{ modeLabel }} · {{ selectedTc.label }}</p>
       </div>
       <div class="play-header-actions">
@@ -143,8 +146,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Direct Combat',
+  icon: route?.meta?.icon || '⚔️'
+}))
 
 // Pillar Components
 import ChessBoard from '../components/ChessBoard.vue'

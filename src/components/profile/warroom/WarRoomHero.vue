@@ -95,7 +95,6 @@ onMounted(() => {
   padding: var(--space-6); 
   margin-bottom: var(--space-6); 
   position: relative; 
-  overflow: hidden;
 }
 .info-header { display:flex; align-items:center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-2); }
 .info-header h2 { margin: 0; }

@@ -1,3 +1,16 @@
 /// <reference types="vite/client" />
 
-declare const __APP_VERSION__: string;
+import 'vue-router'
+
+declare global {
+  const __APP_VERSION__: string;
+}
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    requiresAdmin?: boolean
+    title?: string
+    icon?: string
+  }
+}

@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter, RouterLink, useRoute } from 'vue-router'
 import { useUserStore } from '../../stores/userStore'
 import { useCoachStore } from '../../stores/coachStore'
 import { useCurriculumStore } from '../../stores/curriculumStore'
 import { useLibraryStore } from '../../stores/libraryStore'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const coachStore = useCoachStore()
 const curriculumStore = useCurriculumStore()
 const libraryStore = useLibraryStore()
+
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Strategic Briefing',
+  icon: route?.meta?.icon || '📜'
+}))
 
 // Filter out Shadow Realm from standard curriculum for dashboard display
 const activeRealms = computed(() => {
@@ -131,11 +137,12 @@ const weaknesses = computed(() => {
     <!-- Welcome Header -->
     <header class="scholar-header">
       <div class="welcome-text">
-        <h1 class="text-gradient">
-          Welcome back, Scholar {{ userStore.profile?.username }} 
-          <span class="rank-icon" :title="userStore.currentLevelName">{{ rankIcons[userStore.currentRankBase] || '♙' }}</span>
+        <h1 class="text-gradient" style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+          <span class="rank-icon" :title="userStore.currentLevelName" style="font-size: inherit; margin-left: var(--space-2);">{{ rankIcons[userStore.currentRankBase] || '♙' }}</span>
         </h1>
-        <p class="muted" style="margin-top: 4px;">Your curriculum is waiting. You've completed {{ totalCompleted }} quests this week.</p>
+        <p class="muted" style="margin-top: 4px;">Welcome back, Scholar {{ userStore.profile?.username }}. You've completed {{ totalCompleted }} quests this week.</p>
       </div>
       <div class="quick-stats">
         <div class="mini-stat">

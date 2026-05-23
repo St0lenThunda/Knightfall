@@ -1,5 +1,5 @@
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useLibraryStore } from '../stores/libraryStore'
 import { useCoachStore } from '../stores/coachStore'
@@ -28,6 +28,7 @@ export interface NavSection {
  */
 export function useNavigation() {
   const route = useRoute()
+  const router = useRouter()
   const userStore = useUserStore()
   const libraryStore = useLibraryStore()
   const coachStore = useCoachStore()
@@ -91,6 +92,24 @@ export function useNavigation() {
     return currentPath === basePath
   }
 
+  /**
+   * Helper to retrieve route metadata (title as label, and icon) dynamically
+   * based on the defined routes in vue-router.
+   * 
+   * @param path - The URL path to resolve
+   * @param fallbackLabel - The fallback string if title is not configured in metadata
+   * @param fallbackIcon - The fallback string if icon is not configured in metadata
+   * @returns NavItem metadata fields (label and icon)
+   */
+  function getRouteMetadata(path: string, fallbackLabel: string, fallbackIcon: string) {
+    const basePath = path.split('?')[0]
+    const resolved = router.resolve(basePath)
+    return {
+      label: resolved?.meta?.title || fallbackLabel,
+      icon: resolved?.meta?.icon || fallbackIcon
+    }
+  }
+
   // --- DYNAMIC NAV SECTIONS ---
 
   /**
@@ -112,15 +131,15 @@ export function useNavigation() {
         title: 'Mission',
         showTitle: true,
         items: [
-          { path: '/', icon: '📜', label: 'Strategic Briefing', auth: false },
+          { path: '/', ...getRouteMetadata('/', 'Strategic Briefing', '📜'), auth: false },
         ].filter(() => !userStore.session)
       },
       {
         title: 'Command',
         showTitle: true,
         items: [
-          { path: '/', icon: '📜', label: 'Strategic Briefing', auth: true },
-          { path: '/profile', icon: '🛡️', label: 'War Room', badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
+          { path: '/', ...getRouteMetadata('/', 'Strategic Briefing', '📜'), auth: true },
+          { path: '/profile', ...getRouteMetadata('/profile', 'War Room', '🛡️'), badge: (libraryStore.personalGames?.length || 0) > 0 ? `🧬 ${libraryStore.personalGames?.length}` : null, auth: true },
           { path: '/profile?tab=dna', icon: '🧬', label: 'Soul Mapping', badge: critRx > 0 ? 'CRITICAL' : (warnRx > 0 ? 'ACTIVE' : null), auth: true },
         ].filter(i => !i.auth || !!userStore.session)
       },
@@ -128,35 +147,36 @@ export function useNavigation() {
         title: 'Training',
         showTitle: true,
         items: [
-          { path: '/sanctum', icon: '⚔️', label: 'Sanctum', badge: 'ACTIVE', auth: true },
-          { path: '/puzzles', icon: '⚡', label: 'Siege Trials', badge: 'NEW', auth: false },
-          { path: '/gauntlet', icon: '🔥', label: 'The Great Gauntlet', badge: null, auth: true },
+          { path: '/sanctum', ...getRouteMetadata('/sanctum', 'The Sanctum', '🧘'), badge: 'ACTIVE', auth: true },
+          { path: '/puzzles', ...getRouteMetadata('/puzzles', 'Siege Trials', '⚡'), badge: 'NEW', auth: false },
+          { path: '/gauntlet', ...getRouteMetadata('/gauntlet', 'The Great Gauntlet', '🔥'), badge: null, auth: true },
         ].filter(i => !i.auth || !!userStore.session)
       },
       {
         title: 'Combat',
         showTitle: true,
         items: [
-          { path: '/play', icon: '♟', label: 'Direct Combat', badge: 'LIVE', auth: false },
+          { path: '/play', ...getRouteMetadata('/play', 'Direct Combat', '⚔️'), badge: 'LIVE', auth: false },
         ].filter(i => !i.auth || !!userStore.session)
       },
       {
         title: 'Intelligence',
         showTitle: true,
         items: [
-          { path: '/analysis', icon: '🔮', label: "Oracle's Review", badge: null, auth: true },
-          { path: '/opening-lab', icon: '⚒️', label: 'Stratagem Forge', badge: null, auth: true },
-          { path: '/settings', icon: '🗝️', label: 'Codex of Rites', badge: null, auth: false },
+          { path: '/analysis', ...getRouteMetadata('/analysis', "Oracle's Review", '🔮'), badge: null, auth: true },
+          { path: '/opening-lab', ...getRouteMetadata('/opening-lab', 'Stratagem Forge', '⚒️'), badge: null, auth: true },
+          { path: '/settings', ...getRouteMetadata('/settings', 'Codex of Rites', '🗝️'), badge: null, auth: false },
         ].filter(i => !i.auth || !!userStore.session)
       },
       ...(userStore.isAdmin ? [{
         title: 'Administration',
         showTitle: true,
         items: [
-          { path: '/admin', icon: '👑', label: 'Archivist Command', auth: true }
+          { path: '/admin', ...getRouteMetadata('/admin', 'Archivist Command', '👑'), auth: true }
         ]
       }] : [])
     ].filter(section => section.items.length > 0) // Final pass: Purge empty sections
+  }) 0) // Final pass: Purge empty sections
   })
 
   return {

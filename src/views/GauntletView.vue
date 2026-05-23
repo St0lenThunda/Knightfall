@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import type { Square, PieceSymbol } from 'chess.js'
 import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
@@ -7,6 +8,12 @@ import { useUiStore } from '../stores/uiStore'
 import { fetchDailyGauntlet, type Puzzle } from '../api/puzzleApi'
 import ChessBoard from '../components/ChessBoard.vue'
 import { formatMmSs } from '../utils/telemetryUtils'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'The Great Gauntlet',
+  icon: route?.meta?.icon || '🔥'
+}))
 
 const store = useGameStore()
 const userStore = useUserStore()
@@ -143,7 +150,10 @@ onUnmounted(() => {
   <div class="gauntlet-page container">
     <div class="gauntlet-header">
       <div class="header-main">
-        <h1 class="title-lg gradient-text">The Great Gauntlet</h1>
+        <h1 class="title-lg gradient-text" style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+        </h1>
         <p class="text-secondary">5 puzzles. One shot at glory. Every day.</p>
       </div>
       

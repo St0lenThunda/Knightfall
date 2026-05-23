@@ -438,6 +438,24 @@ h4 { font-size: 1rem; font-weight: 600; }
   transform: translateX(-50%) translateY(0);
 }
 
+/* Sidebar Collapsed Tooltips (Render to the right to avoid offscreen left clipping) */
+.sidenav.collapsed [data-tooltip]::after {
+  bottom: auto;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(10px);
+  margin-left: 12px;
+  width: auto;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.sidenav.collapsed [data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
 .stat-info-trigger {
   display: inline-flex;
   align-items: center;

@@ -427,5 +427,56 @@
     ],
     "category": "mixed",
     "explanation": "Your long-range piece is exerting pressure 'through' an enemy piece. Exploit this hidden tension to win material."
+  },
+  {
+    "id": "outpost1",
+    "title": "The d5 Outpost",
+    "rating": 1300,
+    "themes": [
+      "middlegame",
+      "positional",
+      "outpost"
+    ],
+    "fen": "r2q1rk1/1p2bppp/p1npbn2/4p3/4P3/2NB1N2/PPP2PPP/R1BQ1RK1 w - - 6 10",
+    "lastMove": "a7a6",
+    "solution": [
+      "c3d5"
+    ],
+    "category": "positional",
+    "explanation": "The d5 square is a classic outpost. Black's pawns on e5 and d6 cannot challenge this square, allowing you to anchor your knight deep in enemy territory."
+  },
+  {
+    "id": "outpost2",
+    "title": "Securing the Central Outpost",
+    "rating": 1200,
+    "themes": [
+      "middlegame",
+      "positional",
+      "outpost"
+    ],
+    "fen": "r2qk2r/ppp1bppp/2np1n2/4p3/2B1P1b1/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 3 7",
+    "lastMove": "c6d4",
+    "solution": [
+      "c3d5"
+    ],
+    "category": "positional",
+    "explanation": "Jump your knight to the d5 outpost. It is a central square that cannot be easily attacked by Black's pawns, giving you a strong active piece."
+  },
+  {
+    "id": "outpost3",
+    "title": "Anchoring in the Center",
+    "rating": 1400,
+    "themes": [
+      "middlegame",
+      "positional",
+      "outpost"
+    ],
+    "fen": "r1q2rk1/pp2bppp/2np1n2/4p3/2P1P3/2N1BN2/PP3PPP/R2Q1RK1 w - - 0 11",
+    "lastMove": "c6b4",
+    "solution": [
+      "c3d5"
+    ],
+    "category": "positional",
+    "explanation": "With the pawns on c4 and e4, the d5 square is a natural outpost for your knight. Occupying it secures central dominance."
   }
 ]

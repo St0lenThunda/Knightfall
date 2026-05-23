@@ -161,7 +161,7 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
       expect(curriculum.completedQuestIds).toContain('found-origins')
       expect(userStore.markQuestComplete).toHaveBeenCalledWith('found-origins')
       expect(userStore.addXP).toHaveBeenCalledWith(30) // from quest.xp_reward (30 XP)
-      expect(uiStore.addToast).toHaveBeenCalledWith('+30 XP earned!', 'success')
+      expect(uiStore.addToast).toHaveBeenCalledWith('+30 XP earned! (Hearts Maxed)', 'success')
     })
 
     it('should skip completion, database insertion, and XP award if already completed', async () => {

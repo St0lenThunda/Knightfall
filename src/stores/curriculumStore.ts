@@ -264,6 +264,14 @@ export const useCurriculumStore = defineStore('curriculum', () => {
   /**
    * APPROACH 1: Shadow Realm Harvesting
    * Directly injects a discovered blunder into the user's personal training queue.
+   * To do this, we must:
+   * 1. Register the blunder in the 'coaching_cache' table so its FEN, theme, and 
+   *    metadata are queryable when playing the puzzle.
+   * 2. Insert a reference to this puzzle ID into the 'puzzle_queue' table, which
+   *    stores the user's spaced repetition queue.
+   * 
+   * @param gameId - The ID of the analyzed match
+   * @param blunderData - Object containing the blunder's FEN, ply, CPL drop, and best move
    */
   async function harvestBlunders(gameId: string, blunderData: any) {
     const userStore = useUserStore()
@@ -272,34 +280,85 @@ export const useCurriculumStore = defineStore('curriculum', () => {
 
     logger.info(`[Curriculum] Harvesting blunder for Shadow Realm: ${gameId}`)
 
-    const { error } = await supabase.from('puzzle_queue').insert({
-      user_id: userId,
-      game_id: gameId,
-      fen: blunderData.fen,
-      move: blunderData.move,
-      ply: blunderData.ply,
-      drop: blunderData.drop,
-      category: 'Personal Mistake',
-      metadata: {
-        harvested_at: new Date().toISOString(),
-        source: 'Cloud Intel Pass'
-      }
-    })
+    // Formulate a unique identifier for the personal mistake puzzle.
+    // The GUID portion is extracted using '-' splits during load.
+    const puzzleId = `personal-${gameId}-${blunderData.ply}`
+    
+    // Classify severity based on evaluation drop.
+    // We divide centipawns by 100 because 1 pawn = 100 centipawns.
+    const dropInPawns = blunderData.drop / 100
+    const severity = dropInPawns > 2.5 ? 'blunder' : 'mistake'
+    
+    // Determine a deterministic theme for classification
+    const theme = dropInPawns > 2.5 ? 'Tactical Oversight' : 'Positional Inaccuracy'
+    const mistakeType = dropInPawns > 2.5 ? 'tactics' : 'positional'
+    
+    // Generate a secure position hash to query and cache explanations
+    const hash = await TaggingService.generatePositionHash(
+      blunderData.fen,
+      theme,
+      severity,
+      userStore.displayName || 'Guest'
+    )
+    
+    const explanationText = `You played ${blunderData.playerMove}, but ${blunderData.move} was stronger (drops ${dropInPawns.toFixed(1)} pawns).`
 
-    if (error) {
-      logger.error('[Curriculum] Failed to harvest blunder:', error)
-    } else {
-      const uiStore = useUiStore()
-      uiStore.addToast(`Shadow Realm Updated: New tactical ghost captured from ${gameId}.`, 'success')
-      
-      // Local sync
-      personalPuzzles.value.unshift({
-        id: `harvested-${gameId}-${blunderData.ply}`,
+    try {
+      // 1. Register the position in coaching_cache so it is resolvable on demand
+      const { error: ccError } = await supabase.from('coaching_cache').insert([{
+        position_hash: hash,
         fen: blunderData.fen,
-        solution: [blunderData.move], // This will be refined by the coaching pass
-        themes: ['Shadow Realm', 'Personal Mistake'],
-        category: 'Personal Mistake'
+        theme,
+        mistake_type: mistakeType,
+        explanation_text: explanationText,
+        metadata: {
+          match_id: gameId,
+          move_index: blunderData.ply,
+          best_move: blunderData.move,
+          severity,
+          eval_drop: dropInPawns
+        }
+      }])
+
+      if (ccError && !ccError.message.includes('duplicate key')) {
+        logger.warn(`[Curriculum] Failed to cache blunder position details: ${ccError.message}`)
+      }
+
+      // 2. Queue the puzzle ID for the user's spaced repetition session
+      const { error: pqError } = await supabase.from('puzzle_queue').insert({
+        user_id: userId,
+        puzzle_id: puzzleId,
+        next_review: new Date().toISOString(),
+        interval_days: 0,
+        ease_factor: 2.5,
+        repetition: 0
       })
+
+      if (pqError) {
+        if (pqError.message.includes('duplicate key')) {
+          logger.info('[Curriculum] Blunder already exists in user queue.')
+        } else {
+          throw pqError
+        }
+      } else {
+        const uiStore = useUiStore()
+        uiStore.addToast(`Shadow Realm Updated: New tactical ghost captured.`, 'success')
+      }
+
+      // 3. Reactively update local memory state immediately for instant HUD update
+      if (!personalPuzzles.value.some(p => p.id === puzzleId)) {
+        personalPuzzles.value.unshift({
+          id: puzzleId,
+          fen: blunderData.fen,
+          solution: [blunderData.move],
+          themes: [dropInPawns > 2.5 ? 'Tactics' : 'Positional', theme],
+          category: 'Personal Mistake',
+          severity,
+          explanation: explanationText
+        })
+      }
+    } catch (err: any) {
+      logger.error('[Curriculum] Failed to harvest blunder:', err)
     }
   }
 

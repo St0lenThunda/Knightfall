@@ -165,6 +165,9 @@ export const useUserStore = defineStore('user', () => {
         logger.info('[UserStore] Repairing profile: Username missing, recovering from metadata...')
         await updateProfile({ username: session.value.user.user_metadata.username })
       }
+
+      // Check and apply time-based heart regeneration on load
+      await gamification.checkAndApplyHeartRegeneration()
     } else if (session.value.user.user_metadata?.username) {
       // If profile is missing entirely but we have metadata, create it now
       logger.info('[UserStore] Profile missing: Creating from metadata...')

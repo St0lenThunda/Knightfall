@@ -3,7 +3,10 @@
     <header class="view-header">
       <div class="header-main">
         <span class="view-pill">SECURITY_LEVEL_MAXIMUM</span>
-        <h1>Archivist Command Center</h1>
+        <h1 style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+        </h1>
         <p class="muted">
           Supervise user progression profiles, manage database metrics, and execute administrative rites.
         </p>
@@ -60,9 +63,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAdminStore } from '../stores/adminStore'
 import { useUiStore } from '../stores/uiStore'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Archivist Command',
+  icon: route?.meta?.icon || '👑'
+}))
 
 // --- COMPONENTS ---
 import UserDirectory from '../components/admin/UserDirectory.vue'

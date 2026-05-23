@@ -71,7 +71,6 @@ const libraryStore = useLibraryStore()
   padding: var(--space-6); 
   border-radius: var(--radius-xl); 
   position: relative;
-  overflow: hidden;
 }
 .card-v3:hover { transform: translateY(-2px); border-color: rgba(139, 92, 246, 0.2); }
 

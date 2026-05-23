@@ -1,7 +1,10 @@
 <template>
   <div class="analysis-compact-header">
     <div>
-      <h2 class="title-sm">🔬 Oracle's Review</h2>
+      <h2 class="title-sm" style="display: flex; align-items: center; gap: var(--space-2);">
+        <span>{{ routeMeta.icon }}</span>
+        <span>{{ routeMeta.title }}</span>
+      </h2>
       <p class="muted">AI-powered coaching, not just engine numbers</p>
     </div>
 
@@ -29,6 +32,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || "Oracle's Review",
+  icon: route?.meta?.icon || '🔮'
+}))
+
 /**
  * AnalysisHeader Component
  * 

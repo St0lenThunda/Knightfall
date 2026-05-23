@@ -1,13 +1,16 @@
 <script setup lang="ts">
-/**
- * Sanctum Header
- * 
- * Displays the main title, user badges, DNA status, and global 
- * training actions (Scan/Recalibrate).
- */
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLibraryStore } from '../../stores/libraryStore'
+import { archetypes } from '../../composables/useArchetypeStats'
 
-defineProps<{
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'The Sanctum',
+  icon: route?.meta?.icon || '🧘'
+}))
+
+const props = defineProps<{
   badges: any[]
   archetype: string
   isProcessing: boolean
@@ -16,6 +19,21 @@ defineProps<{
 
 const libraryStore = useLibraryStore()
 
+/**
+ * Computed property to find the active archetype definition object.
+ */
+const activeArchetypeObj = computed(() => {
+  const archId = props.archetype?.toLowerCase()
+  return archetypes.find(a => a.id === archId) || null
+})
+
+/**
+ * Computed display value for the player's core archetype persona (e.g. The Vanguard).
+ */
+const displayValue = computed(() => {
+  return activeArchetypeObj.value?.persona || 'The Squire'
+})
+
 defineEmits(['scan', 'recalibrate', 'openArchetype'])
 </script>
 
@@ -23,7 +41,10 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
   <div class="header-section">
     <div class="header-flex">
       <div class="title-group">
-        <h1 class="view-title">The Sanctum</h1>
+        <h1 class="view-title" style="display: flex; align-items: center; gap: var(--space-2);">
+          <span>{{ routeMeta.icon }}</span>
+          <span>{{ routeMeta.title }}</span>
+        </h1>
         <p class="view-subtitle text-muted">Your <span class="text-accent">Sanctum</span> is curated by your gameplay DNA.</p>
       </div>
       
@@ -41,9 +62,17 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
         </div>
 
         <!-- DNA Status Mini -->
-        <div class="dna-status-mini glass" @click="$emit('openArchetype')" style="cursor: pointer;">
+        <div 
+          class="dna-status-mini glass" 
+          @click="$emit('openArchetype')" 
+          style="cursor: pointer;"
+          :data-tooltip="'Active Form: ' + (activeArchetypeObj?.name || 'Initiate Form')"
+        >
           <span class="label">DNA PROFILE</span>
-          <span class="val">{{ archetype || 'The Unwritten Page' }}</span>
+          <span class="val">
+            <span v-if="activeArchetypeObj?.icon" style="margin-right: 4px;">{{ activeArchetypeObj.icon }}</span>
+            {{ displayValue.toUpperCase() }}
+          </span>
         </div>
         
         <!-- Action Buttons -->
@@ -53,7 +82,7 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
           @click="$emit('scan')"
           :disabled="isProcessing"
         >
-          <span v-if="isProcessing">📡 Analyzing...</span>
+          <span v-if="isProcessing">🔮 Analyzing...</span>
           <span v-else>🔍 Scan for Mistakes</span>
         </button>
 

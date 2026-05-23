@@ -1,6 +1,7 @@
 import { ref, computed, type Ref } from 'vue'
 import { supabase } from '../../api/supabaseClient'
 import { Storage, StorageKey } from '../../utils/storage'
+import { logger } from '../../utils/logger'
 import type { UserProfile } from '../userStore'
 
 /**
@@ -143,17 +144,31 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     }
   }
 
-  /** Deducts a heart for a blunder. */
+  /** 
+   * Deducts a heart for a blunder. 
+   * If the user was previously at max hearts, we update last_active_at to start the
+   * heart regeneration countdown immediately.
+   */
   async function deductHeart(): Promise<number> {
     if (!profile.value || profile.value.hearts <= 0) return 0
     const newHearts = profile.value.hearts - 1
     
+    const updates: Partial<UserProfile> = { hearts: newHearts }
+    if (profile.value.hearts === maxHearts.value) {
+      updates.last_active_at = new Date().toISOString()
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ hearts: newHearts })
+      .update(updates)
       .eq('id', profile.value.id)
     
-    if (!error) profile.value.hearts = newHearts
+    if (!error) {
+      profile.value.hearts = newHearts
+      if (updates.last_active_at) {
+        profile.value.last_active_at = updates.last_active_at
+      }
+    }
     return profile.value.hearts
   }
 
@@ -182,6 +197,50 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
       .eq('id', profile.value.id)
     
     if (!error) profile.value.hearts = targetHearts
+  }
+
+  /**
+   * Checks if any hearts have regenerated since the user was last active
+   * and updates both the database and the local profile.
+   * A heart is regenerated every 4 hours.
+   */
+  async function checkAndApplyHeartRegeneration() {
+    if (!profile.value) return
+    const maxH = maxHearts.value
+    const currentH = profile.value.hearts
+    
+    // If already at max hearts, no need to regenerate
+    if (currentH >= maxH) return
+
+    const lastActiveStr = profile.value.last_active_at
+    if (!lastActiveStr) return
+
+    const lastActiveTime = new Date(lastActiveStr).getTime()
+    const msElapsed = Date.now() - lastActiveTime
+    const fourHoursMs = 4 * 60 * 60 * 1000
+
+    if (msElapsed >= fourHoursMs) {
+      const heartsToRestore = Math.floor(msElapsed / fourHoursMs)
+      const newHearts = Math.min(maxH, currentH + heartsToRestore)
+      
+      if (newHearts > currentH) {
+        logger.info(`[Gamification] Regenerated ${newHearts - currentH} hearts since last activity.`)
+        
+        const adjustedLastActive = new Date(lastActiveTime + (heartsToRestore * fourHoursMs)).toISOString()
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            hearts: newHearts,
+            last_active_at: adjustedLastActive
+          })
+          .eq('id', profile.value.id)
+
+        if (!error) {
+          profile.value.hearts = newHearts
+          profile.value.last_active_at = adjustedLastActive
+        }
+      }
+    }
   }
 
   /** Updates the daily streak logic based on activity. */
@@ -254,6 +313,7 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     hearts, xp, streak, maxHearts,
     currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName, currentRankBase,
     completedQuests, badges,
-    addXP, deductHeart, gainHeart, refillHearts, updateStreak, markQuestComplete
+    addXP, deductHeart, gainHeart, refillHearts, updateStreak, markQuestComplete,
+    checkAndApplyHeartRegeneration
   }
 }

@@ -1,7 +1,10 @@
 <template>
   <div class="page settings-page">
     <div class="settings-header">
-      <h1>Codex of Rites</h1>
+      <h1 style="display: flex; align-items: center; gap: var(--space-2);">
+        <span>{{ routeMeta.icon }}</span>
+        <span>{{ routeMeta.title }}</span>
+      </h1>
       <p class="muted">Customize your laboratory environment and engine parameters</p>
     </div>
 
@@ -62,6 +65,11 @@
               @signIn="handleSignIn"
             />
 
+            <!-- MAINTENANCE & DATABASE INTEGRITY -->
+            <SettingsMaintenanceTab 
+              v-if="activeTab === 'maintenance'"
+            />
+
           </div>
         </Transition>
       </main>
@@ -70,15 +78,23 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useSettingsStore } from '../stores/settingsStore'
 import { supabase } from '../api/supabaseClient'
+
+const route = useRoute()
+const routeMeta = computed(() => ({
+  title: route?.meta?.title || 'Codex of Rites',
+  icon: route?.meta?.icon || '🗝️'
+}))
 
 // Pillar Components
 import SettingsGeneralTab from '../components/settings/SettingsGeneralTab.vue'
 import SettingsBoardTab from '../components/settings/SettingsBoardTab.vue'
 import SettingsEngineTab from '../components/settings/SettingsEngineTab.vue'
 import SettingsIdentityTab from '../components/settings/SettingsIdentityTab.vue'
+import SettingsMaintenanceTab from '../components/settings/SettingsMaintenanceTab.vue'
 
 // Pillar Composables
 import { useSettingsNavigation } from '../composables/settings/useSettingsNavigation'

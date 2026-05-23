@@ -6,10 +6,13 @@ import { useUserStore } from '../stores/userStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
 import { useUiStore } from '../stores/uiStore'
 import ChessBoard from '../components/ChessBoard.vue'
+import OutOfHeartsOverlay from '../components/common/OutOfHeartsOverlay.vue'
 import { fetchPuzzleBatch } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { logger } from '../utils/logger'
 import { Chess } from 'chess.js'
+
+const showOutOfHearts = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +53,10 @@ function goBack() {
 }
 
 onMounted(async () => {
+  if (userStore.hearts <= 0) {
+    showOutOfHearts.value = true
+  }
+
   if (!quest.value) {
     // If not found, maybe we need to generate them first?
     await curriculum.generatePersonalLessons()
@@ -68,9 +75,19 @@ onMounted(async () => {
       const batch = await fetchPuzzleBatch(quest.value.category.toLowerCase(), 5)
       puzzles.value = batch
     }
-    loadCurrentStep()
+    
+    if (userStore.hearts > 0) {
+      loadCurrentStep()
+    }
   } catch (err) {
     logger.error('[Lesson] Failed to load:', err)
+  }
+})
+
+// Resume lesson if hearts are refilled and the overlay is closed
+watch(showOutOfHearts, (newVal) => {
+  if (!newVal && userStore.hearts > 0 && puzzles.value.length > 0 && !currentPuzzle.value) {
+    loadCurrentStep()
   }
 })
 
@@ -178,10 +195,10 @@ watch(() => store.mistakeCount, async (newCount, oldCount) => {
     uiStore.addToast('Incorrect. Try again!', 'error')
     const remainingHearts = await userStore.deductHeart()
     
-    // Out of lives: send the user back to the Sanctum to recharge
+    // Out of lives: show the out of hearts overlay
     if (remainingHearts <= 0) {
-      logger.info('[Lesson] Out of hearts, redirecting to previous page.')
-      goBack() 
+      logger.info('[Lesson] Out of hearts, showing overlay.')
+      showOutOfHearts.value = true
     }
   }
 })
@@ -199,6 +216,8 @@ async function finishLesson() {
 
 <template>
   <div class="page lesson-page container">
+    <OutOfHeartsOverlay v-if="showOutOfHearts" @close="showOutOfHearts = false" />
+    
     <header class="lesson-header">
       <button class="btn btn-ghost btn-sm" @click="goBack()">← Back</button>
       

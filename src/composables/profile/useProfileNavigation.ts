@@ -16,7 +16,7 @@ export function useProfileNavigation() {
     { id: 'dna', label: '🧬 Soul Mapping' },
     { id: 'vault', label: '🗄️ Archives' },
     { id: 'constellation', label: '✨ Constellation' },
-    { id: 'integrations', label: '🛰️ Integrations' }
+    { id: 'integrations', label: '🔗 Integrations' }
   ]
 
   // Initialize from query param or default to overview

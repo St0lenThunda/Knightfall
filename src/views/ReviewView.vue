@@ -6,6 +6,9 @@ import { useEngineStore } from '../stores/engineStore'
 import { useReviewSession } from '../composables/useReviewSession'
 import { useAnalysisPlayers } from '../composables/useAnalysisPlayers'
 import ChessBoard from '../components/ChessBoard.vue'
+import OutOfHeartsOverlay from '../components/common/OutOfHeartsOverlay.vue'
+
+const showOutOfHearts = ref(false)
 
 const store = useGameStore()
 const userStore = useUserStore()
@@ -26,11 +29,22 @@ const feedbackType = ref<'success' | 'error' | 'info'>('info')
 const isAnalyzing = ref(false)
 
 onMounted(() => {
-  // Start review automatically if a game is loaded
-  if (store.moveHistory.length > 0) {
+  if (userStore.hearts <= 0) {
+    showOutOfHearts.value = true
+  }
+
+  // Start review automatically if a game is loaded and user has hearts
+  if (store.moveHistory.length > 0 && userStore.hearts > 0) {
     startReview()
-  } else {
+  } else if (store.moveHistory.length === 0) {
     feedbackMsg.value = "Load a game in the Analysis Lab first to start a review session."
+  }
+})
+
+// Auto-start review if hearts are refilled and the overlay is closed
+watch(showOutOfHearts, (newVal) => {
+  if (!newVal && userStore.hearts > 0 && !isActive.value && store.moveHistory.length > 0) {
+    startReview()
   }
 })
 
@@ -73,8 +87,10 @@ async function handleMove() {
     feedbackType.value = 'error'
     await submitAttempt(lastMove.san, false)
     
-    // Reset to mistake position if failed
-    if (userStore.hearts > 0) {
+    // Reset to mistake position if failed, or show overlay if out of hearts
+    if (userStore.hearts <= 0) {
+      showOutOfHearts.value = true
+    } else {
       setTimeout(() => {
         store.loadPosition(currentMistake.value!.fen)
       }, 1000)
@@ -85,6 +101,8 @@ async function handleMove() {
 
 <template>
   <div class="page review-page container">
+    <OutOfHeartsOverlay v-if="showOutOfHearts" @close="showOutOfHearts = false" />
+    
     <header class="review-header">
       <div class="header-main">
         <h1 class="title-lg gradient-text">Fix Your Mistakes</h1>

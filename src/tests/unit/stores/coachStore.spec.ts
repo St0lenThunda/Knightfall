@@ -202,5 +202,26 @@ describe('CoachStore (The Brain)', () => {
       expect(coachStore.achievements.badges).toBeDefined()
       expect(coachStore.achievements.title).toBeDefined()
     })
+
+    it('successfully recalculates DNA profile and updates user profile', async () => {
+      const userStore = useUserStore()
+      
+      // Setup failures to trigger a 'tactics' weakness (which maps to 'storm')
+      userStore.puzzleAttempts = [
+        { solved: false, themes: ['tactics'], id: '1', date: '', pgn: '', score: 0 }
+      ] as any
+      userStore.session = { user: { id: 'test-id' } } as any
+      userStore.profile = { id: 'test-id', archetype: 'student' } as any
+      
+      const coachStore = useCoachStore()
+      
+      // Spy on updateProfile in userStore
+      const updateProfileSpy = vi.spyOn(userStore, 'updateProfile').mockResolvedValue(undefined as any)
+      
+      await coachStore.recalculateDnaProfile()
+      
+      // Expect updateProfile to be called with the mapped archetype ID ('storm')
+      expect(updateProfileSpy).toHaveBeenCalledWith({ archetype: 'storm' })
+    })
   })
 })

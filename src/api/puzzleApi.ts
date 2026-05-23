@@ -100,7 +100,8 @@ export async function fetchPuzzleBatch(category?: string, count: number = 3): Pr
   await new Promise(r => setTimeout(r, 200 + Math.random() * 300))
   let pool = puzzles
   if (category && category !== 'mixed') {
-    pool = puzzles.filter(p => p.category === category)
+    const targetCat = category.toLowerCase()
+    pool = puzzles.filter(p => p.category.toLowerCase() === targetCat)
     if (pool.length === 0) pool = puzzles
   }
   
