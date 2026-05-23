@@ -373,14 +373,13 @@ export const FOUNDATION_LESSONS: FoundationLesson[] = [
       {
         title: 'Good Bishop vs. Bad Bishop',
         narrative:
-          `In chess strategy, a bishop is called "good" when it operates freely on open diagonals, and "bad" when its own pawns block its path. A "bad bishop" is stuck behind a wall of friendly pawns sitting on the same color squares — it has nowhere to go and nothing to do.\n\n` +
-          `Look at the position below: the bishop on d4 is completely hemmed in by its own pawns on c3, d3, e3, c5, d5, and e5. Those pawns sit on the same dark squares as the bishop, clogging every diagonal. The bishop is technically on the board but contributing almost nothing.\n\n` +
-          `The lesson? Pay attention to where your pawns are relative to your bishop. If you have a dark-squared bishop, try to place your pawns on light squares — this keeps the diagonals open for your bishop to operate. This idea was explored in depth by Aron Nimzowitsch in his legendary 1925 book.`,
+          `In chess strategy, a bishop is called "good" when it operates freely on open diagonals, and "bad" when its own pawns block its path. A "bad bishop" is stuck behind a wall of friendly pawns sitting on the same color squares — leaving it with nowhere to go.\n\n` +
+          `To maximize your bishops, pay attention to your pawn structure. If you have a dark-squared bishop, try to place your central pawns on light squares. This creates a complementary system where your pawns control the light squares and your bishop sweeps the dark squares, keeping the diagonals wide open.`,
         historicalNote:
           'Did You Know? Aron Nimzowitsch\'s book "My System" (1925) revolutionized chess strategy forever. His ideas about "good" and "bad" bishops, pawn structure, and prophylaxis (preventing your opponent\'s plans) are still the foundation of how grandmasters think today — over 100 years later.',
         fen: '8/8/8/2PPP3/3B4/2PPP3/8/8 w - - 0 1',
         boardDescription:
-          'A white bishop on d4 is completely blocked by its own pawns on c3, d3, e3, c5, d5, and e5. These pawns all sit on dark squares, the same color as the bishop. This is the classic "bad bishop" — powerful in theory but useless in practice.',
+          'Notice the white bishop on d4. It is completely entombed by its own pawns on c3, d3, e3, c5, d5, and e5. Because the pawns and the bishop share the same color squares, the bishop has zero mobility. This is the classic "bad bishop".',
       },
     ],
     quiz: [
