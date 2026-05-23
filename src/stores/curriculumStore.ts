@@ -205,8 +205,12 @@ export const useCurriculumStore = defineStore('curriculum', () => {
           const xp = quest.xp_reward || 50
           userStore.addXP(xp)
           
+          if (userStore.gainHeart) {
+            userStore.gainHeart()
+          }
+          
           const uiStore = useUiStore()
-          uiStore.addToast(`+${xp} XP earned!`, 'success')
+          uiStore.addToast(`+${xp} XP & +1 ❤️ earned!`, 'success')
         }
       } catch (e) {
         logger.error('[Curriculum] Failed to trigger gamification sync:', e)

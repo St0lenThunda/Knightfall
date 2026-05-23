@@ -317,7 +317,11 @@ export const useUserStore = defineStore('user', () => {
     await gamification.addXP(25)
     await gamification.updateStreak()
     
-    logger.info(`[UserStore] Gauntlet completed: ${date} in ${time}s. Bonus XP awarded.`)
+    if (gamification.gainHeart) {
+      await gamification.gainHeart()
+    }
+    
+    logger.info(`[UserStore] Gauntlet completed: ${date} in ${time}s. Bonus XP and +1 Heart awarded.`)
   }
 
   /**
@@ -430,6 +434,8 @@ export const useUserStore = defineStore('user', () => {
     submitGauntletResult,
     syncGlobalIntelligence,
     deleteAccount,
+    
+    gainHeart: gamification.gainHeart,
     
     // Global Computed (Bridge between stats and identity)
     rating: ratingSystem.currentRating,

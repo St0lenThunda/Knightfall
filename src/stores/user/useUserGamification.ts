@@ -128,6 +128,21 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     return profile.value.hearts
   }
 
+  /** Adds a heart, up to the maximum. */
+  async function gainHeart(): Promise<number> {
+    if (!profile.value) return 0
+    if (profile.value.hearts >= maxHearts) return profile.value.hearts
+    const newHearts = profile.value.hearts + 1
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ hearts: newHearts })
+      .eq('id', profile.value.id)
+    
+    if (!error) profile.value.hearts = newHearts
+    return profile.value.hearts
+  }
+
   /** Refills hearts to max. */
   async function refillHearts() {
     if (!profile.value) return
@@ -209,6 +224,6 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
     hearts, xp, streak, maxHearts,
     currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName, currentRankBase,
     completedQuests, badges,
-    addXP, deductHeart, refillHearts, updateStreak, markQuestComplete
+    addXP, deductHeart, gainHeart, refillHearts, updateStreak, markQuestComplete
   }
 }
