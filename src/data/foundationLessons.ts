@@ -561,10 +561,10 @@ export const FOUNDATION_LESSONS: FoundationLesson[] = [
         narrative:
           `The most common piece of advice given to beginners is: **castle early**. The center of the board is a war zone — pawns are pushed, pieces are developed, and the center files get opened up. A king stuck on e1 is an invitation for an attack.\n\n` +
           `By castling kingside (moving the king to g1 and the rook to f1), you accomplish two things at once: the king hides behind a wall of pawns (f2, g2, h2), and the rook escapes the corner to join the fight. It's the most efficient defensive and developmental move in chess.\n\n` +
-          `In the position below, both sides have developed their knights and bishops but neither has castled yet. The center is ready to be opened, and the kings are vulnerable. Castle now — before your opponent launches an attack!`,
+          `A vulnerable king is a liability. Once your minor pieces are out, prioritize castling before launching an attack of your own!`,
         fen: 'r1bqk2r/ppppbppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 6 5',
         boardDescription:
-          'A well-developed position: White has a knight on f3, bishop on c4, and pawn on e4. Black has knights on c6 and f6, a bishop on e7, and a pawn on e5. Both kings remain on their starting squares — vulnerable. It\'s time to castle!',
+          'Notice how both kings are still sitting exposed in the center on the open e-file, despite all minor pieces being developed. It is time to castle and get the king to safety.',
         challenge: {
           instruction: 'Castle kingside for king safety! Move the king from e1 to g1.',
           from: 'e1',
@@ -614,30 +614,30 @@ export const FOUNDATION_LESSONS: FoundationLesson[] = [
         narrative:
           `When a piece directly attacks the enemy king, it's called **check**. Think of it as a warning shot — the king is under fire, and the player MUST deal with it immediately. You cannot ignore check; you cannot make any other move until the king is safe.\n\n` +
           `There are exactly three ways to escape check: **(1) Move** the king to a square that isn't attacked, **(2) Block** the attack by placing a piece between the attacker and the king, or **(3) Capture** the piece giving check. If at least one of these options is available, the game continues.\n\n` +
-          `In the position below, the black bishop on f3 is giving check to the white king on d1 along the diagonal. White must respond — can you spot the escape routes?`,
+          `Examine the board carefully when in check. A single mistake could end the game. Can you spot all the available escape routes?`,
         fen: '4k3/8/8/8/8/5b2/8/3K4 w - - 0 1',
         boardDescription:
-          'White king on d1 is in check from the black bishop on f3. The bishop attacks along the f3–d1 diagonal. White must either move the king (to c1, c2, d2, or e1 — but must verify which are safe), block the diagonal, or capture the bishop. Black king stands safely on e8.',
+          'The black bishop on f3 slices down the diagonal, delivering a direct check to the white king on d1. White must immediately respond by moving the king to a safe square (c1, c2, d2, or e1).',
       },
       {
         title: 'Checkmate — The Final Blow',
         narrative:
           `Checkmate is the ultimate goal of chess — the king is in check AND has no way to escape. No legal move can save it: the king can't move to safety, no piece can block the attack, and the attacker can't be captured. Game over.\n\n` +
-          `The fastest possible checkmate is **Fool's Mate**, which can happen in just 2 moves: 1.f3 e5 2.g4?? Qh4#. White weakens the kingside by pushing the f and g pawns, and the black queen swoops to h4 delivering checkmate. The white king on e1 is attacked by the queen, and every escape square is blocked or guarded.\n\n` +
-          `Fool's Mate is almost never seen in real games because it requires White to play two terrible moves in a row. But it teaches a vital lesson: **weakening the squares around your king is extremely dangerous**, especially the f2/f7 pawns that protect the king's diagonal.`,
+          `The fastest possible checkmate is **Fool's Mate**, which can happen in just 2 moves: 1.f3 e5 2.g4?? Qh4#. By carelessly pushing the f and g pawns, White fatally weakens the diagonal leading to the king.\n\n` +
+          `Fool's Mate is almost never seen in real games because it requires White to play two terrible moves in a row. But it teaches a vital lesson: **weakening the squares around your king is extremely dangerous**, especially the f2/f7 pawns.`,
         fen: 'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3',
         boardDescription:
-          'Fool\'s Mate — the fastest checkmate in chess. After 1.f3 e5 2.g4 Qh4#, the black queen on h4 delivers checkmate. The white king on e1 has no escape: f1 and f2 are controlled by the queen, d1 is blocked by the queen on d8\'s original square, and the e2 square is also covered. This is the ultimate cautionary tale about weakening your king.',
+          'The aftermath of Fool\'s Mate. The black queen on h4 delivers checkmate. The white king on e1 has no safe squares: f1, f2, and e2 are fully controlled or blocked. Game over.',
       },
       {
         title: 'Stalemate — The Great Escape',
         narrative:
           `Here's one of chess's most surprising rules: if a player has **no legal moves** but is **NOT in check**, the game is a **draw** called stalemate. The player isn't losing — they simply have no valid move, and the game ends in a tie.\n\n` +
           `Stalemate is a lifeline for the losing side. Imagine you're down to a lone king against your opponent's king and queen. You're hopelessly behind — but if your opponent carelessly takes away all your escape squares without actually giving check, you get a draw! Many games between grandmasters have been saved (or thrown away) by stalemate.\n\n` +
-          `In the position below, it's Black's turn. The black king on f8 seems to have options — but look carefully. Every square around it (e8, e7, g7, g8) is either occupied or controlled by White's king on f6 or the pawn on f7. Yet the king is NOT in check. That's stalemate — and Black escapes with a draw!`,
+          `A king trapped without being under attack is a tragic mistake for the winning side. Always ensure your opponent has at least one legal move unless you are delivering checkmate!`,
         fen: '5k2/5P2/5K2/8/8/8/8/8 b - - 0 1',
         boardDescription:
-          'Stalemate! Black to move. The black king on f8 has no legal moves: e8 and g8 are attacked by the white pawn on f7, while e7 and g7 are controlled by the white king on f6. The f7 square is blocked by the pawn. Yet the king is NOT in check — no piece is attacking f8. Result: a draw by stalemate.',
+          'It is Black\'s turn, but the king on f8 has no legal moves. White\'s king and pawn control all escape squares (e8, e7, g7, g8), yet the f8 square itself is perfectly safe. Because Black is not in check but cannot move, the game is a draw by stalemate.',
       },
     ],
     quiz: [
@@ -691,33 +691,33 @@ export const FOUNDATION_LESSONS: FoundationLesson[] = [
         title: 'Principle 1 — Control the Center',
         narrative:
           `If you only remember one principle from this entire course, make it this one: **control the center**. The four central squares — d4, e4, d5, and e5 — are the most important real estate on the chessboard. A piece in the center can reach more squares, respond to threats on both sides, and project influence across the entire board.\n\n` +
-          `This is why almost every game begins with 1.e4 or 1.d4 — White immediately stakes a claim in the center. Look at the position below: White has pushed both central pawns to e4 and d4, building a powerful "pawn duo" that controls four key squares (c5, d5, e5, f5). Black must challenge this center or risk being squeezed.\n\n` +
+          `This is why almost every game begins with 1.e4 or 1.d4 — White immediately stakes a claim in the center. Pushing both central pawns builds a powerful "pawn duo" that restricts where the opponent can safely place their pieces.\n\n` +
           `Paul Morphy, the greatest 19th-century player, won almost all of his games by relentlessly controlling the center and then launching attacks from the position of strength it gave him. The center is your launchpad for everything else.`,
         fen: 'rnbqkbnr/pppppppp/8/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq - 0 2',
         boardDescription:
-          'White has pushed both central pawns: e4 and d4. This "ideal pawn center" controls the key squares c5, d5, e5, and f5, restricting where Black\'s pieces can safely go. This is the foundation of most classical openings.',
+          'Behold the "ideal pawn center". White\'s pawns on d4 and e4 form a blockade that completely controls c5, d5, e5, and f5. Black must challenge this structure or risk being squeezed off the board.',
       },
       {
         title: 'Principle 2 — Develop Your Pieces',
         narrative:
           `An army that never leaves the barracks can't win a war. In chess, **development** means getting your pieces off the back rank and into the action — especially your knights and bishops (the "minor pieces"). Every turn you spend NOT developing is a turn your opponent can use to build their army.\n\n` +
           `The golden rules of development: (1) Move each piece once before moving any piece twice. (2) Develop knights and bishops before the queen. (3) Don't waste time on pawn moves that don't contribute to development or center control. (4) Connect your rooks by castling and clearing the back rank.\n\n` +
-          `In the position below, White has followed these rules perfectly: the knight has developed to f3, the bishop to c4, and the e-pawn has opened lines. Compare this to Black, who has also developed two knights but hasn't yet mobilized the bishops. Good development gives you a head start in the battle.`,
+          `Good development gives you a head start in the battle. Whichever player completes their development first usually dictates the flow of the game.`,
         fen: 'r1bqkb1r/pppppppp/2n2n2/8/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
         boardDescription:
-          'White has developed efficiently: pawn to e4 (center control), knight to f3 (developed and attacking), bishop to c4 (aimed at the vulnerable f7 square). Black has developed two knights (c6 and f6) but the bishops are still home. White has a slight developmental advantage.',
+          'Compare the two sides. White has followed the opening principles perfectly (e4, Nf3, Bc4), preparing to castle. Black has developed two knights but left the bishops at home. White holds a clear developmental advantage.',
       },
       {
         title: 'Principle 3 — King Safety',
         narrative:
           `The third pillar of chess is **king safety** — and the simplest way to achieve it is to **castle early**. We've discussed castling in the rook and king lessons, but here we see the full picture: castling isn't just one good idea, it's the third of the three fundamental principles of chess.\n\n` +
           `The opening is a race: develop your pieces, control the center, and get your king to safety — ideally all within the first 10 moves. Players who delay castling often find their king caught in a crossfire of enemy pieces pouring down the open center files.\n\n` +
-          `The position below is the **Italian Game** — one of the oldest and most natural openings. Both sides have developed a knight and a bishop, and both have pushed their e-pawns. The next critical step? Castle! Tuck that king away and bring the rook into play. Try it now.`,
+          `Once your minor pieces are out and the path is clear, don't wait. Tuck that king away and bring the rook into play. Try it now.`,
         historicalNote:
           'Did You Know? The Italian Game (1.e4 e5 2.Nf3 Nc6 3.Bc4) is one of the oldest recorded openings in chess history, dating back to the 16th century. It was analyzed in the very first chess book ever printed — Luis Ramírez de Lucena\'s "Repetición de Amores y Arte de Ajedrez" (1497). Over 500 years later, it\'s still played at the highest level!',
         fen: 'rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
         boardDescription:
-          'The Italian Game: 1.e4 e5 2.Nf3 Nc6 (wait — this FEN has a black bishop on c5, so it\'s after 3.Bc4 Bc5). Both sides have developed one knight and one bishop, and the center pawns are in place. Neither king has castled yet — both sit vulnerably on the e-file. Time to castle!',
+          'In this classic Italian Game position, both players have successfully controlled the center and developed their minor pieces. The final step before the middlegame begins is to castle and secure the king.',
         challenge: {
           instruction: 'Complete the opening principles — castle kingside for king safety! Move the king from e1 to g1.',
           from: 'e1',
