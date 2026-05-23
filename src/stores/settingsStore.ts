@@ -20,6 +20,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const coachPersonality = ref<CoachPersonality>(Storage.get(StorageKey.COACH_PERSONALITY, 'encouraging'))
   const showBestMoveArrow = ref<boolean>(Storage.get(StorageKey.SHOW_BEST_MOVE_ARROW, true))
   const showThreatArrow = ref<boolean>(Storage.get(StorageKey.SHOW_THREAT_ARROW, true))
+  const showCoordinates = ref<boolean>(Storage.get(StorageKey.SHOW_COORDINATES, false))
 
   // Analysis Visibility
   const analysisShowSuggestions = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, true))
@@ -41,6 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(coachPersonality, (newVal) => Storage.set(StorageKey.COACH_PERSONALITY, newVal))
   watch(showBestMoveArrow, (newVal) => Storage.set(StorageKey.SHOW_BEST_MOVE_ARROW, newVal))
   watch(showThreatArrow, (newVal) => Storage.set(StorageKey.SHOW_THREAT_ARROW, newVal))
+  watch(showCoordinates, (newVal) => Storage.set(StorageKey.SHOW_COORDINATES, newVal))
   watch(analysisShowSuggestions, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, newVal))
   watch(analysisShowCoach, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_COACH, newVal))
   watch(analysisShowPositionalHealth, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_POSITIONAL_HEALTH, newVal))
@@ -50,7 +52,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return { 
     boardTheme, pieceTheme, soundEnabled, 
     engineMultiPv, analysisDepth, 
-    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow,
+    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow, showCoordinates,
     analysisShowSuggestions, analysisShowCoach, analysisShowPositionalHealth,
     analysisShowCriticalLines, analysisShowEvalBar
   }

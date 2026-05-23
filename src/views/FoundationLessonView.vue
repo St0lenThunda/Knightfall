@@ -36,6 +36,7 @@ import { useGameStore } from '../stores/gameStore'
 import { useUserStore } from '../stores/userStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
 import { useUiStore } from '../stores/uiStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { logger } from '../utils/logger'
 
 import ChessBoard from '../components/ChessBoard.vue'
@@ -54,6 +55,7 @@ const store = useGameStore()
 const userStore = useUserStore()
 const curriculum = useCurriculumStore()
 const uiStore = useUiStore()
+const settingsStore = useSettingsStore()
 
 /**
  * The lesson ID from the route parameter (e.g., 'found-origins').
@@ -187,7 +189,9 @@ function resetBoard() {
 watch(() => store.selectedSquare, (sq) => {
   // We only show coordinate toasts during the narrative phase when the challenge is not active.
   if (sq && phase.value === 'story' && !challengeActive.value) {
-    uiStore.addToast(`Square: ${sq.toUpperCase()}`, 'info')
+    if (lessonId === 'found-board' || settingsStore.showCoordinates) {
+      uiStore.addToast(`Square: ${sq.toUpperCase()}`, 'info')
+    }
   }
 })
 

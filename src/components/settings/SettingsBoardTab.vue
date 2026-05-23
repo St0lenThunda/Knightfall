@@ -9,13 +9,15 @@ defineProps<{
   pieceTheme: string
   showBestMoveArrow: boolean
   showThreatArrow: boolean
+  showCoordinates: boolean
 }>()
 
 const emit = defineEmits([
   'update:boardTheme', 
   'update:pieceTheme', 
   'update:showBestMoveArrow', 
-  'update:showThreatArrow'
+  'update:showThreatArrow',
+  'update:showCoordinates'
 ])
 
 const boardThemes = [
@@ -89,6 +91,21 @@ const boardThemes = [
           type="checkbox" 
           :checked="showThreatArrow" 
           @change="emit('update:showThreatArrow', ($event.target as HTMLInputElement).checked)"
+          class="toggle-switch" 
+        />
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="label">Coordinate Assistant</div>
+        <div class="desc">Show a popup toast revealing the exact rank and file of any square you tap</div>
+      </div>
+      <div class="setting-action">
+        <input 
+          type="checkbox" 
+          :checked="showCoordinates" 
+          @change="emit('update:showCoordinates', ($event.target as HTMLInputElement).checked)"
           class="toggle-switch" 
         />
       </div>

@@ -33,6 +33,7 @@
               v-model:pieceTheme="settings.pieceTheme"
               v-model:showBestMoveArrow="settings.showBestMoveArrow"
               v-model:showThreatArrow="settings.showThreatArrow"
+              v-model:showCoordinates="settings.showCoordinates"
             />
 
             <!-- ENGINE SETTINGS -->
