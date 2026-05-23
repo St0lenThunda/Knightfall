@@ -21,16 +21,16 @@ const emit = defineEmits(['login', 'signup', 'logout'])
         </div>
         <div class="user-info" @click="$emit('logout')" data-tooltip="Click to sign out">
           <div class="user-name">{{ userStore.profile?.username || 'Player' }}</div>
-          <div class="user-rating">
-            <span class="badge badge-gold" data-tooltip="Your overall performance rating.">
-              ♔ {{ libraryStore.stats?.performanceRating || 1200 }} 
-            </span>
-            <span class="badge badge-primary" data-tooltip="Your total scholar experience.">
-              ✨ {{ userStore.xp || 0 }} XP 
-            </span>
-            <span class="badge badge-rose" data-tooltip="Your remaining lives. Play lessons or gauntlet to restore.">
-              ❤️ {{ userStore.profile?.hearts ?? 5 }} / 5
-            </span>
+          <div class="user-stats">
+            <div class="stat" data-tooltip="Performance Rating">
+              <span class="icon" style="color: var(--gold);">♔</span> {{ libraryStore.stats?.performanceRating || 1200 }}
+            </div>
+            <div class="stat" data-tooltip="Scholar XP">
+              <span class="icon">✨</span> {{ userStore.xp || 0 }}
+            </div>
+            <div class="stat" data-tooltip="Hearts">
+              <span class="icon">❤️</span> {{ userStore.profile?.hearts ?? 5 }}
+            </div>
           </div>
         </div>
       </div>
@@ -115,10 +115,25 @@ const emit = defineEmits(['login', 'signup', 'logout'])
   color: var(--text);
 }
 
-.user-rating {
+.user-stats {
   display: flex;
-  gap: 6px;
-  margin-top: 4px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.stat .icon {
+  font-size: 0.8rem;
 }
 
 .guest-actions {
@@ -135,11 +150,5 @@ const emit = defineEmits(['login', 'signup', 'logout'])
   flex: 1;
   font-size: 0.75rem;
   padding: 6px;
-}
-
-.badge-rose {
-  background: rgba(244, 63, 94, 0.15);
-  color: var(--rose);
-  border-color: rgba(244, 63, 94, 0.3);
 }
 </style>
