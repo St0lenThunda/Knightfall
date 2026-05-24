@@ -1,7 +1,7 @@
 {
   "name": "knightfall",
   "private": true,
-  "version": "0.44.1",
+  "version": "0.45.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,6 @@
     "jszip": "^3.10.1",
     "marked": "^18.0.0",
     "pinia": "^3.0.4",
-    "stockfish": "^18.0.7",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },

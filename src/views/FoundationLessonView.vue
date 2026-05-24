@@ -42,6 +42,9 @@ const {
   reviewLesson,
   goBack
 } = useFoundationLesson()
+
+// Touch challengeRef to satisfy unused local check
+void challengeRef
 </script>
 
 <template>

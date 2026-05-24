@@ -37,6 +37,10 @@
               v-model:showBestMoveArrow="settings.showBestMoveArrow"
               v-model:showThreatArrow="settings.showThreatArrow"
               v-model:showCoordinates="settings.showCoordinates"
+              v-model:showPieceOutlines="settings.showPieceOutlines"
+              v-model:moveAnimationEffect="settings.moveAnimationEffect"
+              v-model:moveAnimationDensity="settings.moveAnimationDensity"
+              v-model:moveAnimationLength="settings.moveAnimationLength"
             />
 
             <!-- ENGINE SETTINGS -->

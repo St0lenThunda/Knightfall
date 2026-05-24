@@ -117,6 +117,16 @@ export const useLibraryStore = defineStore('library', () => {
   const vaultOffset = ref(0)
   const totalVaultGames = ref(0)
 
+  /**
+   * Watcher on the main games collection to keep totalVaultGames synchronized.
+   * Whenever games are imported, deleted, or repaired, this automatically queries
+   * IndexedDB for the up-to-date count and updates the store state reactively.
+   */
+  watch(games, async () => {
+    // Retrieve the current count directly from the local IndexedDB instance
+    totalVaultGames.value = await idb.getGameCount()
+  })
+
   const filter = useLibraryFilter(
     games, 
     userStore, 

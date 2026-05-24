@@ -16,7 +16,6 @@
  * This component is deliberately lightweight to keep the parent modal under
  * the 500‑line limit and to promote reusability across other views.
  */
-import { defineProps, defineEmits } from 'vue'
 
 const props = defineProps<{ game: any; copied: boolean }>()
 const emit = defineEmits(['copy-pgn'])

@@ -15,7 +15,7 @@ export function useProfileNavigation() {
     { id: 'overview', label: '⚡ War Room' },
     { id: 'dna', label: '🧬 Soul Mapping' },
     { id: 'vault', label: '🗄️ Archives' },
-    { id: 'constellation', label: '✨ Constellation' },
+    // { id: 'constellation', label: '✨ Constellation' },
     { id: 'integrations', label: '🔗 Integrations' }
   ]
 

@@ -18,6 +18,7 @@ export interface Puzzle {
   category: string
   explanation?: string // Optional coaching insight for personal puzzles
   severity?: 'blunder' | 'mistake' | 'inaccuracy'
+  evalDrop?: number // Optional evaluation drop in pawns/centipawns
 }
 
 const puzzles = puzzlesData as Puzzle[]

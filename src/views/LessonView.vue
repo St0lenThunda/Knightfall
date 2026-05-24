@@ -10,7 +10,7 @@ import OutOfHeartsOverlay from '../components/common/OutOfHeartsOverlay.vue'
 import { fetchPuzzleBatch } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { logger } from '../utils/logger'
-import { Chess } from 'chess.js'
+import { Chess, type PieceSymbol } from 'chess.js'
 
 const showOutOfHearts = ref(false)
 
@@ -20,6 +20,7 @@ const store = useGameStore()
 const userStore = useUserStore()
 const curriculum = useCurriculumStore()
 const uiStore = useUiStore()
+
 
 const questId = route.params.id as string
 const quest = computed(() => {
@@ -67,10 +68,10 @@ onMounted(async () => {
   }
 
   try {
-    if (quest.value.puzzles) {
+    if (quest.value && 'puzzles' in quest.value) {
       // Personal lesson already has puzzles
       puzzles.value = quest.value.puzzles
-    } else {
+    } else if (quest.value) {
       // Fetch 5 puzzles matching the quest's theme/category
       const batch = await fetchPuzzleBatch(quest.value.category.toLowerCase(), 5)
       puzzles.value = batch
@@ -86,7 +87,7 @@ onMounted(async () => {
 
 // Resume lesson if hearts are refilled and the overlay is closed
 watch(showOutOfHearts, (newVal) => {
-  if (!newVal && userStore.hearts > 0 && puzzles.value.length > 0 && !currentPuzzle.value) {
+  if (!newVal && userStore.hearts > 0 && puzzles.value.length > 0 && (!store.gameStarted || !currentPuzzle.value)) {
     loadCurrentStep()
   }
 })
@@ -175,7 +176,7 @@ watch(() => store.drillIndex, (newIdx) => {
     setTimeout(() => {
       const from = nextMove.slice(0, 2) as any
       const to = nextMove.slice(2, 4) as any
-      const promotion = nextMove[4] || undefined
+      const promotion = (nextMove[4] as PieceSymbol) || undefined
       store.makeMove(from, to, promotion)
       logger.info(`[Lesson] Opponent played auto-move: ${nextMove}`)
     }, 600) // 600ms delay simulates response time

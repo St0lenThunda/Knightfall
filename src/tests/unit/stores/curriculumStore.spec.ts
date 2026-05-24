@@ -126,8 +126,26 @@ describe('Curriculum Store - Shadow Realm Intelligence', () => {
     
     // 1. Manually populate personal puzzles with a common theme
     curriculum.personalPuzzles = [
-      { id: 'p1', themes: ['Fork'], category: 'Personal Mistake' },
-      { id: 'p2', themes: ['Fork'], category: 'Personal Mistake' }
+      {
+        id: 'p1',
+        title: 'Tactics: Fork',
+        rating: 1200,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        lastMove: '',
+        solution: [],
+        themes: ['Fork'],
+        category: 'Personal Mistake'
+      },
+      {
+        id: 'p2',
+        title: 'Tactics: Fork',
+        rating: 1200,
+        fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        lastMove: '',
+        solution: [],
+        themes: ['Fork'],
+        category: 'Personal Mistake'
+      }
     ]
 
     // 2. Trigger Lesson Generation

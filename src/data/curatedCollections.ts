@@ -18,15 +18,15 @@ export const TOP_50_COLLECTIONS: CuratedCollection[] = [
   { id: 'alekhine', name: 'Alexander Alekhine', category: 'players', url: '/libraries/Alekhine.zip', description: 'Attacking genius and calculated aggression.', gameCount: 2100, sourceWebsite: 'pgnmentor.com' },
   { id: 'karpov', name: 'Anatoly Karpov', category: 'players', url: '/libraries/Karpov.zip', description: 'Suffocating positional dominance.', gameCount: 3500, sourceWebsite: 'pgnmentor.com' },
   { id: 'morphy', name: 'Paul Morphy', category: 'players', url: '/libraries/Morphy.zip', description: 'The pride and sorrow of chess. Classical principles.', gameCount: 400, sourceWebsite: 'pgnmentor.com' },
-  { id: 'nakamura', name: 'Hikaru Nakamura', category: 'players', url: '/libraries/Nakamura.zip', description: 'Tactical speed and modern resilience.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'anand', name: 'Viswanathan Anand', category: 'players', url: '/libraries/Anand.zip', description: 'Intuitive speed and universal mastery.', sourceWebsite: 'pgnmentor.com' },
+  { id: 'nakamura', name: 'Hikaru Nakamura', category: 'players', url: '/libraries/Nakamura.zip', description: 'Tactical speed and modern resilience.', gameCount: 9755, sourceWebsite: 'pgnmentor.com' },
+  { id: 'anand', name: 'Viswanathan Anand', category: 'players', url: '/libraries/Anand.zip', description: 'Intuitive speed and universal mastery.', gameCount: 4211, sourceWebsite: 'pgnmentor.com' },
   { id: 'polgar', name: 'Judit Polgar', category: 'players', url: '/libraries/Polgar.zip', description: 'Strongest woman ever. Ferociously tactical.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'botvinnik', name: 'Mikhail Botvinnik', category: 'players', url: '/libraries/Botvinnik.zip', description: 'The "Patriarch" of Soviet chess strategy.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'petrosian', name: 'Tigran Petrosian', category: 'players', url: '/libraries/Petrosian.zip', description: 'The "Iron Tigran". Deep prophylaxis.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'spassky', name: 'Boris Spassky', category: 'players', url: '/libraries/Spassky.zip', description: 'Universal playing style at its finest.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'smyslov', name: 'Vasily Smyslov', category: 'players', url: '/libraries/Smyslov.zip', description: 'Endgame harmony and positional flow.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'korchnoi', name: 'Viktor Korchnoi', category: 'players', url: '/libraries/Korchnoi.zip', description: 'The "Terrible". Relentless counter-attack.', sourceWebsite: 'pgnmentor.com' },
-  { id: 'giri', name: 'Anish Giri', category: 'players', url: '/libraries/Giri.zip', description: 'Modern theory and rock-solid technique.', sourceWebsite: 'pgnmentor.com' },
+  { id: 'botvinnik', name: 'Mikhail Botvinnik', category: 'players', url: '/libraries/Botvinnik.zip', description: 'The "Patriarch" of Soviet chess strategy.', gameCount: 891, sourceWebsite: 'pgnmentor.com' },
+  { id: 'petrosian', name: 'Tigran Petrosian', category: 'players', url: '/libraries/Petrosian.zip', description: 'The "Iron Tigran". Deep prophylaxis.', gameCount: 1893, sourceWebsite: 'pgnmentor.com' },
+  { id: 'spassky', name: 'Boris Spassky', category: 'players', url: '/libraries/Spassky.zip', description: 'Universal playing style at its finest.', gameCount: 2231, sourceWebsite: 'pgnmentor.com' },
+  { id: 'smyslov', name: 'Vasily Smyslov', category: 'players', url: '/libraries/Smyslov.zip', description: 'Endgame harmony and positional flow.', gameCount: 2627, sourceWebsite: 'pgnmentor.com' },
+  { id: 'korchnoi', name: 'Viktor Korchnoi', category: 'players', url: '/libraries/Korchnoi.zip', description: 'The "Terrible". Relentless counter-attack.', gameCount: 4569, sourceWebsite: 'pgnmentor.com' },
+  { id: 'giri', name: 'Anish Giri', category: 'players', url: '/libraries/Giri.zip', description: 'Modern theory and rock-solid technique.', gameCount: 4478, sourceWebsite: 'pgnmentor.com' },
   
   // --- OPENINGS ---
   { id: 'sicilian', name: 'Sicilian Defense', category: 'openings', url: '/libraries/Sicilian.zip', description: 'Sharp and complex counter-attacking.', sourceWebsite: 'pgnmentor.com' },
@@ -48,9 +48,9 @@ export const TOP_50_COLLECTIONS: CuratedCollection[] = [
   { id: 'tatasteel2024', name: 'Tata Steel 2024', category: 'events', url: '/libraries/TataSteel2024.zip', description: 'The "Wimbledon of Chess".', sourceWebsite: 'theweekinchess.com' },
 
   // --- NARRATIVE & HISTORY ---
-  { id: 'popularculture', name: 'Chess in Popular Culture', category: 'narrative', url: '/libraries/PopularCulture.zip', description: 'Games found in movies, books, and TV shows.', sourceWebsite: 'chessgames.com' },
-  { id: 'cheating', name: 'Cheating Scandals', category: 'narrative', url: '/libraries/CheatingScandals.zip', description: 'Historic computer-assisted cheating cases.', sourceWebsite: 'chessgames.com' },
-  { id: 'womens1927', name: 'Womens World Ch 1927', category: 'narrative', url: '/libraries/WomensWorldCh1927.zip', description: 'The first official women\'s world championship.', sourceWebsite: 'chess.com' },
+  { id: 'popularculture', name: 'Chess in Popular Culture', category: 'narrative', url: '/libraries/PopularCulture.zip', description: 'Games found in movies, books, and TV shows.', gameCount: 6, sourceWebsite: 'chessgames.com' },
+  { id: 'cheating', name: 'Cheating Scandals', category: 'narrative', url: '/libraries/CheatingScandals.zip', description: 'Historic computer-assisted cheating cases.', gameCount: 8, sourceWebsite: 'chessgames.com' },
+  { id: 'womens1927', name: 'Womens World Ch 1927', category: 'narrative', url: '/libraries/WomensWorldCh1927.zip', description: 'The first official women\'s world championship.', gameCount: 2, sourceWebsite: 'chess.com' },
   { id: 'hastings1895', name: 'Hastings 1895', category: 'narrative', url: '/libraries/Hastings1895.zip', description: 'The strongest tournament of the 19th century.', sourceWebsite: 'chessgames.com' },
   { id: 'linares2010', name: 'Linares 2010', category: 'narrative', url: '/libraries/Linares2010.zip', description: 'Deep study of the elite Linares tradition.', sourceWebsite: 'chessgames.com' },
   { id: 'uschess', name: 'US Chess Life Archive', category: 'narrative', url: '/libraries/USChessLifeMagazine.zip', description: 'Massive archive of games from Chess Life Magazine.', sourceWebsite: 'newinchess.com' }

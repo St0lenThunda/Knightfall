@@ -1,12 +1,37 @@
 import { ref, computed, shallowRef } from 'vue'
-import { Chess, type Square, type Color, type PieceSymbol, type Move } from 'chess.js'
+import { Chess, type Square, type Color, type PieceSymbol } from 'chess.js'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { ensureKingsExist } from '../../utils/fenUtils'
 import type { MoveEvaluation } from '../library/types'
 
-export interface MoveRecord extends Move {
+/**
+ * MoveRecord represents a detailed log of a played chess move.
+ * It stores standard chess move properties alongside custom metrics
+ * such as evaluations, FEN states, and coordinate flags.
+ */
+export interface MoveRecord {
+  color: Color
+  from: Square
+  to: Square
+  piece: PieceSymbol
+  captured?: PieceSymbol
+  promotion?: PieceSymbol
+  flags: string
+  san: string
+  lan: string
+  before: string
+  after: string
   fen: string
   moveNumber: number
+  eval?: string | number
+  tag?: string
+  isCapture: boolean
+  isPromotion: boolean
+  isEnPassant: boolean
+  isKingsideCastle: boolean
+  isQueensideCastle: boolean
+  isBigPawn: boolean
+  isCheck: boolean
 }
 
 /**
@@ -26,7 +51,7 @@ export function useBoardLogic() {
    * These squares will be hidden in the UI and not interactive.
    */
   const dummyKingSquares = ref<Square[]>([])
-  const lastMove = ref<{ from: string; to: string } | null>(null)
+  const lastMove = ref<{ from: string; to: string; captured?: boolean } | null>(null)
   const moveHistory = ref<MoveRecord[]>([])
   const viewIndex = ref(-1)
   const playerColor = ref<Color>('w')
@@ -113,9 +138,26 @@ export function useBoardLogic() {
         const moveNum = tempChess.moveNumber()
         tempChess.move(move)
         return { 
-          ...move, 
+          color: move.color,
+          from: move.from,
+          to: move.to,
+          piece: move.piece,
+          captured: move.captured,
+          promotion: move.promotion,
+          flags: move.flags,
+          san: move.san,
+          lan: move.lan,
+          before: move.before,
+          after: move.after,
           fen: tempChess.fen(),
           moveNumber: moveNum,
+          isCapture: move.isCapture(),
+          isPromotion: move.isPromotion(),
+          isEnPassant: move.isEnPassant(),
+          isKingsideCastle: move.isKingsideCastle(),
+          isQueensideCastle: move.isQueensideCastle(),
+          isBigPawn: move.isBigPawn(),
+          isCheck: move.san.includes('+') || move.san.includes('#'),
           eval: extra?.evals ? (
             typeof extra.evals[idx] === 'object' && extra.evals[idx] !== null
               ? (extra.evals[idx].isMate 
@@ -159,23 +201,24 @@ export function useBoardLogic() {
 
   function makeMove(fromOrUci: Square | string, to?: Square, promotion: PieceSymbol = 'q') {
     try {
-      const moveParams: { from?: Square; to?: Square; promotion?: PieceSymbol } = { promotion }
       let from: Square, finalTo: Square
+      let selectedPromotion: PieceSymbol = promotion
       
-      if (typeof fromOrUci === 'string' && !to) {
-        // UCI format (e.g., "e2e4")
-        from = fromOrUci.slice(0, 2) as Square
-        finalTo = fromOrUci.slice(2, 4) as Square
-        if (fromOrUci.length > 4) {
-          moveParams.promotion = fromOrUci[4] as PieceSymbol
+      if (typeof fromOrUci === 'string') {
+        if (!to) {
+          // UCI format (e.g., "e2e4")
+          from = fromOrUci.slice(0, 2) as Square
+          finalTo = fromOrUci.slice(2, 4) as Square
+          if (fromOrUci.length > 4) {
+            selectedPromotion = fromOrUci[4] as PieceSymbol
+          }
+        } else {
+          from = fromOrUci as Square
+          finalTo = to
         }
-        moveParams.from = from
-        moveParams.to = finalTo
       } else {
         from = fromOrUci
         finalTo = to!
-        moveParams.from = from
-        moveParams.to = finalTo
       }
 
       // Check if a pawn is moving to its promotion rank (8th rank for White, 1st rank for Black).
@@ -186,19 +229,50 @@ export function useBoardLogic() {
         const destRank = finalTo.charAt(1)
         const isPromotionRank = (piece.color === 'w' && destRank === '8') || (piece.color === 'b' && destRank === '1')
         if (isPromotionRank) {
-          const isValidPiece = ['q', 'r', 'b', 'n'].includes(moveParams.promotion)
+          const isValidPiece = ['q', 'r', 'b', 'n'].includes(selectedPromotion)
           if (!isValidPiece) {
-            moveParams.promotion = 'q'
+            selectedPromotion = 'q'
           }
         }
+      }
+
+      const moveParams = {
+        from,
+        to: finalTo,
+        promotion: selectedPromotion
       }
 
       const moveNum = chess.value.moveNumber()
       const move = chess.value.move(moveParams)
       if (move) {
-        lastMove.value = { from, to: finalTo }
+        lastMove.value = { 
+          from, 
+          to: finalTo,
+          captured: !!move.captured
+        }
         // Ensure every move in history carries its resulting FEN and move number for UI/Analysis navigation
-        moveHistory.value.push({ ...move, fen: chess.value.fen(), moveNumber: moveNum })
+        moveHistory.value.push({
+          color: move.color,
+          from: move.from,
+          to: move.to,
+          piece: move.piece,
+          captured: move.captured,
+          promotion: move.promotion,
+          flags: move.flags,
+          san: move.san,
+          lan: move.lan,
+          before: move.before,
+          after: move.after,
+          fen: chess.value.fen(),
+          moveNumber: moveNum,
+          isCapture: move.isCapture(),
+          isPromotion: move.isPromotion(),
+          isEnPassant: move.isEnPassant(),
+          isKingsideCastle: move.isKingsideCastle(),
+          isQueensideCastle: move.isQueensideCastle(),
+          isBigPawn: move.isBigPawn(),
+          isCheck: move.san.includes('+') || move.san.includes('#')
+        })
         viewIndex.value = moveHistory.value.length - 1
         boardTrigger.value++
         clearSelection()

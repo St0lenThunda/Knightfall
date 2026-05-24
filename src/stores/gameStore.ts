@@ -48,9 +48,9 @@ export const useGameStore = defineStore('game', () => {
   const lastMoveDuration = ref(0)
 
   const gameActive = computed(() => {
-    // In local or analysis mode, the game is active as long as it has started and not been forced over.
+    // In local, analysis, or puzzle mode, the game is active as long as it has started and not been forced over.
     // This allows free piece movement and exploration even if the position is technically a game over.
-    if (mode.value === 'local' || mode.value === 'analysis') {
+    if (mode.value === 'local' || mode.value === 'analysis' || mode.value === 'puzzle') {
       return gameStarted.value && !forceGameOver.value
     }
 
@@ -78,8 +78,9 @@ export const useGameStore = defineStore('game', () => {
     // In local or analysis mode, the user can always move and interact
     if (mode.value === 'local' || mode.value === 'analysis') return true
     
-    // For competitive/puzzle modes, if the board says the game is over, they cannot move
-    if (boardLogic.isGameOver.value) return false
+    // For competitive/vs-computer modes, if the board says the game is over, they cannot move
+    // In puzzle mode, we allow moves even if the position is technically game over (e.g. draw by insufficient material / King vs King).
+    if (mode.value !== 'puzzle' && boardLogic.isGameOver.value) return false
     
     // In vs-computer or puzzle mode, user can only move if it's their color's turn
     if (mode.value === 'vs-computer' || mode.value === 'puzzle') {

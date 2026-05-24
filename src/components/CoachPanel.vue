@@ -129,7 +129,15 @@ watch(() => [engineStore.isAnalyzing, store.viewIndex], ([isEngBusy]) => {
   let evalBefore: number
   if (prevMove?.eval !== undefined) {
     // We have data for the previous position — use it
-    evalBefore = prevMove.eval
+    if (typeof prevMove.eval === 'string') {
+      if (prevMove.eval.includes('M')) {
+        evalBefore = prevMove.eval.startsWith('-') ? -100 : 100
+      } else {
+        evalBefore = parseFloat(prevMove.eval) || 0
+      }
+    } else {
+      evalBefore = prevMove.eval
+    }
   } else if (idx === 0) {
     // First move of the game — starting position is roughly equal
     evalBefore = 0.2 // Slight white advantage (standard opening eval)

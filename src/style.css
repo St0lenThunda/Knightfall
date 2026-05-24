@@ -48,6 +48,12 @@
   --sq-last:        rgba(170, 162, 50, 0.5);
   --sq-check:       rgba(220, 20, 60, 0.6);
 
+  /* High contrast outlines (dark outline for light boards, light/glow for dark boards) */
+  --piece-outline:  drop-shadow(1px 0 0 rgba(0, 0, 0, 0.125)) 
+                    drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.125)) 
+                    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.125)) 
+                    drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.125));
+
   /* Typography */
   --font-sans:      'Outfit', sans-serif;
   --font-mono:      'JetBrains Mono', monospace;
@@ -88,10 +94,49 @@
 [data-board-theme="wood"] {
   --sq-light: #cd945c;
   --sq-dark: #6b4423;
+  --piece-outline: drop-shadow(1px 0 0 rgba(0,0,0,0.15)) drop-shadow(-1px 0 0 rgba(0,0,0,0.15)) drop-shadow(0 1px 0 rgba(0,0,0,0.15)) drop-shadow(0 -1px 0 rgba(0,0,0,0.15));
 }
 [data-board-theme="obsidian"] {
   --sq-light: #4b5563;
   --sq-dark: #1f2937;
+  --piece-outline: drop-shadow(1px 0 0 rgba(255,255,255,0.225)) drop-shadow(-1px 0 0 rgba(255,255,255,0.225)) drop-shadow(0 1px 0 rgba(255,255,255,0.225)) drop-shadow(0 -1px 0 rgba(255,255,255,0.225));
+}
+[data-board-theme="echoes"] {
+  /* Ethereal cosmic purple & deep void space abyss */
+  --sq-light: #2d264d;
+  --sq-dark: #120e26;
+  --sq-light-hl: rgba(6, 182, 212, 0.45); /* Glowing cyan highlight */
+  --sq-dark-hl: rgba(139, 92, 246, 0.45);  /* Glowing violet highlight */
+  --piece-outline: drop-shadow(1px 0 0 rgba(167, 139, 250, 0.325)) drop-shadow(-1px 0 0 rgba(167, 139, 250, 0.325)) drop-shadow(0 1px 0 rgba(167, 139, 250, 0.325)) drop-shadow(0 -1px 0 rgba(167, 139, 250, 0.325));
+}
+[data-board-theme="magma"] {
+  /* Volcanic magma - gray basalt with glowing lava red/orange accents */
+  --sq-light: #554d4d;
+  --sq-dark: #180e0e;
+  --sq-light-hl: rgba(239, 68, 68, 0.45);
+  --sq-dark-hl: rgba(249, 115, 22, 0.45);
+  --piece-outline: drop-shadow(1px 0 0 rgba(249, 115, 22, 0.325)) drop-shadow(-1px 0 0 rgba(249, 115, 22, 0.325)) drop-shadow(0 1px 0 rgba(249, 115, 22, 0.325)) drop-shadow(0 -1px 0 rgba(249, 115, 22, 0.325));
+}
+[data-board-theme="abyss"] {
+  /* Ocean depth abyss - muted seafoam teal with bioluminescent highlights */
+  --sq-light: #205060;
+  --sq-dark: #0a1c28;
+  --sq-light-hl: rgba(6, 182, 212, 0.45);
+  --sq-dark-hl: rgba(20, 184, 166, 0.45);
+  --piece-outline: drop-shadow(1px 0 0 rgba(6, 182, 212, 0.325)) drop-shadow(-1px 0 0 rgba(6, 182, 212, 0.325)) drop-shadow(0 1px 0 rgba(6, 182, 212, 0.325)) drop-shadow(0 -1px 0 rgba(6, 182, 212, 0.325));
+}
+[data-board-theme="aether"] {
+  /* Celestial aether sanctum - white marble and light cloud gray with gold trim */
+  --sq-light: #f1f5f9;
+  --sq-dark: #cbd5e1;
+  --sq-light-hl: rgba(234, 179, 8, 0.45);
+  --sq-dark-hl: rgba(245, 158, 11, 0.45);
+  --piece-outline: drop-shadow(1px 0 0 rgba(67, 30, 2, 0.35)) drop-shadow(-1px 0 0 rgba(67, 30, 2, 0.35)) drop-shadow(0 1px 0 rgba(67, 30, 2, 0.35)) drop-shadow(0 -1px 0 rgba(67, 30, 2, 0.35));
+}
+
+/* Toggle-override to disable outlines entirely when showPieceOutlines is disabled */
+[data-piece-outlines="false"] * {
+  --piece-outline: none !important;
 }
 
 html { font-size: 16px; scroll-behavior: smooth; }

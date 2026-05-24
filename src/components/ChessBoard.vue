@@ -27,6 +27,15 @@
               </div>
             </div>
 
+            <!-- Move Trail Particle Canvas Overlay -->
+            <MoveTrailCanvas 
+              :lastMove="resolvedLastMove"
+              :flipped="flipped"
+              :effect="resolvedMoveTrailEffect"
+              :density="settings.moveAnimationDensity"
+              :length="settings.moveAnimationLength"
+            />
+
             <!-- Pieces Layer -->
             <PieceLayer 
               :pieces="animatedPieces" 
@@ -89,6 +98,7 @@ import { copySystemSnapshot } from '../utils/debugUtils'
 import PieceLayer from './board/PieceLayer.vue'
 import BadgeLayer from './board/BadgeLayer.vue'
 import ArrowLayer, { type ArrowDef } from './board/ArrowLayer.vue'
+import MoveTrailCanvas from './board/MoveTrailCanvas.vue'
 
 const store = useGameStore()
 const settings = useSettingsStore()
@@ -100,7 +110,7 @@ const props = withDefaults(defineProps<{
   interactive?: boolean;
   moveQuality?: MoveQuality | null;
   arrows?: ArrowDef[];
-  lastMove?: { from: string; to: string } | null;
+  lastMove?: { from: string; to: string; captured?: boolean | string } | null;
   hintSquares?: string[];
   hintArrows?: ArrowDef[];
   debugData?: Record<string, any>;
@@ -163,6 +173,27 @@ async function exportDebugInfo() {
 // Use prop lastMove if provided, else fallback to store's lastMove
 const allArrows = computed(() => [...(props.arrows || []), ...(props.hintArrows || [])])
 const resolvedLastMove = computed(() => props.lastMove || lastMove.value)
+
+/**
+ * Automatically resolves the active move trail animation effect based on the currently
+ * selected board and piece styles.
+ */
+const resolvedMoveTrailEffect = computed(() => {
+  const board = settings.boardTheme
+  const piece = settings.pieceTheme
+  
+  // Tie specific piece archetypes to their appropriate move trails
+  if (piece === 'void') return 'chrono' // Void Phantoms (phantom) -> Echoes
+  if (piece === 'neon') return 'cyber' // Cyber-Neon -> Cyber
+  if (piece === 'neo' || piece === 'runic') return 'lightning' // Neo/Runic -> Lightning
+  
+  // Tie specific board materials to their appropriate move trails
+  if (board === 'magma') return 'fire' // Volcanic Magma -> Flames
+  if (board === 'wood') return 'leaves' // Wood -> Leaves
+  if (board === 'abyss' || board === 'echoes') return 'ice' // Abyss/Echoes -> Ice
+  
+  return 'none'
+})
 
 const files = ['a','b','c','d','e','f','g','h']
 const ranks = ['8','7','6','5','4','3','2','1']

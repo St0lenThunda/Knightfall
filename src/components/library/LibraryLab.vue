@@ -3,7 +3,10 @@
     <div class="lab-header">
       <span class="icon">🔬</span>
       <div class="title-group">
-        <h3>Other Sources</h3>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h3>Other Sources</h3>
+          <span class="vault-count-badge">{{ libraryStore.totalVaultGames }} games in vault</span>
+        </div>
         <p class="muted">Master collections & Custom imports</p>
       </div>
     </div>
@@ -38,8 +41,9 @@
                 >{{ item.category }}</span>
                 <span class="name">{{ item.name }}</span>
               </div>
-              <div class="source-info">
+              <div class="source-info" style="display: flex; align-items: center; gap: var(--space-1-5);">
                 <span class="badge badge-accent"> {{ item.sourceWebsite || 'Local' }}</span>
+                <span class="badge badge-teal" v-if="item.gameCount"> {{ item.gameCount }} games</span>
               </div>
             </div>
             <button 
@@ -203,6 +207,18 @@ async function importPgnTextAction() {
   align-items: center;
 }
 .lab-header h3 { margin: 0; font-size: 1rem; color: var(--accent-bright); }
+.vault-count-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent-bright);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+}
 .lab-header .icon { font-size: 1.5rem; }
 
 .lab-tabs {

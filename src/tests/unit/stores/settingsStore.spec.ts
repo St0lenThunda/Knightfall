@@ -20,6 +20,9 @@ vi.mock('../../../utils/storage', () => ({
     COACH_PERSONALITY: 'kf_coach_personality',
     SHOW_BEST_MOVE_ARROW: 'kf_show_best_move_arrow',
     SHOW_THREAT_ARROW: 'kf_show_threat_arrow',
+    MOVE_ANIMATION_EFFECT: 'kf_move_animation_effect',
+    MOVE_ANIMATION_DENSITY: 'kf_move_animation_density',
+    MOVE_ANIMATION_LENGTH: 'kf_move_animation_length',
     ANALYSIS_SHOW_SUGGESTIONS: 'kf_analysis_show_suggestions',
     ANALYSIS_SHOW_COACH: 'kf_analysis_show_coach',
     ANALYSIS_SHOW_POSITIONAL_HEALTH: 'kf_analysis_show_positional_health',
@@ -46,6 +49,14 @@ describe('SettingsStore', () => {
     expect(settings.showThreatArrow).toBe(true)
   })
 
+  it('initializes with default move animation trail options', () => {
+    const settings = useSettingsStore()
+    
+    expect(settings.moveAnimationEffect).toBe('none')
+    expect(settings.moveAnimationDensity).toBe('medium')
+    expect(settings.moveAnimationLength).toBe('normal')
+  })
+
   it('persists changes to storage when toggled', async () => {
     const settings = useSettingsStore()
     
@@ -57,6 +68,24 @@ describe('SettingsStore', () => {
     expect(Storage.set).toHaveBeenCalledWith(
       'kf_analysis_show_suggestions', 
       false
+    )
+  })
+
+  it('persists changes to move animation density and length when updated', async () => {
+    const settings = useSettingsStore()
+    
+    settings.moveAnimationDensity = 'high'
+    settings.moveAnimationLength = 'long'
+    
+    await nextTick()
+    
+    expect(Storage.set).toHaveBeenCalledWith(
+      'kf_move_animation_density',
+      'high'
+    )
+    expect(Storage.set).toHaveBeenCalledWith(
+      'kf_move_animation_length',
+      'long'
     )
   })
 })

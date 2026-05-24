@@ -7,7 +7,7 @@ import { useCurriculumStore } from '../stores/curriculumStore'
 import { fetchPuzzleBatch, fetchPuzzleById, fetchLichessDaily, type Puzzle } from '../api/puzzleApi'
 import { fetchChesscomDailyPuzzle } from '../api/chesscomApi'
 import { useRoute } from 'vue-router'
-import type { Square, PieceSymbol } from 'chess.js'
+import { Chess, type Square, type PieceSymbol } from 'chess.js'
 import { getPuzzleExplanation, calculateTimeBonus, calculatePuzzleXP } from '../utils/tacticalHeuristics'
 import { logger } from '../utils/logger'
 
@@ -247,14 +247,28 @@ export function usePuzzleLogic() {
   async function importChesscomDaily() {
     const data = await fetchChesscomDailyPuzzle()
     if (data) {
+      // Educational Note: Chess.com returns the solution moves within a PGN string.
+      // We parse this PGN with the Chess.js engine to extract the full legal move history,
+      // then convert each move back to UCI coordinate format (e.g. 'e2e4') expected by Knightfall's UI.
+      let solution: string[] = []
+      try {
+        const chess = new Chess()
+        chess.loadPgn(data.pgn)
+        solution = chess.history({ verbose: true }).map(
+          (m) => m.from + m.to + (m.promotion || '')
+        )
+      } catch (err) {
+        logger.error('[PuzzleLogic] Failed to parse Chess.com daily PGN:', err)
+      }
+
       currentPuzzle.value = {
         id: `chesscom-daily`,
-        title: 'Chess.com Daily Puzzle',
+        title: data.title || 'Chess.com Daily Puzzle',
         rating: 1500,
         themes: ['Daily Challenge'],
         fen: data.fen,
         lastMove: '', 
-        solution: [], 
+        solution: solution, 
         category: 'External'
       }
       activeCat.value = 'mixed'

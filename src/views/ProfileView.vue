@@ -33,7 +33,7 @@
           />
 
           <!-- TAB 3: CONSTELLATION -->
-          <ProfileConstellationTab v-else-if="activeTab === 'constellation'" />
+          <!-- <ProfileConstellationTab v-else-if="activeTab === 'constellation'" /> -->
 
           <!-- TAB 4: DNA -->
           <ProfileDnaTab v-else-if="activeTab === 'dna'" />
@@ -93,7 +93,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 // Pillar Components (Tabs)
 import WarRoomPanel from '../components/profile/WarRoomPanel.vue'
 import ProfileVaultTab from '../components/profile/tabs/ProfileVaultTab.vue'
-import ProfileConstellationTab from '../components/profile/tabs/ProfileConstellationTab.vue'
+// import ProfileConstellationTab from '../components/profile/tabs/ProfileConstellationTab.vue'
 import ProfileDnaTab from '../components/profile/tabs/ProfileDnaTab.vue'
 import ProfileIntegrationsTab from '../components/profile/tabs/ProfileIntegrationsTab.vue'
 import LibraryLab from '../components/library/LibraryLab.vue'

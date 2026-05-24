@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useEngineStore } from '../../../stores/engineStore'
-import { nextTick } from 'vue'
 
 // Mock Storage for SettingsStore
 vi.mock('../../../utils/storage', () => ({

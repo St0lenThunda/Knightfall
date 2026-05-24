@@ -205,6 +205,7 @@ onUnmounted(() => {
     <div v-else class="gauntlet-layout">
       <div class="board-container glass-card">
         <ChessBoard 
+          :flipped="store.playerColor === 'b'"
           :arrows="arrows"
           @move="(m: any) => store.makeMove(m.from, m.to, m.promotion)"
         />

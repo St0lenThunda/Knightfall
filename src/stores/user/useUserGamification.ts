@@ -303,9 +303,15 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   const badges = computed(() => {
     const b = []
     if (completedQuests.value.length >= 1) b.push({ id: 'first_lesson', name: 'First Steps', icon: '📜', color: 'var(--blue)' })
-    if (completedQuests.value.length >= 5) b.push({ id: 'scholar_novice', name: 'Dedicated Scholar', icon: '📚', color: 'var(--teal)' })
-    if (completedQuests.value.length >= 10) b.push({ id: 'scholar_adept', name: 'Sanctum Adept', icon: '🏛️', color: 'var(--gold)' })
-    if (completedQuests.value.length >= 20) b.push({ id: 'scholar_master', name: 'Master Theoretician', icon: '👑', color: 'var(--rose)' })
+    if (completedQuests.value.length >= 10) b.push({ id: 'scholar_novice', name: 'Dedicated Scholar', icon: '📚', color: 'var(--teal)' })
+    if (completedQuests.value.length >= 25) b.push({ id: 'scholar_adept', name: 'Sanctum Adept', icon: '🏛️', color: 'var(--gold)' })
+    if (completedQuests.value.length >= 40) b.push({ id: 'scholar_master', name: 'Master Theoretician', icon: '👑', color: 'var(--rose)' })
+    // Educational Note: With the standard curriculum expanded to 70 quests (5,000 XP total),
+    // we scale badge milestones. "Paragon" is awarded at 55 completed quests.
+    if (completedQuests.value.length >= 55) b.push({ id: 'scholar_paragon', name: 'Sanctum Paragon', icon: '🌟', color: 'var(--accent-bright)' })
+    // Educational Note: Clearing all 70 standard quests (reaching 100% completion) 
+    // awards the ultimate "Sanctum Conqueror" badge.
+    if (completedQuests.value.length >= 70) b.push({ id: 'sanctum_conqueror', name: 'Sanctum Conqueror', icon: '🏛️✨', color: 'var(--accent)' })
     return b
   })
 

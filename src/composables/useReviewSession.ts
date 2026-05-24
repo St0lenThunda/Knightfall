@@ -48,11 +48,24 @@ export function useReviewSession() {
       // We need evals to detect mistakes. 
       // If the game wasn't analyzed yet, this flow might be empty.
       if (entry.eval !== undefined && prevEntry.eval !== undefined) {
+        const parseEval = (ev: string | number) => {
+          if (typeof ev === 'string') {
+            if (ev.includes('M')) {
+              return ev.startsWith('-') ? -10000 : 10000
+            }
+            return parseFloat(ev) * 100 || 0
+          }
+          return ev
+        }
+
+        const evalBeforeParsed = parseEval(prevEntry.eval)
+        const evalAfterParsed = parseEval(entry.eval)
+
         const tag = TaggingService.identifyMistake(
           prevEntry.fen,
           entry.fen,
-          prevEntry.eval / 100,
-          entry.eval / 100
+          evalBeforeParsed / 100,
+          evalAfterParsed / 100
         )
         
         // We only review "mistakes" and "blunders"

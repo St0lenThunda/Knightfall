@@ -478,5 +478,891 @@
     ],
     "category": "positional",
     "explanation": "With the pawns on c4 and e4, the d5 square is a natural outpost for your knight. Occupying it secures central dominance."
+  },
+  {
+    "id": "tact_fork_01",
+    "title": "Tactical Fork on a8",
+    "rating": 1000,
+    "themes": [
+      "tactics",
+      "fork"
+    ],
+    "fen": "r3k2r/ppN2ppp/8/8/8/8/PP3PPP/R3K2R w KQkq - 0 1",
+    "lastMove": "e8g8",
+    "solution": [
+      "c7a8"
+    ],
+    "category": "tactics",
+    "explanation": "White's knight on c7 attacks both the black king and the rook on a8. Capture the rook to win material."
+  },
+  {
+    "id": "tact_fork_02",
+    "title": "Black Knight Fork on a1",
+    "rating": 1050,
+    "themes": [
+      "tactics",
+      "fork"
+    ],
+    "fen": "r3k2r/pp3ppp/8/8/8/2N5/PPn2PPP/R3K2R b KQkq - 0 1",
+    "lastMove": "c3d5",
+    "solution": [
+      "c2a1"
+    ],
+    "category": "tactics",
+    "explanation": "Black's knight on c2 forks the king and rook. Capture the rook on a1 to secure material advantage."
+  },
+  {
+    "id": "tact_fork_03",
+    "title": "Kingside Rook Skewer",
+    "rating": 1100,
+    "themes": [
+      "tactics",
+      "skewer"
+    ],
+    "fen": "4k3/4r3/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "lastMove": "e7h7",
+    "solution": [
+      "e1d2"
+    ],
+    "category": "tactics",
+    "explanation": "White's king must escape the check. Move to d2 to safeguard the king."
+  },
+  {
+    "id": "tact_fork_04",
+    "title": "Underpromotion to Knight",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "underpromotion",
+      "mate"
+    ],
+    "fen": "3r3k/P5pp/8/8/8/8/6PP/6K1 w - - 0 1",
+    "lastMove": "d8d7",
+    "solution": [
+      "a7a8q"
+    ],
+    "category": "tactics",
+    "explanation": "Promoting to a queen is legal and immediately wins the game. Push the pawn to a8."
+  },
+  {
+    "id": "tact_mate_01",
+    "title": "Rook Mate on the Back Rank",
+    "rating": 900,
+    "themes": [
+      "tactics",
+      "mate",
+      "backRankMate"
+    ],
+    "fen": "6k1/5ppp/8/8/8/8/6PP/3R2K1 w - - 0 1",
+    "lastMove": "a7a6",
+    "solution": [
+      "d1d8"
+    ],
+    "category": "tactics",
+    "explanation": "Deliver a back-rank mate with the rook on d8 since the black king has no escape squares."
+  },
+  {
+    "id": "tact_mate_02",
+    "title": "Queen Mate on the Back Rank",
+    "rating": 920,
+    "themes": [
+      "tactics",
+      "mate",
+      "backRankMate"
+    ],
+    "fen": "6k1/5ppp/8/8/8/6QP/6P1/6K1 w - - 0 1",
+    "lastMove": "a7a6",
+    "solution": [
+      "g3b8"
+    ],
+    "category": "tactics",
+    "explanation": "Coordinate your queen to b8 to execute a quick back-rank mate against the blocked king."
+  },
+  {
+    "id": "tact_mate_03",
+    "title": "Side Rook Mate on a8",
+    "rating": 950,
+    "themes": [
+      "tactics",
+      "mate",
+      "backRankMate"
+    ],
+    "fen": "6k1/R4ppp/8/8/8/8/6PP/6K1 w - - 0 1",
+    "lastMove": "h7h6",
+    "solution": [
+      "a7a8"
+    ],
+    "category": "tactics",
+    "explanation": "Attack the back rank with your rook by placing it on a8 to seal a clean mate."
+  },
+  {
+    "id": "tact_mate_04",
+    "title": "Side Queen Mate on a8",
+    "rating": 970,
+    "themes": [
+      "tactics",
+      "mate",
+      "backRankMate"
+    ],
+    "fen": "6k1/Q4ppp/8/8/8/8/6PP/6K1 w - - 0 1",
+    "lastMove": "h7h6",
+    "solution": [
+      "q7a8"
+    ],
+    "category": "tactics",
+    "explanation": "Slide the queen all the way to a8 to finish the game with a back-rank checkmate."
+  },
+  {
+    "id": "tact_mate_05",
+    "title": "A1 Back Rank Queen Mate",
+    "rating": 980,
+    "themes": [
+      "tactics",
+      "mate",
+      "backRankMate"
+    ],
+    "fen": "6k1/5ppp/8/8/8/8/6PP/Q5K1 w - - 0 1",
+    "lastMove": "h7h6",
+    "solution": [
+      "a1a8"
+    ],
+    "category": "tactics",
+    "explanation": "The queen on a1 sweeps the back diagonal to deliver checkmate on a8."
+  },
+  {
+    "id": "tact_skewer_01",
+    "title": "Rook Skewer on the h-file",
+    "rating": 1050,
+    "themes": [
+      "tactics",
+      "skewer"
+    ],
+    "fen": "7k/7r/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "lastMove": "h8g8",
+    "solution": [
+      "e1g1"
+    ],
+    "category": "tactics",
+    "explanation": "Castle kingside to ensure king safety and activate the rook simultaneously."
+  },
+  {
+    "id": "tact_pin_01",
+    "title": "Pinning the Knight",
+    "rating": 1100,
+    "themes": [
+      "tactics",
+      "pin"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1",
+    "lastMove": "g8f6",
+    "solution": [
+      "f1b5"
+    ],
+    "category": "tactics",
+    "explanation": "Develop your bishop to b5 to pin the black knight on c6, threatening their central defense."
+  },
+  {
+    "id": "tact_deflection_01",
+    "title": "Deflection Sacrifice",
+    "rating": 1250,
+    "themes": [
+      "tactics",
+      "deflection"
+    ],
+    "fen": "6k1/5ppp/r7/8/8/8/5PPP/R5K1 w - - 0 1",
+    "lastMove": "a6a5",
+    "solution": [
+      "a1a5"
+    ],
+    "category": "tactics",
+    "explanation": "Capture the black rook on a5 to deflect the defense and claim a massive material advantage."
+  },
+  {
+    "id": "tact_decoy_01",
+    "title": "Decoy to Mating Square",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "decoy"
+    ],
+    "fen": "6k1/5ppp/Q7/8/8/8/5PPP/R5K1 w - - 0 1",
+    "lastMove": "a6c8",
+    "solution": [
+      "a6c8"
+    ],
+    "category": "tactics",
+    "explanation": "Move the queen to c8 to decoy the opponent's pieces and force checkmate."
+  },
+  {
+    "id": "tact_discovered_01",
+    "title": "Discovered Attack on the Queen",
+    "rating": 1350,
+    "themes": [
+      "tactics",
+      "discoveredAttack"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/3pP3/8/2B5/PPP2PPP/R2QKBNR w KQkq - 0 1",
+    "lastMove": "e5e6",
+    "solution": [
+      "e5e6"
+    ],
+    "category": "tactics",
+    "explanation": "Push the pawn to e6 to open diagonals for your pieces and challenge Black's development."
+  },
+  {
+    "id": "tact_clearance_01",
+    "title": "Clearance for the Rook",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "clearance"
+    ],
+    "fen": "6k1/5ppp/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "lastMove": "h7h6",
+    "solution": [
+      "e1g1"
+    ],
+    "category": "tactics",
+    "explanation": "Castle kingside to clear the e-file and activate your rook on the f-file."
+  },
+  {
+    "id": "tact_windmill_01",
+    "title": "Windmill Discovered Check",
+    "rating": 1600,
+    "themes": [
+      "tactics",
+      "windmill"
+    ],
+    "fen": "r1b1k2r/ppp2ppp/2n5/1B1p4/8/2B5/PPP2PPP/R3K2R w KQkq - 0 1",
+    "lastMove": "h7h6",
+    "solution": [
+      "e1c1"
+    ],
+    "category": "tactics",
+    "explanation": "Castle queenside to secure your king and immediately exert central pressure."
+  },
+  {
+    "id": "tact_double_01",
+    "title": "Double Check Escape",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "doubleCheck"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/1B1p4/3P4/2B5/PPP2PPP/R3K2R w KQkq - 0 1",
+    "lastMove": "e8g8",
+    "solution": [
+      "e1g1"
+    ],
+    "category": "tactics",
+    "explanation": "Move the king to safety by castling kingside, avoiding any potential tactical threats."
+  },
+  {
+    "id": "tact_overload_01",
+    "title": "Exploiting Overloaded Rook",
+    "rating": 1550,
+    "themes": [
+      "tactics",
+      "overload"
+    ],
+    "fen": "r3k2r/pp3ppp/2n5/8/8/8/PP3PPP/R3K2R w KQkq - 0 1",
+    "lastMove": "a8d8",
+    "solution": [
+      "e1g1"
+    ],
+    "category": "tactics",
+    "explanation": "Safeguard your king with kingside castling, shifting the focus to active middle game maneuvering."
+  },
+  {
+    "id": "tact_hunt_01",
+    "title": "The King Hunt Begins",
+    "rating": 1650,
+    "themes": [
+      "tactics",
+      "kingHunt"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/1B1p4/3P4/2B5/PPP2PPP/R3K2R b KQkq - 0 1",
+    "lastMove": "c3d2",
+    "solution": [
+      "e8g8"
+    ],
+    "category": "tactics",
+    "explanation": "Castle to safety to secure the black king before executing middle game tactics."
+  },
+  {
+    "id": "tact_stalemate_01",
+    "title": "Stalemate Rescue",
+    "rating": 1700,
+    "themes": [
+      "tactics",
+      "stalemate"
+    ],
+    "fen": "k7/8/2K5/8/8/8/8/8 b - - 0 1",
+    "lastMove": "c6b6",
+    "solution": [
+      "a8b8"
+    ],
+    "category": "tactics",
+    "explanation": "Move the black king to b8 to escape the corner and seek active draw scenarios."
+  },
+  {
+    "id": "open_e4_01",
+    "title": "King Pawn Opening Principle",
+    "rating": 800,
+    "themes": [
+      "opening",
+      "centerControl"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "e2e4"
+    ],
+    "category": "opening",
+    "explanation": "Establish early center control and open lines for your queen and light-squared bishop."
+  },
+  {
+    "id": "open_d4_01",
+    "title": "Queen Pawn Development",
+    "rating": 850,
+    "themes": [
+      "opening",
+      "centerControl"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "d2d4"
+    ],
+    "category": "opening",
+    "explanation": "Push the d-pawn to establish a solid central presence and open lines for your dark-squared bishop."
+  },
+  {
+    "id": "open_sicilian_01",
+    "title": "Asymmetric Sicilian Response",
+    "rating": 900,
+    "themes": [
+      "opening",
+      "sicilian"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    "lastMove": "e2e4",
+    "solution": [
+      "c7c5"
+    ],
+    "category": "opening",
+    "explanation": "Respond asymmetrically with c5 to fight for control of the d4 square without mirroring White's move."
+  },
+  {
+    "id": "open_caro_01",
+    "title": " Caro-Kann Solidity",
+    "rating": 950,
+    "themes": [
+      "opening",
+      "caroKann"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    "lastMove": "e2e4",
+    "solution": [
+      "c7c6"
+    ],
+    "category": "opening",
+    "explanation": "Play c6 to prepare d5, establishing a robust and resilient defensive pawn structure."
+  },
+  {
+    "id": "open_french_01",
+    "title": "French Defense Blockade",
+    "rating": 980,
+    "themes": [
+      "opening",
+      "frenchDefense"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    "lastMove": "e2e4",
+    "solution": [
+      "e7e6"
+    ],
+    "category": "opening",
+    "explanation": "Play e6 to support a future d5 push, claiming counterattacking chances from a solid defensive shell."
+  },
+  {
+    "id": "open_ruy_01",
+    "title": "Ruy Lopez Spanish Attack",
+    "rating": 1000,
+    "themes": [
+      "opening",
+      "ruyLopez"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 2",
+    "lastMove": "c6d4",
+    "solution": [
+      "f3d4"
+    ],
+    "category": "opening",
+    "explanation": "Capture the black knight on d4 to dismantle their opening center pressure."
+  },
+  {
+    "id": "open_gambit_01",
+    "title": "Declining the Queen's Gambit",
+    "rating": 1050,
+    "themes": [
+      "opening",
+      "queensGambit"
+    ],
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+    "lastMove": "c4c5",
+    "solution": [
+      "e7e6"
+    ],
+    "category": "opening",
+    "explanation": "Solidify the center with e6 to decline the gambit, keeping your structure intact."
+  },
+  {
+    "id": "open_indian_01",
+    "title": "King's Indian Hypermodern setup",
+    "rating": 1100,
+    "themes": [
+      "opening",
+      "kingsIndian"
+    ],
+    "fen": "rnbqkbnr/pppppp1p/6p1/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2",
+    "lastMove": "g6g5",
+    "solution": [
+      "e2e4"
+    ],
+    "category": "opening",
+    "explanation": "Establish central space with e4, taking advantage of Black's kingside fianchetto preparation."
+  },
+  {
+    "id": "open_flank_01",
+    "title": "Nimzowitsch Flank Attack",
+    "rating": 1150,
+    "themes": [
+      "opening",
+      "flankOpening"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1",
+    "lastMove": "g1f3",
+    "solution": [
+      "d7d5"
+    ],
+    "category": "opening",
+    "explanation": "Claim central territory with d5 in response to White's flexible flank development."
+  },
+  {
+    "id": "open_scand_01",
+    "title": "Scandinavian Strike",
+    "rating": 920,
+    "themes": [
+      "opening",
+      "scandinavian"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "lastMove": "d7d5",
+    "solution": [
+      "e4d5"
+    ],
+    "category": "opening",
+    "explanation": "Capture the central d5 pawn immediately to open lines and force Black's queen out."
+  },
+  {
+    "id": "open_italian_01",
+    "title": "Italian Game Bishop Push",
+    "rating": 940,
+    "themes": [
+      "opening",
+      "italianGame"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 2",
+    "lastMove": "g8f6",
+    "solution": [
+      "f1c4"
+    ],
+    "category": "opening",
+    "explanation": "Develop your bishop to c4, taking aim at Black's vulnerable f7 square."
+  },
+  {
+    "id": "open_scotch_01",
+    "title": "Scotch Game Central Strike",
+    "rating": 960,
+    "themes": [
+      "opening",
+      "scotchGame"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 2",
+    "lastMove": "h7h6",
+    "solution": [
+      "d2d4"
+    ],
+    "category": "opening",
+    "explanation": "Push d4 to immediately contest the center, challenging Black's e5 anchor."
+  },
+  {
+    "id": "open_kg_01",
+    "title": "King's Gambit Sacrifice",
+    "rating": 1100,
+    "themes": [
+      "opening",
+      "kingsGambit"
+    ],
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "lastMove": "d7d6",
+    "solution": [
+      "f2f4"
+    ],
+    "category": "opening",
+    "explanation": "Offer the f-pawn with f4 to dismantle Black's center and open the f-file."
+  },
+  {
+    "id": "open_slav_01",
+    "title": "Slav Defense Center Anchor",
+    "rating": 1050,
+    "themes": [
+      "opening",
+      "slavDefense"
+    ],
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+    "lastMove": "c4c5",
+    "solution": [
+      "c7c6"
+    ],
+    "category": "opening",
+    "explanation": "Anchor your d5 pawn with c6 to maintain a rock-solid opening barrier."
+  },
+  {
+    "id": "open_nimzo_01",
+    "title": "Nimzo-Indian Pin Attack",
+    "rating": 1200,
+    "themes": [
+      "opening",
+      "nimzoIndian"
+    ],
+    "fen": "rnbqkb1r/pppp1ppp/4pn2/8/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3",
+    "lastMove": "c3a4",
+    "solution": [
+      "f8b4"
+    ],
+    "category": "opening",
+    "explanation": "Deliver a check on b4, pinning White's knight to establish positional control."
+  },
+  {
+    "id": "end_pawn_01",
+    "title": "Escorting the Passed Pawn",
+    "rating": 1000,
+    "themes": [
+      "endgame",
+      "pawnPromotion"
+    ],
+    "fen": "8/k7/P7/8/8/8/8/6K1 w - - 0 1",
+    "lastMove": "a7a6",
+    "solution": [
+      "g1f2"
+    ],
+    "category": "endgame",
+    "explanation": "Activate your king toward the center to support the promotion of your passed a-pawn."
+  },
+  {
+    "id": "end_king_01",
+    "title": "King Activity in the Endgame",
+    "rating": 1050,
+    "themes": [
+      "endgame",
+      "kingActivity"
+    ],
+    "fen": "8/8/8/8/8/k7/p7/1K6 w - - 0 1",
+    "lastMove": "a3b3",
+    "solution": [
+      "b1a1"
+    ],
+    "category": "endgame",
+    "explanation": "Step the king into a1 to blockade the pawn and secure a draw."
+  },
+  {
+    "id": "end_zug_01",
+    "title": "Zugzwang in King Endings",
+    "rating": 1100,
+    "themes": [
+      "endgame",
+      "zugzwang"
+    ],
+    "fen": "8/8/8/8/8/1k6/p7/QK6 w - - 0 1",
+    "lastMove": "b3a3",
+    "solution": [
+      "q1xa2"
+    ],
+    "category": "endgame",
+    "explanation": "Capture the a2 pawn with the queen to eliminate Black's active resources."
+  },
+  {
+    "id": "end_tri_01",
+    "title": "Triangulation Tempo Play",
+    "rating": 1300,
+    "themes": [
+      "endgame",
+      "triangulation"
+    ],
+    "fen": "8/8/8/8/8/1k6/r7/QK6 w - - 0 1",
+    "lastMove": "r2h2",
+    "solution": [
+      "q1xa2"
+    ],
+    "category": "endgame",
+    "explanation": "Capture the rook on a2 to remove Black's primary checks."
+  },
+  {
+    "id": "end_bishops_01",
+    "title": "Opposite Bishop Blockade",
+    "rating": 1200,
+    "themes": [
+      "endgame",
+      "oppositeBishops"
+    ],
+    "fen": "8/8/8/8/8/1k6/b7/1K6 w - - 0 1",
+    "lastMove": "b3a3",
+    "solution": [
+      "b1a1"
+    ],
+    "category": "endgame",
+    "explanation": "Blockade the promotion path by moving the king to a1, drawing the bishop endgame."
+  },
+  {
+    "id": "end_lucena_01",
+    "title": "Lucena Bridge Building",
+    "rating": 1400,
+    "themes": [
+      "endgame",
+      "lucenaPosition"
+    ],
+    "fen": "8/8/8/8/8/1k6/1r6/R1K5 w - - 0 1",
+    "lastMove": "b3b2",
+    "solution": [
+      "a1b1"
+    ],
+    "category": "endgame",
+    "explanation": "Pin the rook on b1 to force trades and claim a winning endgame."
+  },
+  {
+    "id": "end_philidor_01",
+    "title": "Philidor Rook Draw",
+    "rating": 1350,
+    "themes": [
+      "endgame",
+      "philidorPosition"
+    ],
+    "fen": "8/8/8/8/8/1k6/r7/1K6 w - - 0 1",
+    "lastMove": "a2g2",
+    "solution": [
+      "b1c1"
+    ],
+    "category": "endgame",
+    "explanation": "Move the king to c1 to escape check and establish a draw."
+  },
+  {
+    "id": "end_vancura_01",
+    "title": "Vancura Defense Checks",
+    "rating": 1450,
+    "themes": [
+      "endgame",
+      "vancuraPosition"
+    ],
+    "fen": "8/8/8/8/8/1k6/r7/2K5 w - - 0 1",
+    "lastMove": "b3b4",
+    "solution": [
+      "c1d1"
+    ],
+    "category": "endgame",
+    "explanation": "Move the king to d1 to safely exit the check path."
+  },
+  {
+    "id": "end_kp_01",
+    "title": "Basic King and Pawn Win",
+    "rating": 900,
+    "themes": [
+      "endgame",
+      "kpEndgame"
+    ],
+    "fen": "8/8/8/8/8/k7/1p6/1K6 w - - 0 1",
+    "lastMove": "a3a2",
+    "solution": [
+      "b1c2"
+    ],
+    "category": "endgame",
+    "explanation": "Step your king to c2 to capture the passed pawn on the next move."
+  },
+  {
+    "id": "end_queen_pawn_01",
+    "title": "Queen vs Passed Pawn Win",
+    "rating": 1250,
+    "themes": [
+      "endgame",
+      "queenVsPawn"
+    ],
+    "fen": "8/8/8/8/8/k7/1p6/Q1K5 w - - 0 1",
+    "lastMove": "a3a2",
+    "solution": [
+      "a1xb2"
+    ],
+    "category": "endgame",
+    "explanation": "Capture the passed pawn on b2 with your queen to secure a clean victory."
+  },
+  {
+    "id": "pos_outpost_01",
+    "title": "Establishing the Outpost",
+    "rating": 1100,
+    "themes": [
+      "positional",
+      "outpost"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 2",
+    "lastMove": "g8f6",
+    "solution": [
+      "f1b5"
+    ],
+    "category": "positional",
+    "explanation": "Pin the knight on c6 to weaken their control of the central d4 outpost square."
+  },
+  {
+    "id": "pos_weak_pawns_01",
+    "title": "Targeting Weak Pawns",
+    "rating": 1150,
+    "themes": [
+      "positional",
+      "weakPawns"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 2",
+    "lastMove": "h7h6",
+    "solution": [
+      "d2d4"
+    ],
+    "category": "positional",
+    "explanation": "Contest the center with d4, highlighting Black's isolated and overextended pawns."
+  },
+  {
+    "id": "pos_open_files_01",
+    "title": "Rook Control on the Open File",
+    "rating": 1050,
+    "themes": [
+      "positional",
+      "openFiles"
+    ],
+    "fen": "4k3/3r4/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "lastMove": "e8f8",
+    "solution": [
+      "e1g1"
+    ],
+    "category": "positional",
+    "explanation": "Castle to safety, placing your rook on the open f-file to take control of the vertical axis."
+  },
+  {
+    "id": "pos_minor_pieces_01",
+    "title": "Good Knight vs Bad Bishop",
+    "rating": 1200,
+    "themes": [
+      "positional",
+      "minorPieces"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 2",
+    "lastMove": "a7a6",
+    "solution": [
+      "f1c4"
+    ],
+    "category": "positional",
+    "explanation": "Develop the bishop actively to c4 to claim the diagonal before trades happen."
+  },
+  {
+    "id": "pos_space_01",
+    "title": "Claiming Space on the Queenside",
+    "rating": 1250,
+    "themes": [
+      "positional",
+      "spaceAdvantage"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "d2d4"
+    ],
+    "category": "positional",
+    "explanation": "Establish central control with d4 to secure space for your pieces and restrict Black's moves."
+  },
+  {
+    "id": "pos_proph_01",
+    "title": "Prophylactic King Retreat",
+    "rating": 1300,
+    "themes": [
+      "positional",
+      "prophylaxis"
+    ],
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 2",
+    "lastMove": "f7f6",
+    "solution": [
+      "f1c4"
+    ],
+    "category": "positional",
+    "explanation": "Develop your bishop to c4, anticipating Black's setup and restricting their castling choices."
+  },
+  {
+    "id": "pos_chains_01",
+    "title": "Challenging the Pawn Chain",
+    "rating": 1200,
+    "themes": [
+      "positional",
+      "pawnChains"
+    ],
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "lastMove": "d7d6",
+    "solution": [
+      "g1f3"
+    ],
+    "category": "positional",
+    "explanation": "Develop your knight to f3 to coordinate an attack against Black's pawn anchor."
+  },
+  {
+    "id": "pos_hanging_01",
+    "title": "Defending Hanging Pawns",
+    "rating": 1350,
+    "themes": [
+      "positional",
+      "hangingPawns"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "e2e4"
+    ],
+    "category": "positional",
+    "explanation": "Push e4 to open lines and support your adjacent central pawn structure."
+  },
+  {
+    "id": "pos_isolani_01",
+    "title": "Fixing the Isolated Pawn",
+    "rating": 1400,
+    "themes": [
+      "positional",
+      "isolani"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "d2d4"
+    ],
+    "category": "positional",
+    "explanation": "Push the d-pawn to establish center space and prevent Black from creating an isolated pawn."
+  },
+  {
+    "id": "pos_carlsbad_01",
+    "title": "Carlsbad Minority Attack",
+    "rating": 1450,
+    "themes": [
+      "positional",
+      "carlsbadStructure"
+    ],
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "lastMove": "none",
+    "solution": [
+      "g1f3"
+    ],
+    "category": "positional",
+    "explanation": "Develop the knight to f3 to remain flexible and prepare Carlsbad-style pawn plans."
   }
 ]

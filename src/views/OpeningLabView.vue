@@ -5,8 +5,7 @@ import { useUiStore } from '../stores/uiStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useUserStore } from '../stores/userStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
-import LoadingOverlay from '@/components/common/LoadingOverlay.vue'
-import ProgressBar from '@/components/common/ProgressBar.vue'
+import LoadingOverlay from '../components/common/LoadingOverlay.vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const libraryStore = useLibraryStore()

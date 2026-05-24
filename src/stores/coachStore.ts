@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { evaluateBadges } from '../utils/badgeEngine'
 import { useLibraryStore } from './libraryStore'
 import { useUserStore } from './userStore'
-import { supabase } from '../api/supabaseClient'
 import { logger } from '../utils/logger'
 
 // --- Specialized Composables (Pillar Architecture) ---

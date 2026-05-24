@@ -124,7 +124,7 @@ function onDragStart(sq: string, event: DragEvent) {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)) var(--piece-outline, drop-shadow(1px 0 0 rgba(0,0,0,0.25)) drop-shadow(-1px 0 0 rgba(0,0,0,0.25)) drop-shadow(0 1px 0 rgba(0,0,0,0.25)) drop-shadow(0 -1px 0 rgba(0,0,0,0.25)));
 }
 
 /* Animations */

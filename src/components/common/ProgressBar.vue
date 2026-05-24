@@ -5,6 +5,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 /**
  * Generic progress bar component.
  * @param pct - Percentage between 0 and 100.

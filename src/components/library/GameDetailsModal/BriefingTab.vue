@@ -43,7 +43,6 @@
  * BriefingTab – sub‑component for the "Intelligence" tab of GameDetailsModal.
  * It receives the same props as the parent to keep it simple and avoid circular imports.
  */
-import { defineProps } from 'vue'
 
 const props = defineProps<{
   game: any

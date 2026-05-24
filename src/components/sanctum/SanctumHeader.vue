@@ -34,7 +34,7 @@ const displayValue = computed(() => {
   return activeArchetypeObj.value?.persona || 'The Squire'
 })
 
-defineEmits(['scan', 'recalibrate', 'openArchetype'])
+defineEmits(['scan', 'recalibrate', 'openArchetype', 'showFanfare'])
 </script>
 
 <template>
@@ -54,8 +54,9 @@ defineEmits(['scan', 'recalibrate', 'openArchetype'])
           <div 
             v-for="badge in badges" :key="badge.id" 
             class="sanctum-badge" 
-            :style="{ borderColor: badge.color }" 
-            :data-tooltip="badge.name"
+            :style="{ borderColor: badge.color, cursor: badge.id === 'sanctum_conqueror' ? 'pointer' : 'help' }" 
+            :data-tooltip="badge.id === 'sanctum_conqueror' ? `${badge.name} (Click to replay celebration)` : badge.name"
+            @click="badge.id === 'sanctum_conqueror' ? $emit('showFanfare') : null"
           >
             <span class="badge-icon">{{ badge.icon }}</span>
           </div>

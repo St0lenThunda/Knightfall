@@ -3,7 +3,7 @@ import { Chess } from 'chess.js'
 import { supabase } from '../../api/supabaseClient'
 import { useUserStore } from '../userStore'
 import { useCurriculumStore } from '../curriculumStore'
-import type { LibraryGame } from './types'
+import type { LibraryGame, MoveEvaluation } from './types'
 import { safeLoadPgn } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
 import { fetchCloudEval, fetchMasterMoves, isRateLimited } from '../../api/lichessApi'
@@ -509,12 +509,13 @@ export function useLibrarySync(
  * @param cloudData - Raw evaluation data from Lichess Cloud API
  * @returns Object containing score and bestMove, or null if invalid/unavailable
  */
-function extractCloudEvalScore(cloudData: any): { score: number; bestMove: string } | null {
+function extractCloudEvalScore(cloudData: any): MoveEvaluation | null {
   if (cloudData && cloudData.pvs && cloudData.pvs[0]) {
     const pv = cloudData.pvs[0];
     const bestMove = pv.pv?.split(' ')[0] || '';
-    const score = pv.cp ?? (pv.mate * 100);
-    return { score, bestMove };
+    const isMate = pv.mate !== undefined;
+    const score = pv.cp ?? (pv.mate * 10000);
+    return { score, isMate, bestMove };
   }
   return null;
 }
@@ -535,7 +536,7 @@ function harvestGameBlunder(
   gameId: string,
   move: any,
   ply: number,
-  evals: Array<{ score: number; bestMove: string } | undefined>,
+  evals: Array<MoveEvaluation | undefined>,
   curriculum: ReturnType<typeof useCurriculumStore>
 ): { fen: string; drop: number; move: string; playerMove: string; ply: number } | null {
   if (ply <= 0 || !evals) return null;

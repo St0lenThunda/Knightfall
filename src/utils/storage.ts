@@ -43,6 +43,11 @@ export const StorageKey = {
   COACH_PERSONALITY: 'coachPersonality',
   SHOW_BEST_MOVE_ARROW: 'showBestMoveArrow',
   SHOW_THREAT_ARROW: 'showThreatArrow',
+  SHOW_COORDINATES: 'showCoordinates',
+  SHOW_PIECE_OUTLINES: 'showPieceOutlines',
+  MOVE_ANIMATION_EFFECT: 'moveAnimationEffect',
+  MOVE_ANIMATION_DENSITY: 'moveAnimationDensity',
+  MOVE_ANIMATION_LENGTH: 'moveAnimationLength',
   ANALYSIS_SHOW_SUGGESTIONS: 'kf_analysis_show_suggestions',
   ANALYSIS_SHOW_COACH: 'kf_analysis_show_coach',
   ANALYSIS_SHOW_POSITIONAL_HEALTH: 'kf_analysis_show_positional_health',
@@ -50,6 +55,7 @@ export const StorageKey = {
   ANALYSIS_SHOW_EVAL_BAR: 'kf_analysis_show_eval_bar',
   LICHESS_DAILY_PUZZLE: 'kf_lichess_daily_puzzle',
   LICHESS_DAILY_FETCH_DATE: 'kf_lichess_daily_fetch_date',
+  SANCTUM_FANFARE_SHOWN: 'kf_sanctum_fanfare_shown',
 } as const;
 
 export type StorageKeyType = typeof StorageKey[keyof typeof StorageKey];

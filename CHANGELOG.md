@@ -2,6 +2,21 @@
 
 All notable changes to the Knightfall project will be documented in this file.
 
+## [v0.45.0] - 2026-05-24
+
+### Added
+*   **Move Trail Canvas Particle Engine**: Implemented an overlay coordinate-synchronized `<MoveTrailCanvas>` supporting six premium effects: Chrono Echoes (`chrono`), Blazing Flame (`fire`), Frozen Crystal (`ice`), Cyber-Neon (`cyber`), Autumn Leaves (`leaves`), and Lightning Arc (`lightning`).
+*   **Aesthetic Customizer Modal**: Built a compact visual board/piece customizer featuring theme-tied trail effects, piece contrast outline toggles, a position reset button, and zero-scroll option carousels.
+*   **Curriculum Completion Celebration**: Added `SanctumFanfareOverlay` to celebrate standard curriculum completion (updated to 70 quests and 5,000 XP) with rank progression milestones and high-fidelity fanfare.
+
+### Changed
+*   **Theme-to-Trail Automatic Mapping**: Taught the game board and customizer preview to automatically resolve and bind trail effects to selected piece and board themes, eliminating mix-and-match selection clutter.
+*   **Dependency Pruning**: Uninstalled the dead npm package `"stockfish"` from `package.json` to prevent bundle bloat, as the application evaluates moves directly using a static worker file.
+
+### Fixed
+*   **Chess.com Daily Puzzle Parsing**: Fixed solution move coordinate mapping in `usePuzzleLogic` to properly parse PGN histories and populate solvable puzzle actions.
+*   **TypeScript Type Verification**: Narrowed settings prop definitions and resolved type incompatibilities in `lastMove` properties to achieve error-free Vue compilation.
+
 ## [v0.44.1] - 2026-05-24
 
 ### Fixed

@@ -9,6 +9,7 @@
       @scan="scanForMistakes"
       @recalibrate="recalibratePath"
       @openArchetype="uiStore.isArchetypeModalOpen = true"
+      @showFanfare="showFanfare = true"
     />
 
     <div class="scroll-container neon-scroll">
@@ -33,19 +34,28 @@
         />
       </div>
     </div>
+
+    <!-- Celebration Fanfare for completing all standard lessons -->
+    <SanctumFanfareOverlay 
+      v-if="showFanfare" 
+      :total-quests="curriculumStore.quests.length"
+      @close="closeFanfare" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useUiStore } from '../stores/uiStore'
 import { useCurriculumStore } from '../stores/curriculumStore'
+import { Storage, StorageKey } from '../utils/storage'
 
 // Pillar Components
 import SanctumHeader from '../components/sanctum/SanctumHeader.vue'
 import SanctumShadowRealm from '../components/sanctum/SanctumShadowRealm.vue'
 import SanctumSubjectCard from '../components/sanctum/SanctumSubjectCard.vue'
+import SanctumFanfareOverlay from '../components/sanctum/SanctumFanfareOverlay.vue'
 
 // Pillar Composables
 import { useSanctumActions } from '../composables/sanctum/useSanctumActions'
@@ -54,6 +64,16 @@ import { useSanctumActions } from '../composables/sanctum/useSanctumActions'
 const userStore = useUserStore()
 const uiStore = useUiStore()
 const curriculumStore = useCurriculumStore()
+
+const showFanfare = ref(false)
+
+/**
+ * Checks if the user has completed all standard quests in the curriculum.
+ */
+const isCurriculumFullyCompleted = computed(() => {
+  if (!curriculumStore.quests || curriculumStore.quests.length === 0) return false
+  return curriculumStore.quests.every(q => curriculumStore.completedQuestIds.includes(q.id))
+})
 
 // Filter out Shadow Realm from standard curriculum
 const activeRealms = computed(() => {
@@ -70,6 +90,22 @@ const {
   isGenerating
 } = useSanctumActions()
 
+/**
+ * Closes the fanfare modal and records that the user has acknowledged the completion milestone.
+ */
+function closeFanfare() {
+  showFanfare.value = false
+  Storage.set(StorageKey.SANCTUM_FANFARE_SHOWN, true)
+}
+
+// Watch completion status to automatically trigger the fanfare modal
+watch(isCurriculumFullyCompleted, (completed) => {
+  const fanfareShown = Storage.get<boolean>(StorageKey.SANCTUM_FANFARE_SHOWN, false)
+  if (completed && !fanfareShown) {
+    showFanfare.value = true
+  }
+})
+
 onMounted(async () => {
   if (userStore.session?.user.id) {
     await curriculumStore.fetchProgress(userStore.session.user.id)
@@ -77,6 +113,12 @@ onMounted(async () => {
   // Auto-generate drills if empty
   if (curriculumStore.personalPuzzles.length === 0) {
     await curriculumStore.generatePersonalPuzzles()
+  }
+
+  // Trigger celebration on load if they completed everything but haven't seen the fanfare yet
+  const fanfareShown = Storage.get<boolean>(StorageKey.SANCTUM_FANFARE_SHOWN, false)
+  if (isCurriculumFullyCompleted.value && !fanfareShown) {
+    showFanfare.value = true
   }
 })
 </script>

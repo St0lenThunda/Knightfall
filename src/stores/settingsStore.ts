@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { Storage, StorageKey } from '../utils/storage'
 
-export type BoardTheme = 'classic' | 'wood' | 'obsidian'
-export type PieceTheme = 'classic' | 'neo' | 'glass'
+export type BoardTheme = 'classic' | 'wood' | 'obsidian' | 'echoes' | 'magma' | 'abyss' | 'aether'
+export type PieceTheme = 'classic' | 'neo' | 'glass' | 'runic' | 'neon' | 'void'
 export type CoachPersonality = 'encouraging' | 'strict' | 'socratic'
+export type MoveAnimationEffect = 'none' | 'fire' | 'ice'
+export type MoveAnimationDensity = 'low' | 'medium' | 'high'
+export type MoveAnimationLength = 'short' | 'normal' | 'long'
 
 export const useSettingsStore = defineStore('settings', () => {
   const boardTheme = ref<BoardTheme>(Storage.get(StorageKey.BOARD_THEME, 'classic'))
@@ -21,6 +24,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const showBestMoveArrow = ref<boolean>(Storage.get(StorageKey.SHOW_BEST_MOVE_ARROW, true))
   const showThreatArrow = ref<boolean>(Storage.get(StorageKey.SHOW_THREAT_ARROW, true))
   const showCoordinates = ref<boolean>(Storage.get(StorageKey.SHOW_COORDINATES, false))
+  const showPieceOutlines = ref<boolean>(Storage.get(StorageKey.SHOW_PIECE_OUTLINES, true))
+  const moveAnimationEffect = ref<MoveAnimationEffect>(Storage.get(StorageKey.MOVE_ANIMATION_EFFECT, 'none'))
+  const moveAnimationDensity = ref<MoveAnimationDensity>(Storage.get(StorageKey.MOVE_ANIMATION_DENSITY, 'medium'))
+  const moveAnimationLength = ref<MoveAnimationLength>(Storage.get(StorageKey.MOVE_ANIMATION_LENGTH, 'normal'))
 
   // Analysis Visibility
   const analysisShowSuggestions = ref<boolean>(Storage.get(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, true))
@@ -43,6 +50,14 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(showBestMoveArrow, (newVal) => Storage.set(StorageKey.SHOW_BEST_MOVE_ARROW, newVal))
   watch(showThreatArrow, (newVal) => Storage.set(StorageKey.SHOW_THREAT_ARROW, newVal))
   watch(showCoordinates, (newVal) => Storage.set(StorageKey.SHOW_COORDINATES, newVal))
+  watch(showPieceOutlines, (newVal) => {
+    Storage.set(StorageKey.SHOW_PIECE_OUTLINES, newVal)
+    document.documentElement.setAttribute('data-piece-outlines', newVal ? 'true' : 'false')
+  }, { immediate: true })
+  watch(moveAnimationEffect, (newVal) => Storage.set(StorageKey.MOVE_ANIMATION_EFFECT, newVal))
+  watch(moveAnimationDensity, (newVal) => Storage.set(StorageKey.MOVE_ANIMATION_DENSITY, newVal))
+  watch(moveAnimationLength, (newVal) => Storage.set(StorageKey.MOVE_ANIMATION_LENGTH, newVal))
+
   watch(analysisShowSuggestions, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_SUGGESTIONS, newVal))
   watch(analysisShowCoach, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_COACH, newVal))
   watch(analysisShowPositionalHealth, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_POSITIONAL_HEALTH, newVal))
@@ -52,7 +67,8 @@ export const useSettingsStore = defineStore('settings', () => {
   return { 
     boardTheme, pieceTheme, soundEnabled, 
     engineMultiPv, analysisDepth, 
-    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow, showCoordinates,
+    animationSpeed, coachPersonality, showBestMoveArrow, showThreatArrow, showCoordinates, showPieceOutlines, moveAnimationEffect,
+    moveAnimationDensity, moveAnimationLength,
     analysisShowSuggestions, analysisShowCoach, analysisShowPositionalHealth,
     analysisShowCriticalLines, analysisShowEvalBar
   }
