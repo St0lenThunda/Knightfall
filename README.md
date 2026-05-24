@@ -1,6 +1,8 @@
 # ♞ Knightfall
 
-> **Version**: v0.44.0 ("Refactoring & Store TypeScript Strictness")
+Absolute Path: [README.md](file:///Users/thunda/Desktop/Development/Knightfall/README.md)
+
+> **Version**: v0.44.1 ("Refactoring & Store TypeScript Strictness")
 > **Build Status**: 🟢 100% Unit Test Pass Rate
 
 ---

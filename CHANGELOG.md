@@ -2,6 +2,11 @@
 
 All notable changes to the Knightfall project will be documented in this file.
 
+## [v0.44.1] - 2026-05-24
+
+### Fixed
+*   **Personal Puzzle Parsing**: Patched personal puzzle ID parsing in `fetchPersonalPuzzleById` to reliably extract the source game ID and move index from custom non-UUID string formats (such as local SHA/fingerprint hashes), resolving a major bug where personal mistake drills failed to load in the Siege Trials view.
+
 ## [v0.44.0] - 2026-05-23
 
 ### Changed

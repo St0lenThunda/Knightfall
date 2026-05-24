@@ -143,14 +143,24 @@ export async function fetchPuzzleById(id: string): Promise<Puzzle | null> {
  * Parses a personal puzzle ID and fetches its metadata from the coaching_cache.
  */
 export async function fetchPersonalPuzzleById(id: string): Promise<Puzzle | null> {
-  const parts = id.split('-')
-  // ID format: personal-GUID-INDEX
-  // GUID is parts[1..5], INDEX is parts[6]
-  const matchId = parts.slice(1, 6).join('-')
-  const moveIndex = parseInt(parts[6])
+  if (!id.startsWith('personal-')) {
+    logger.error(`[PuzzleAPI] Invalid personal puzzle ID (missing prefix): ${id}`)
+    return null
+  }
+
+  const withoutPrefix = id.slice('personal-'.length)
+  const lastHyphenIdx = withoutPrefix.lastIndexOf('-')
+
+  if (lastHyphenIdx === -1) {
+    logger.error(`[PuzzleAPI] Invalid personal puzzle ID (missing index delimiter): ${id}`)
+    return null
+  }
+
+  const matchId = withoutPrefix.slice(0, lastHyphenIdx)
+  const moveIndex = parseInt(withoutPrefix.slice(lastHyphenIdx + 1), 10)
 
   if (!matchId || isNaN(moveIndex)) {
-    logger.error(`[PuzzleAPI] Invalid personal puzzle ID: ${id}`)
+    logger.error(`[PuzzleAPI] Invalid personal puzzle ID (empty components): ${id}`)
     return null
   }
 
