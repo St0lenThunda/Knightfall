@@ -3,7 +3,6 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../../stores/userStore'
 import { useLibraryStore } from '../../../stores/libraryStore'
-import { useCoachStore } from '../../../stores/coachStore'
 
 defineProps<{
   joinedDate: string
@@ -12,7 +11,6 @@ defineProps<{
 const router = useRouter()
 const userStore = useUserStore()
 const libraryStore = useLibraryStore()
-const coachStore = useCoachStore()
 
 onMounted(() => {
   userStore.syncGlobalIntelligence()
@@ -26,8 +24,8 @@ onMounted(() => {
       <div class="profile-info">
         <div class="info-header">
           <h2>{{ userStore.profile?.username || 'Player' }}</h2>
-          <span class="title-badge" :style="{ color: coachStore.achievements.title.color, borderColor: coachStore.achievements.title.color }">
-            {{ coachStore.achievements.title.symbol }}
+          <span class="title-badge" :style="{ color: userStore.currentRankColor, borderColor: userStore.currentRankColor }">
+            {{ userStore.currentRankSymbol }}
           </span>
           <button class="btn-edit-inline" @click="router.push('/settings?tab=identity')" title="Laboratory Settings">⚙️ Settings</button>
         </div>
@@ -53,13 +51,7 @@ onMounted(() => {
       </div>
 
       <div class="profile-rating-showcase">
-        <div class="rating-big">
-          <div class="label">
-            Global IQ
-            <span class="stat-info-trigger" data-tooltip="Consolidated cross-platform tactical and competitive proficiency.">ⓘ</span>
-          </div>
-          <div class="rating-num iq-color">🧠 {{ Math.max(userStore.profile?.global_stats?.lichess?.puzzle || 0, userStore.profile?.global_stats?.chesscom?.puzzle || 0, userStore.profile?.puzzle_rating || 0) || 1200 }}</div>
-        </div>
+       
         <div class="rating-big">
           <div class="label">
             Knightfall Elo
@@ -73,6 +65,18 @@ onMounted(() => {
             <span class="stat-info-trigger" data-tooltip="Your live Rapid rating synchronized from external platforms.">ⓘ</span>
           </div>
           <div class="rating-num teal-color">{{ userStore.profile?.global_stats?.lichess?.rapid || userStore.profile?.global_stats?.chesscom?.rapid || userStore.profile?.rating || 1200 }}</div>
+        </div>
+        <div class="rating-big">
+          <div class="label">
+            Global IQ
+            <span
+              class="stat-info-trigger"
+              data-tooltip="Consolidated cross-platform tactical and competitive proficiency."
+            >ⓘ</span>
+          </div>
+          <div class="rating-num iq-color">🧠
+            {{ Math.max( userStore.profile?.global_stats?.lichess?.puzzle || 0, userStore.profile?.global_stats?.chesscom?.puzzle || 0, userStore.profile?.puzzle_rating || 0 ) || 1200 }}
+          </div>
         </div>
         <div class="rating-big">
           <div class="label">

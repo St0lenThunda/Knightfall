@@ -1,6 +1,6 @@
 import { type Ref } from 'vue'
 import { Chess } from 'chess.js'
-import type { LibraryGame } from './types'
+import type { LibraryGame, MoveEvaluation } from './types'
 import { useUserStore } from '../userStore'
 import { safeLoadPgn, injectPgnHeaders } from '../../utils/pgnParser'
 import { generateGameFingerprint } from '../../utils/gameFingerprint'
@@ -341,7 +341,14 @@ export function useLibraryImport(
               lg.perf
             ])],
             clocks: lg.clocks,
-            evals: lg.evals,
+            evals: lg.evals ? lg.evals.map((e: any): MoveEvaluation | null => {
+              if (!e) return null
+              return {
+                score: e.eval !== undefined ? e.eval : (e.mate !== undefined ? e.mate * 10000 : 0),
+                isMate: e.mate !== undefined,
+                bestMove: e.best || ''
+              }
+            }).filter((e): e is MoveEvaluation => e !== null) : undefined,
             isSynthesized: !!(lg.evals && lg.evals.length > 0)
           }
 

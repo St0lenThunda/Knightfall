@@ -400,8 +400,18 @@ export function useLibrarySync(
    * Also identifies blunders for the Shadow Realm (Approach 1).
    */
   async function analyzeLibraryWithCloud(limit = 10) {
+    const uiStore = useUiStore()
     const unanalyzed = games.value.filter(g => !g.isSynthesized).slice(0, limit)
-    if (unanalyzed.length === 0) return
+    
+    if (unanalyzed.length === 0) {
+      uiStore.addToast('Vault Sync: All games are already fully analyzed.', 'info')
+      return
+    }
+
+    // Set processing states to block concurrent requests and show the progress bar/loader in the UI
+    isProcessingIntegrity.value = true
+    integrityProgress.value = 0
+    integrityMessage.value = `Analyzing ${unanalyzed.length} game(s) via Cloud Intel...`
 
     logger.info(`[Intel Hub] Starting Cloud Pass for ${unanalyzed.length} games...`)
     
@@ -409,8 +419,10 @@ export function useLibrarySync(
     const chess = new Chess()
     const curriculum = useCurriculumStore()
 
+    let processedCount = 0
     for (const game of unanalyzed) {
       try {
+        integrityMessage.value = `Analyzing game ${processedCount + 1} of ${unanalyzed.length}...`
         safeLoadPgn(chess, game.pgn)
         const moves = chess.history({ verbose: true })
         
@@ -435,6 +447,8 @@ export function useLibrarySync(
             
             if (isRateLimited()) {
               logger.warn('[Intel Hub] Lichess Rate Limit hit. Pausing analysis pass.')
+              uiStore.addToast('Cloud Intel rate limit exceeded. Please try again in a moment.', 'warning')
+              isProcessingIntegrity.value = false
               return
             }
           }
@@ -481,16 +495,21 @@ export function useLibrarySync(
         
       } catch (e) {
         logger.error(`[Intel Hub] Analysis failed for ${game.id}`, e)
+      } finally {
+        processedCount++
+        integrityProgress.value = Math.round((processedCount / unanalyzed.length) * 100)
       }
     }
     
+    // Reactively trigger a Shadow Realm regeneration on the UI thread
+    await curriculum.generatePersonalPuzzles()
+    
     games.value = [...games.value] // Trigger reactivity
+    isProcessingIntegrity.value = false
+    integrityProgress.value = 100
     
     // APPROACH 4: Notify completion of intelligence pass
-    if (unanalyzed.length > 0) {
-      const uiStore = useUiStore()
-      uiStore.addToast(`Intelligence Pass Complete: Enriched ${unanalyzed.length} games via Lichess Cloud.`, 'info')
-    }
+    uiStore.addToast(`Intelligence Pass Complete: Analyzed ${unanalyzed.length} game(s) and harvested new drills.`, 'success')
   }
 
   return {

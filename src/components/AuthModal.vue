@@ -154,7 +154,18 @@ async function handleResetRequest() {
     uiStore.addToast('Recovery email sent! Check your inbox.', 'success')
     mode.value = 'login'
   } catch (err: any) {
-    uiStore.addToast(err.message || 'Failed to send recovery email.', 'error')
+    // If the browser fails to reach the Supabase host (e.g., DNS resolution fails because the project is paused)
+    // it throws a generic TypeError with the message "Failed to fetch". We intercept this to provide a clearer,
+    // more actionable message.
+    if (err instanceof Error && err.message === 'Failed to fetch') {
+      uiStore.addToast(
+        'Unable to reach the server. Your Supabase project may be paused due to inactivity. ' +
+        'Please restore the project in the Supabase Dashboard or check your connection.',
+        'error'
+      )
+    } else {
+      uiStore.addToast(err.message || 'Failed to send recovery email.', 'error')
+    }
   } finally {
     isLoading.value = false
   }
@@ -175,7 +186,13 @@ async function handleSubmit() {
           .eq('username', targetEmail)
           .single()
         
-        if (profileError || !data?.email) {
+        if (profileError) {
+          if (profileError.message === 'Failed to fetch') {
+            throw new Error('Failed to fetch')
+          }
+          throw new Error('Identity not found. Please verify your username, ensure you have an account, or log in using your email address.')
+        }
+        if (!data?.email) {
           throw new Error('Identity not found. Please verify your username, ensure you have an account, or log in using your email address.')
         }
         targetEmail = data.email
@@ -208,7 +225,18 @@ async function handleSubmit() {
       setTimeout(() => emit('close'), 500)
     }
   } catch (err: any) {
-    uiStore.addToast(err.message || 'An error occurred.', 'error')
+    // If the browser fails to reach the Supabase host (e.g., DNS resolution fails because the project is paused)
+    // it throws a generic TypeError with the message "Failed to fetch". We intercept this to provide a clearer,
+    // more actionable message to the developer or user.
+    if (err instanceof Error && err.message === 'Failed to fetch') {
+      uiStore.addToast(
+        'Unable to reach the server. Your Supabase project may be paused due to inactivity. ' +
+        'Please restore the project in the Supabase Dashboard or check your connection.',
+        'error'
+      )
+    } else {
+      uiStore.addToast(err.message || 'An error occurred.', 'error')
+    }
   } finally {
     isLoading.value = false
   }

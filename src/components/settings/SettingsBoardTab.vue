@@ -53,6 +53,7 @@ const pieceThemes = [
   { id: 'runic', label: 'Runic Stone' },
   { id: 'neon', label: 'Cyber-Neon' },
   { id: 'void', label: 'Void Phantoms' },
+  { id: 'token', label: '3D Isometric Tokens' },
 ]
 
 /**

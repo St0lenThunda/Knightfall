@@ -512,37 +512,56 @@
     "explanation": "Black's knight on c2 forks the king and rook. Capture the rook on a1 to secure material advantage."
   },
   {
-    "id": "tact_fork_03",
-    "title": "Kingside Rook Skewer",
+    "id": "tact_skewer_02",
+    "title": "Absolute Rook Skewer",
     "rating": 1100,
     "themes": [
       "tactics",
       "skewer"
     ],
-    "fen": "4k3/4r3/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
-    "lastMove": "e7h7",
+    "fen": "8/q1k5/8/8/8/8/8/4K2R w K - 0 1",
+    "lastMove": "c7b6",
     "solution": [
-      "e1d2"
+      "h1h7",
+      "c7b6",
+      "h7a7"
     ],
     "category": "tactics",
-    "explanation": "White's king must escape the check. Move to d2 to safeguard the king."
+    "explanation": "Deliver check with your rook on h7. The king is forced to move, exposing the queen on a7 to capture."
   },
   {
-    "id": "tact_fork_04",
+    "id": "tact_underpromotion_01",
     "title": "Underpromotion to Knight",
     "rating": 1500,
     "themes": [
       "tactics",
       "underpromotion",
-      "mate"
+      "fork"
     ],
-    "fen": "3r3k/P5pp/8/8/8/8/6PP/6K1 w - - 0 1",
+    "fen": "8/k1P5/1q6/8/8/8/8/5K2 w - - 0 1",
     "lastMove": "d8d7",
     "solution": [
-      "a7a8q"
+      "c7c8n"
     ],
     "category": "tactics",
-    "explanation": "Promoting to a queen is legal and immediately wins the game. Push the pawn to a8."
+    "explanation": "Promote to a Knight to deliver an immediate check fork against the King and Queen. Promoting to a Queen would lose the pawn without giving check."
+  },
+  {
+    "id": "tact_underpromotion_02",
+    "title": "Underpromotion to Avoid Stalemate",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "underpromotion",
+      "stalemate"
+    ],
+    "fen": "k7/P1P5/2K5/8/8/8/8/8 w - - 0 1",
+    "lastMove": "b6c6",
+    "solution": [
+      "c7c8r"
+    ],
+    "category": "tactics",
+    "explanation": "Promoting to a Queen is stalemate because the black King on a8 has no legal moves. Promoting to a Rook delivers checkmate while giving the king room to move to a7, avoiding stalemate."
   },
   {
     "id": "tact_mate_01",
@@ -607,7 +626,7 @@
     "fen": "6k1/Q4ppp/8/8/8/8/6PP/6K1 w - - 0 1",
     "lastMove": "h7h6",
     "solution": [
-      "q7a8"
+      "a7a8"
     ],
     "category": "tactics",
     "explanation": "Slide the queen all the way to a8 to finish the game with a back-rank checkmate."
@@ -637,13 +656,15 @@
       "tactics",
       "skewer"
     ],
-    "fen": "7k/7r/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "fen": "8/q1k5/8/8/8/8/8/4K2R w K - 0 1",
     "lastMove": "h8g8",
     "solution": [
-      "e1g1"
+      "h1h7",
+      "c7b6",
+      "h7a7"
     ],
     "category": "tactics",
-    "explanation": "Castle kingside to ensure king safety and activate the rook simultaneously."
+    "explanation": "Deliver a check on h7 with your Rook. The Black King is forced to step aside, exposing the unprotected Black Queen on a7 to capture."
   },
   {
     "id": "tact_pin_01",
@@ -717,13 +738,15 @@
       "tactics",
       "clearance"
     ],
-    "fen": "6k1/5ppp/8/8/8/8/PP4PP/R3K2R w KQ - 0 1",
+    "fen": "3r2k1/3N1ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
     "lastMove": "h7h6",
     "solution": [
-      "e1g1"
+      "d7f6",
+      "g7f6",
+      "d1d8"
     ],
     "category": "tactics",
-    "explanation": "Castle kingside to clear the e-file and activate your rook on the f-file."
+    "explanation": "Play Nf6+ to check the king and clear the d-file so your rook on d1 can capture the black rook on d8."
   },
   {
     "id": "tact_windmill_01",
@@ -733,29 +756,47 @@
       "tactics",
       "windmill"
     ],
-    "fen": "r1b1k2r/ppp2ppp/2n5/1B1p4/8/2B5/PPP2PPP/R3K2R w KQkq - 0 1",
+    "fen": "7k/6R1/5B2/8/8/8/1q6/6K1 w - - 0 1",
     "lastMove": "h7h6",
     "solution": [
-      "e1c1"
+      "g7b7",
+      "h8g8",
+      "b7b2"
     ],
     "category": "tactics",
-    "explanation": "Castle queenside to secure your king and immediately exert central pressure."
+    "explanation": "Unleash a discovered check with Rb7+, forcing the black king to g8, and then capture the undefended queen on b2."
   },
   {
     "id": "tact_double_01",
-    "title": "Double Check Escape",
+    "title": "Double Check with Knight and Rook",
     "rating": 1450,
     "themes": [
       "tactics",
       "doubleCheck"
     ],
-    "fen": "r1bqk2r/ppp2ppp/2n5/1B1p4/3P4/2B5/PPP2PPP/R3K2R w KQkq - 0 1",
+    "fen": "5k2/8/8/4N3/8/8/8/5RK1 w - - 0 1",
     "lastMove": "e8g8",
     "solution": [
-      "e1g1"
+      "e5g6"
     ],
     "category": "tactics",
-    "explanation": "Move the king to safety by castling kingside, avoiding any potential tactical threats."
+    "explanation": "Move the knight to g6. This checks the king directly and simultaneously opens up the f-file for the rook, delivering a double check that forces a king move."
+  },
+  {
+    "id": "tact_double_02",
+    "title": "Double Check with Bishop and Rook",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "doubleCheck"
+    ],
+    "fen": "5k2/8/8/8/5B2/8/8/5RK1 w - - 0 1",
+    "lastMove": "e8g8",
+    "solution": [
+      "f4d6"
+    ],
+    "category": "tactics",
+    "explanation": "Play Bd6+ to check the king diagonally while clearing the f-file for the rook, delivering a double check."
   },
   {
     "id": "tact_overload_01",
@@ -765,13 +806,13 @@
       "tactics",
       "overload"
     ],
-    "fen": "r3k2r/pp3ppp/2n5/8/8/8/PP3PPP/R3K2R w KQkq - 0 1",
+    "fen": "6k1/5ppp/3r4/8/8/8/3Q1PPP/3R2K1 w - - 0 1",
     "lastMove": "a8d8",
     "solution": [
-      "e1g1"
+      "d2d6"
     ],
     "category": "tactics",
-    "explanation": "Safeguard your king with kingside castling, shifting the focus to active middle game maneuvering."
+    "explanation": "Capture the rook on d6 with Qxd6. The Black rook on d8 is overloaded because it must defend the back rank from checkmate; if Black plays Rxd6, White plays Rxd8#."
   },
   {
     "id": "tact_hunt_01",
@@ -781,13 +822,15 @@
       "tactics",
       "kingHunt"
     ],
-    "fen": "r1bqk2r/ppp2ppp/2n5/1B1p4/3P4/2B5/PPP2PPP/R3K2R b KQkq - 0 1",
+    "fen": "3r2k1/5ppp/8/8/8/2q5/6PP/3R2K1 b - - 0 1",
     "lastMove": "c3d2",
     "solution": [
-      "e8g8"
+      "c3e3",
+      "g1h1",
+      "d8d1"
     ],
     "category": "tactics",
-    "explanation": "Castle to safety to secure the black king before executing middle game tactics."
+    "explanation": "Initiate the king hunt by checking on e3. The white king must retreat to h1, allowing you to capture the rook on d1 with checkmate."
   },
   {
     "id": "tact_stalemate_01",
@@ -797,13 +840,31 @@
       "tactics",
       "stalemate"
     ],
-    "fen": "k7/8/2K5/8/8/8/8/8 b - - 0 1",
+    "fen": "k7/P7/1K6/8/8/8/8/r7 b - - 0 1",
     "lastMove": "c6b6",
     "solution": [
-      "a8b8"
+      "a1a7"
     ],
     "category": "tactics",
-    "explanation": "Move the black king to b8 to escape the corner and seek active draw scenarios."
+    "explanation": "Sacrifice your rook by capturing the pawn on a7. White is forced to recapture with the king, resulting in an immediate stalemate draw."
+  },
+  {
+    "id": "tact_desperado_01",
+    "title": "Desperado Bishop Sacrifice",
+    "rating": 1600,
+    "themes": [
+      "tactics",
+      "desperado"
+    ],
+    "fen": "r2q1rk1/pp3ppp/8/3pn3/3P2b1/2PB1N1P/PP3PP1/RNBQ1RK1 w - - 0 1",
+    "lastMove": "c6b6",
+    "solution": [
+      "d3h7",
+      "g8h7",
+      "h3g4"
+    ],
+    "category": "tactics",
+    "explanation": "Since White's bishop on d3 is pinned/forked and doomed to be captured by the e5 knight, play Bxh7+ first to sell it dearly before recapturing the black bishop on g4."
   },
   {
     "id": "open_e4_01",
@@ -1088,7 +1149,7 @@
     "fen": "8/8/8/8/8/1k6/p7/QK6 w - - 0 1",
     "lastMove": "b3a3",
     "solution": [
-      "q1xa2"
+      "a1a2"
     ],
     "category": "endgame",
     "explanation": "Capture the a2 pawn with the queen to eliminate Black's active resources."
@@ -1104,7 +1165,7 @@
     "fen": "8/8/8/8/8/1k6/r7/QK6 w - - 0 1",
     "lastMove": "r2h2",
     "solution": [
-      "q1xa2"
+      "a1a2"
     ],
     "category": "endgame",
     "explanation": "Capture the rook on a2 to remove Black's primary checks."
@@ -1200,7 +1261,7 @@
     "fen": "8/8/8/8/8/k7/1p6/Q1K5 w - - 0 1",
     "lastMove": "a3a2",
     "solution": [
-      "a1xb2"
+      "a1b2"
     ],
     "category": "endgame",
     "explanation": "Capture the passed pawn on b2 with your queen to secure a clean victory."
@@ -1364,5 +1425,935 @@
     ],
     "category": "positional",
     "explanation": "Develop the knight to f3 to remain flexible and prepare Carlsbad-style pawn plans."
+  },
+  {
+    "id": "tact_double_03",
+    "title": "Double Check Danger",
+    "rating": 1200,
+    "themes": [
+      "tactics",
+      "doubleCheck"
+    ],
+    "fen": "3k4/8/8/8/3N4/8/8/3R2K1 w - - 0 1",
+    "lastMove": "d8e8",
+    "solution": [
+      "d4e6"
+    ],
+    "category": "tactics",
+    "explanation": "Moving the knight to e6 opens a discovered check from the d1 rook while delivering a direct check from the knight itself. Since double checks cannot be blocked or captured, the king is forced to flee."
+  },
+  {
+    "id": "tact_double_04",
+    "title": "Slicing Double Check",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "doubleCheck"
+    ],
+    "fen": "3k4/8/8/8/8/8/3B4/3R3K w - - 0 1",
+    "lastMove": "d8e8",
+    "solution": [
+      "d2g5"
+    ],
+    "category": "tactics",
+    "explanation": "Moving the bishop to g5 delivers check along the diagonal and opens the d-file for a rook check. The king is forced to move, exposing weaknesses in the defense."
+  },
+  {
+    "id": "tact_double_05",
+    "title": "Knight and Bishop Coordination",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "doubleCheck"
+    ],
+    "fen": "3k4/8/8/8/5N1B/8/8/6NK w - - 0 1",
+    "lastMove": "d8e8",
+    "solution": [
+      "f4e6"
+    ],
+    "category": "tactics",
+    "explanation": "Leaping the knight to e6 delivers a double check: from the knight directly and the bishop on h4 along the diagonal. The black king is forced to step aside."
+  },
+  {
+    "id": "tact_desperado_02",
+    "title": "Desperado Knight Strike",
+    "rating": 1250,
+    "themes": [
+      "tactics",
+      "desperado"
+    ],
+    "fen": "r2qk2r/ppp2ppp/2nb4/3nN3/3P2b1/3B4/PP3PP1/RNBQ1RK1 w kq - 0 1",
+    "lastMove": "d8h4",
+    "solution": [
+      "e5g4"
+    ],
+    "category": "tactics",
+    "explanation": "Instead of backing away, White captures the bishop on g4 with the knight, taking advantage of the tension to win a minor piece."
+  },
+  {
+    "id": "tact_desperado_03",
+    "title": "Desperado Queen Trade",
+    "rating": 1350,
+    "themes": [
+      "tactics",
+      "desperado"
+    ],
+    "fen": "r4rk1/ppp2ppp/8/3R4/8/1q3NP1/PP3P1P/R5K1 w - - 0 1",
+    "lastMove": "c7c6",
+    "solution": [
+      "d5b5"
+    ],
+    "category": "tactics",
+    "explanation": "With the rook under attack, White executes a desperado capture of the black queen on b5 before it can escape."
+  },
+  {
+    "id": "tact_desperado_04",
+    "title": "Desperado Bishop Check",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "desperado"
+    ],
+    "fen": "r2q1rk1/ppp1bppp/2n2n2/3p4/3P2b1/2PB1N1P/PP3PP1/RNBQ1RK1 w - - 0 1",
+    "lastMove": "d8e8",
+    "solution": [
+      "d3h7",
+      "g8h7",
+      "h3g4"
+    ],
+    "category": "tactics",
+    "explanation": "White sacrifices the bishop on h7 with check, creating a desperado opportunity to capture black's active g4 bishop on the following move."
+  },
+  {
+    "id": "tact_desperado_05",
+    "title": "Desperado Bishop Swap",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "desperado"
+    ],
+    "fen": "r2q1rk1/pp1b1ppp/2n1pb2/2ppN1B1/2PP4/2PBPN2/P4PPP/R2Q1RK1 w - - 0 1",
+    "lastMove": "f6e7",
+    "solution": [
+      "e5d7",
+      "d8d7",
+      "g5f6"
+    ],
+    "category": "tactics",
+    "explanation": "White exchanges the knight on d7 and then captures the f6 bishop, maximizing the value of the pieces in a complicated tactical trade."
+  },
+  {
+    "id": "tact_underpromotion_03",
+    "title": "Avoiding the Stalemate Trap",
+    "rating": 1300,
+    "themes": [
+      "endgame",
+      "underpromotion"
+    ],
+    "fen": "kb6/P1P5/8/2K5/8/8/8/8 w - - 0 1",
+    "lastMove": "a8a7",
+    "solution": [
+      "c7b8n"
+    ],
+    "category": "endgame",
+    "explanation": "Promoting to a queen would result in stalemate as the black king would have no legal moves. Promoting to a knight captures the bishop."
+  },
+  {
+    "id": "tact_underpromotion_04",
+    "title": "Underpromotion Savior",
+    "rating": 1400,
+    "themes": [
+      "endgame",
+      "underpromotion"
+    ],
+    "fen": "6k1/4rppp/3P4/8/8/8/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "e7d7",
+    "solution": [
+      "d6e7n",
+      "g8h8",
+      "d1d8"
+    ],
+    "category": "endgame",
+    "explanation": "White is facing checkmate on the back rank. Promoting the pawn on e7 to a knight delivers check, gaining crucial time to capture black's rook and deliver mate."
+  },
+  {
+    "id": "tact_underpromotion_05",
+    "title": "Promotion Fork",
+    "rating": 1500,
+    "themes": [
+      "endgame",
+      "underpromotion"
+    ],
+    "fen": "2r5/kP6/3q4/8/8/8/8/5K2 w - - 0 1",
+    "lastMove": "c8c7",
+    "solution": [
+      "b7c8n",
+      "a7b7",
+      "c8d6"
+    ],
+    "category": "endgame",
+    "explanation": "Promoting to a knight delivers an immediate fork to the king and queen, winning the queen and guaranteeing a winning endgame."
+  },
+  {
+    "id": "tact_windmill_02",
+    "title": "Windmill Harvest",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "windmill"
+    ],
+    "fen": "7k/6R1/5B2/8/q7/8/8/6K1 w - - 0 1",
+    "lastMove": "a4d1",
+    "solution": [
+      "g7a7",
+      "h8g8",
+      "a7a4"
+    ],
+    "category": "tactics",
+    "explanation": "Moving the rook to a7 opens a discovered check from the bishop. Once the king moves, the rook captures the undefended queen."
+  },
+  {
+    "id": "tact_windmill_03",
+    "title": "Windmill Knight Sweep",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "windmill"
+    ],
+    "fen": "7k/6R1/5B2/8/1n6/8/8/6K1 w - - 0 1",
+    "lastMove": "b4a6",
+    "solution": [
+      "g7b7",
+      "h8g8",
+      "b7b4"
+    ],
+    "category": "tactics",
+    "explanation": "White uses the discovered check windmill to sweep the rook to b7, checking the king and harvesting the knight on b4."
+  },
+  {
+    "id": "tact_windmill_04",
+    "title": "Windmill Rook Sweep",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "windmill"
+    ],
+    "fen": "7k/6R1/5B2/r7/8/8/8/6K1 w - - 0 1",
+    "lastMove": "a5a8",
+    "solution": [
+      "g7g5",
+      "h8h7",
+      "g5a5"
+    ],
+    "category": "tactics",
+    "explanation": "White executes a discovered check by moving the rook to g5. The king is forced to h7, allowing the rook to capture the black rook on a5."
+  },
+  {
+    "id": "tact_windmill_05",
+    "title": "Windmill Pawn Sweep",
+    "rating": 1550,
+    "themes": [
+      "tactics",
+      "windmill"
+    ],
+    "fen": "7k/6R1/5B2/p7/8/8/8/6K1 w - - 0 1",
+    "lastMove": "a5a4",
+    "solution": [
+      "g7d7",
+      "h8g8",
+      "d7a7"
+    ],
+    "category": "tactics",
+    "explanation": "A discovered check to d7 forces the king to g8, letting the rook capture the pawn on a7."
+  },
+  {
+    "id": "tact_overload_02",
+    "title": "Deflecting the Back-Rank Guard",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "overload"
+    ],
+    "fen": "5qk1/5ppp/8/8/8/8/3Q1PPP/3R2K1 w - - 0 1",
+    "lastMove": "f8e7",
+    "solution": [
+      "d2d8",
+      "f8d8",
+      "d1d8"
+    ],
+    "category": "tactics",
+    "explanation": "The black queen on f8 is overloaded with protecting both the back rank and the d8 square. Forcing the trade on d8 leads to checkmate."
+  },
+  {
+    "id": "tact_overload_03",
+    "title": "Overloaded Rook on c8",
+    "rating": 1350,
+    "themes": [
+      "tactics",
+      "overload"
+    ],
+    "fen": "3r2k1/5ppp/8/q7/8/2Q5/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "a5a6",
+    "solution": [
+      "d1d8",
+      "a5d8",
+      "c3a5"
+    ],
+    "category": "tactics",
+    "explanation": "The black rook on d8 is overloaded with defending the back rank and supporting the queen. Trading rooks deflects the queen, leaving it open to capture."
+  },
+  {
+    "id": "tact_overload_04",
+    "title": "Overloaded Bishop",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "overload"
+    ],
+    "fen": "3r2k1/4bppp/8/8/8/2Q5/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "e7f6",
+    "solution": [
+      "d1d8",
+      "e7d8",
+      "c3c8"
+    ],
+    "category": "tactics",
+    "explanation": "The bishop on e7 is overloaded defending the d8 rook and c8 square. Eliminating the rook forces the bishop to recapture, letting White win the c8 rook."
+  },
+  {
+    "id": "tact_overload_05",
+    "title": "Overloaded Queen Defense",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "overload"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/1B1pp1N1/4P3/3P4/PPP2PPP/RNBQK2R w KQkq - 0 1",
+    "lastMove": "d7d5",
+    "solution": [
+      "d1f3",
+      "e8g8",
+      "f3f7"
+    ],
+    "category": "tactics",
+    "explanation": "Black's defenses are overloaded. Threatening mate on f7 forces black to castling, exposing the king to further attacks."
+  },
+  {
+    "id": "tact_hunt_02",
+    "title": "King Hunt Chase",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "kingHunt"
+    ],
+    "fen": "3r2k1/5ppp/8/8/8/8/2q3PP/3R2K1 b - - 0 1",
+    "lastMove": "d1d2",
+    "solution": [
+      "c2d1",
+      "g1f2",
+      "d8d2"
+    ],
+    "category": "tactics",
+    "explanation": "White's king is forced out of the corner into the open board where black coordinates the queen and rook to deliver mate."
+  },
+  {
+    "id": "tact_hunt_03",
+    "title": "Mating Net King Hunt",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "kingHunt"
+    ],
+    "fen": "r1b2r1k/pp4pp/8/8/8/8/2q3PP/3R2K1 b - - 0 1",
+    "lastMove": "d1e1",
+    "solution": [
+      "c2f2",
+      "g1h1",
+      "f2f1",
+      "d1f1",
+      "f8f1"
+    ],
+    "category": "tactics",
+    "explanation": "A series of forcing checks drives the king to h1 and sets up a beautiful queen sacrifice to force checkmate on the back rank."
+  },
+  {
+    "id": "tact_hunt_04",
+    "title": "Deep King Hunt",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "kingHunt"
+    ],
+    "fen": "3r2k1/5ppp/8/8/8/8/2q3PP/3R2K1 b - - 0 1",
+    "lastMove": "d1e1",
+    "solution": [
+      "c2d1",
+      "g1f2",
+      "d1d2",
+      "f2g3",
+      "d8d3"
+    ],
+    "category": "tactics",
+    "explanation": "A long king hunt where White's king is chased across the board by the queen and rook until it is trapped and mated on g3."
+  },
+  {
+    "id": "tact_stalemate_02",
+    "title": "Desperate Stalemate Rook",
+    "rating": 1200,
+    "themes": [
+      "endgame",
+      "stalemate"
+    ],
+    "fen": "k7/P7/2K5/8/8/8/8/r7 b - - 0 1",
+    "lastMove": "c6c5",
+    "solution": [
+      "a1a7"
+    ],
+    "category": "endgame",
+    "explanation": "Capturing the a7 pawn stalemates the game because the black king on a8 is trapped and has no legal moves, turning a loss into a draw."
+  },
+  {
+    "id": "tact_stalemate_03",
+    "title": "Stalemate Rescue",
+    "rating": 1300,
+    "themes": [
+      "endgame",
+      "stalemate"
+    ],
+    "fen": "k7/P7/1K6/8/8/8/r7/8 b - - 0 1",
+    "lastMove": "b6a6",
+    "solution": [
+      "a2a7"
+    ],
+    "category": "endgame",
+    "explanation": "White is about to win, but Black executes a stalemate rescue by sacrificing the rook on a7. Capturing the rook results in a draw."
+  },
+  {
+    "id": "tact_stalemate_04",
+    "title": "Corner Stalemate",
+    "rating": 1400,
+    "themes": [
+      "endgame",
+      "stalemate"
+    ],
+    "fen": "k7/P1P5/8/8/8/8/8/r5K1 b - - 0 1",
+    "lastMove": "g1f2",
+    "solution": [
+      "a1a7"
+    ],
+    "category": "endgame",
+    "explanation": "White's king escapes check, but Black sacrifices the rook on a7 to seal the stalemate draw."
+  },
+  {
+    "id": "tact_greek_gift_02",
+    "title": "Classic Greek Gift",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "sacrifice"
+    ],
+    "fen": "r1bq1rk1/ppp1bppp/2n1pn2/3p4/3P4/2PB1N2/PP2QPPP/RNB1K2R w KQ - 0 1",
+    "lastMove": "c6d8",
+    "solution": [
+      "d3h7",
+      "g8h7",
+      "f3g5"
+    ],
+    "category": "tactics",
+    "explanation": "White sacrifices the light-squared bishop on h7 to shatter Black's king safety, bringing the knight to g5 to launch a decisive attack."
+  },
+  {
+    "id": "tact_greek_gift_03",
+    "title": "Greek Gift Breakthrough",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "sacrifice"
+    ],
+    "fen": "r1bq1rk1/ppppbppp/2n1pn2/8/3P4/3BPN2/PPP2PPP/RNBQK2R w KQ - 0 1",
+    "lastMove": "d8c7",
+    "solution": [
+      "d3h7",
+      "g8h7",
+      "f3g5"
+    ],
+    "category": "tactics",
+    "explanation": "Shattering the castled king's defense by sacrificing the bishop on h7. The follow-up knight check on g5 opens lines for the queen to join the attack."
+  },
+  {
+    "id": "tact_greek_gift_04",
+    "title": "Greek Gift Mate Net",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "sacrifice"
+    ],
+    "fen": "r1bq1rk1/ppp1bppp/2n1pn2/3p4/3P4/3BPN2/PPPNQPPP/R1B2RK1 w - - 0 1",
+    "lastMove": "f8e8",
+    "solution": [
+      "d3h7",
+      "f6h7",
+      "f3g5"
+    ],
+    "category": "tactics",
+    "explanation": "A thematic Bxh7+ sacrifice against the castled king, drawing the king out where white's minor pieces dominate."
+  },
+  {
+    "id": "tact_greek_gift_05",
+    "title": "Greek Gift Decoy",
+    "rating": 1600,
+    "themes": [
+      "tactics",
+      "sacrifice"
+    ],
+    "fen": "r1bq1rk1/pp2bppp/1nn1p3/2pp4/3P4/2PB1N2/PP1NQPP1/R1B2RK1 w - - 0 1",
+    "lastMove": "f8e8",
+    "solution": [
+      "d3h7",
+      "g8h7",
+      "f3g5"
+    ],
+    "category": "tactics",
+    "explanation": "The Bxh7+ sacrifice draws the black king into the open diagonal, paving the way for a crushing knight fork or queen check."
+  },
+  {
+    "id": "tact_deflection_02",
+    "title": "Deflection Mate",
+    "rating": 1200,
+    "themes": [
+      "tactics",
+      "deflection"
+    ],
+    "fen": "6k1/5ppp/8/8/8/2Q5/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "a8a7",
+    "solution": [
+      "c3c8"
+    ],
+    "category": "tactics",
+    "explanation": "Capturing c8 deflects any back-rank guards, delivering an immediate checkmate."
+  },
+  {
+    "id": "tact_deflection_03",
+    "title": "Deflect the Guard",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "deflection"
+    ],
+    "fen": "3r2k1/5ppp/8/q7/8/2Q5/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "d8d7",
+    "solution": [
+      "d1d8",
+      "a5d8",
+      "c3a5"
+    ],
+    "category": "tactics",
+    "explanation": "Trading rooks on d8 deflects the queen away from its defense of the a5 square, allowing White to capture it for free."
+  },
+  {
+    "id": "tact_deflection_04",
+    "title": "Deflecting Bishop",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "deflection"
+    ],
+    "fen": "3r2k1/4bppp/8/8/8/2Q5/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "d8c8",
+    "solution": [
+      "d1d8",
+      "e7d8",
+      "c3c8"
+    ],
+    "category": "tactics",
+    "explanation": "Deflecting the bishop on e7 by trading rooks on d8, exposing the c8 rook to capture."
+  },
+  {
+    "id": "tact_clearance_02",
+    "title": "Clearance sacrifice for Mate",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "clearance"
+    ],
+    "fen": "3r2k1/3N1ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "d8d7",
+    "solution": [
+      "d7f6",
+      "g7f6",
+      "d1d8"
+    ],
+    "category": "tactics",
+    "explanation": "White plays f6 to clear the d-file, sacrificing the knight to deliver a forced checkmate with the rook."
+  },
+  {
+    "id": "tact_clearance_03",
+    "title": "Clear the File",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "clearance"
+    ],
+    "fen": "4r1k1/3N1ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "e8e6",
+    "solution": [
+      "d7f6",
+      "g7f6",
+      "d1d8"
+    ],
+    "category": "tactics",
+    "explanation": "Sacrificing the knight on f6 clears the d1 rook's path to capture on d8, delivering checkmate."
+  },
+  {
+    "id": "tact_clearance_04",
+    "title": "Clear the Diagonal",
+    "rating": 1500,
+    "themes": [
+      "tactics",
+      "clearance"
+    ],
+    "fen": "3r2k1/5ppp/8/4N3/8/8/5PPP/3R2K1 w - - 0 1",
+    "lastMove": "d8d7",
+    "solution": [
+      "e5d7"
+    ],
+    "category": "tactics",
+    "explanation": "White knight captures d7, clearing the rook's path to d8."
+  },
+  {
+    "id": "tact_hunt_05",
+    "title": "Forced King Hunt Mate",
+    "rating": 1100,
+    "themes": [
+      "tactics",
+      "kingHunt"
+    ],
+    "fen": "6k1/R5p1/6P1/8/8/8/1q6/6K1 w - - 0 1",
+    "lastMove": "b2b7",
+    "solution": [
+      "a7a8",
+      "b2b8",
+      "a8b8"
+    ],
+    "category": "tactics",
+    "explanation": "White drives the black king to a forced checkmate by checking with the rook on a8, skewering the blocking queen on b8."
+  },
+  {
+    "id": "tact_fork_03",
+    "title": "Double Attack Fork",
+    "rating": 1150,
+    "themes": [
+      "tactics",
+      "fork"
+    ],
+    "fen": "r3k2r/pp3ppp/2n5/2bp4/4n3/2N2N2/PPP2PPP/R1BQR1K1 b kq - 0 1",
+    "lastMove": "e1e2",
+    "solution": [
+      "c5f2",
+      "g1f1",
+      "f2e1"
+    ],
+    "category": "tactics",
+    "explanation": "The black bishop captures f2, delivering a fork to the white rook on e1 and the king on g1, winning the exchange."
+  },
+  {
+    "id": "tact_pin_02",
+    "title": "Exploiting the Knight Pin",
+    "rating": 1100,
+    "themes": [
+      "tactics",
+      "pin"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/1B1Pp3/4P3/2N2N2/PPP2PPP/R1BQK2R w KQkq - 0 1",
+    "lastMove": "c6a5",
+    "solution": [
+      "d5c6"
+    ],
+    "category": "tactics",
+    "explanation": "Since Black's knight on c6 is pinned diagonally to the king on e8 by White's bishop on b5, it cannot escape. White pushes d5xc6 to capture the pinned defender."
+  },
+  {
+    "id": "tact_pin_03",
+    "title": "Paralyzing Pin",
+    "rating": 1150,
+    "themes": [
+      "tactics",
+      "pin"
+    ],
+    "fen": "r3k2r/ppp2ppp/2n5/1B1pp3/4P3/8/PPP2PPP/R1BQK2R w KQkq - 0 1",
+    "lastMove": "e8c8",
+    "solution": [
+      "e4d5"
+    ],
+    "category": "tactics",
+    "explanation": "White pushes the e-pawn to d5, attacking the pinned c6 knight which is paralyzed in front of the e8 king."
+  },
+  {
+    "id": "tact_pin_04",
+    "title": "Pinning Exchange",
+    "rating": 1200,
+    "themes": [
+      "tactics",
+      "pin"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n5/1B1pP3/3P4/8/PPP2PPP/R1BQK2R w KQkq - 0 1",
+    "lastMove": "c6a5",
+    "solution": [
+      "b5c6"
+    ],
+    "category": "tactics",
+    "explanation": "White captures the pinned knight on c6 to disrupt Black's pawn structure and weaken the queenside defense."
+  },
+  {
+    "id": "tact_skewer_04",
+    "title": "Diagonal Bishop Skewer",
+    "rating": 1250,
+    "themes": [
+      "tactics",
+      "skewer"
+    ],
+    "fen": "k7/1q6/8/8/8/8/2B5/4K3 w - - 0 1",
+    "lastMove": "a6d3",
+    "solution": [
+      "c2e4",
+      "a8b8",
+      "e4b7"
+    ],
+    "category": "tactics",
+    "explanation": "White's bishop checks the king on a8 from e4, skewering and winning the undefended queen on b7 on the next move."
+  },
+  {
+    "id": "tact_intermezzo_02",
+    "title": "Zwischenzug Knight Trap",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "intermezzo"
+    ],
+    "fen": "r1bqk2r/ppp2ppp/2n2n2/1B1pp1B1/3PP3/2N2N2/PPP2PPP/R2Q1RK1 w kq - 0 1",
+    "lastMove": "f6e4",
+    "solution": [
+      "d4e5",
+      "h7h6",
+      "e5f6",
+      "h6g5",
+      "f6g7"
+    ],
+    "category": "tactics",
+    "explanation": "Instead of immediately moving the attacked bishop on g5, White plays the forcing in-between move e5xf6, winning black's active knight."
+  },
+  {
+    "id": "tact_intermezzo_03",
+    "title": "Zwischenzug Knight Check",
+    "rating": 1355,
+    "themes": [
+      "tactics",
+      "intermezzo"
+    ],
+    "fen": "r3k2r/ppp2ppp/2n5/3pP1B1/1b1P2b1/2N2N2/PPP2PPP/R2Q1RK1 w kq - 0 1",
+    "lastMove": "g4xf3",
+    "solution": [
+      "c3d5",
+      "g4f3",
+      "d5c7",
+      "e8d7",
+      "d1f3"
+    ],
+    "category": "tactics",
+    "explanation": "When Black captures the knight, White interposes a forcing in-between knight check on c7, winning a pawn and saving the attack before recapturing."
+  },
+  {
+    "id": "tact_intermezzo_04",
+    "title": "Zwischenzug Rook Deflection",
+    "rating": 1400,
+    "themes": [
+      "tactics",
+      "intermezzo"
+    ],
+    "fen": "r5k1/5ppp/8/q7/8/8/5PPP/2RR2K1 w - - 0 1",
+    "lastMove": "a5a2",
+    "solution": [
+      "d1d8",
+      "a5d8",
+      "c1a1"
+    ],
+    "category": "tactics",
+    "explanation": "White defers the rook trade to play an in-between check on d8, forcing the black queen out of position before capturing."
+  },
+  {
+    "id": "tact_intermezzo_05",
+    "title": "Zwischenzug Bishop Check",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "intermezzo"
+    ],
+    "fen": "r3k2r/ppp2ppp/2n5/3pP1B1/1b1P2b1/2N2N2/PPP2PPP/R2Q1RK1 w kq - 0 1",
+    "lastMove": "b4a5",
+    "solution": [
+      "c3d5",
+      "g4f3",
+      "d5c7",
+      "e8d7",
+      "d1f3"
+    ],
+    "category": "tactics",
+    "explanation": "A tactical intermezzo using the knight on c7 to check the king in the middle of a trade, disrupting the black king's safety."
+  },
+  {
+    "id": "tact_xray_02",
+    "title": "X-Ray Rook Attack",
+    "rating": 1250,
+    "themes": [
+      "tactics",
+      "xrayAttack"
+    ],
+    "fen": "2r1r1k1/5ppp/8/8/8/8/2Q3PP/2R3K1 w - - 0 1",
+    "lastMove": "c8d8",
+    "solution": [
+      "c2c8",
+      "e8c8",
+      "c1c8"
+    ],
+    "category": "tactics",
+    "explanation": "White's rook on c1 defends the c8 square 'through' the queen on c2, allowing a winning queen sacrifice checkmate."
+  },
+  {
+    "id": "tact_xray_03",
+    "title": "X-Ray File Attack",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "xrayAttack"
+    ],
+    "fen": "4rrk1/5ppp/8/8/8/8/4Q1PP/4R2K w - - 0 1",
+    "lastMove": "e8d8",
+    "solution": [
+      "e2e8",
+      "f8e8",
+      "e1e8"
+    ],
+    "category": "tactics",
+    "explanation": "The rook on e1 coordinates with the queen on e2 to deliver checkmate on e8 via an X-ray alignment."
+  },
+  {
+    "id": "tact_xray_04",
+    "title": "X-Ray Diagonal Attack",
+    "rating": 1350,
+    "themes": [
+      "tactics",
+      "xrayAttack"
+    ],
+    "fen": "1rr3k1/5ppp/8/8/8/8/1Q4PP/1R4K1 w - - 0 1",
+    "lastMove": "b8c8",
+    "solution": [
+      "b2b8",
+      "c8b8",
+      "b1b8"
+    ],
+    "category": "tactics",
+    "explanation": "White executes an X-ray back-rank mate using the queen and rook combined on the b-file."
+  },
+  {
+    "id": "tact_smother_02",
+    "title": "Simple Smothered Mate",
+    "rating": 1100,
+    "themes": [
+      "tactics",
+      "smotheredMate"
+    ],
+    "fen": "6rk/6pp/8/4N3/8/8/8/6K1 w - - 0 1",
+    "lastMove": "g8f8",
+    "solution": [
+      "e5f7"
+    ],
+    "category": "tactics",
+    "explanation": "The black king is trapped in the corner by its own rook and pawns. The knight leaps to f7 to deliver a smothered mate."
+  },
+  {
+    "id": "tact_smother_03",
+    "title": "Smothered Knight Leap",
+    "rating": 1200,
+    "themes": [
+      "tactics",
+      "smotheredMate"
+    ],
+    "fen": "6rk/6pp/8/6N1/8/8/8/6K1 w - - 0 1",
+    "lastMove": "g8f8",
+    "solution": [
+      "g5f7"
+    ],
+    "category": "tactics",
+    "explanation": "A direct knight jump to f7 checkmates the cornered black king, who is smothered by his own defensive pieces."
+  },
+  {
+    "id": "tact_smother_04",
+    "title": "Philidor's Legacy Smothered Mate",
+    "rating": 1450,
+    "themes": [
+      "tactics",
+      "smotheredMate"
+    ],
+    "fen": "5rrk/5Qpp/8/6N1/8/8/8/6K1 w - - 0 1",
+    "lastMove": "f7d7",
+    "solution": [
+      "f7g8",
+      "f8g8",
+      "g5f7"
+    ],
+    "category": "tactics",
+    "explanation": "White executes the classic Queen sacrifice on g8. The black rook is forced to capture, smothering the king, which allows Nf7 to deliver checkmate."
+  },
+  {
+    "id": "tact_skewer_05",
+    "title": "Rook Skewer Check",
+    "rating": 1200,
+    "themes": [
+      "tactics",
+      "skewer"
+    ],
+    "fen": "7q/7k/8/8/8/8/8/4K1R1 w - - 0 1",
+    "lastMove": "a1h8",
+    "solution": [
+      "g1h1",
+      "h7g7",
+      "h1h8"
+    ],
+    "category": "tactics",
+    "explanation": "White delivers check with the rook on h1, forcing the king to move and skewering the black queen on h8."
+  },
+  {
+    "id": "tact_xray_05",
+    "title": "X-Ray Double Guard",
+    "rating": 1300,
+    "themes": [
+      "tactics",
+      "xrayAttack"
+    ],
+    "fen": "1r2r1k1/5ppp/8/8/8/8/1Q4PP/1R4K1 w - - 0 1",
+    "lastMove": "a8c8",
+    "solution": [
+      "b2b8",
+      "e8b8",
+      "b1b8"
+    ],
+    "category": "tactics",
+    "explanation": "White executes an X-ray back-rank checkmate by sacrificing the queen on b8, knowing the rook on b1 defends b8 through the queen."
+  },
+  {
+    "id": "tact_smother_05",
+    "title": "Smothered Corner Checkmate",
+    "rating": 1150,
+    "themes": [
+      "tactics",
+      "smotheredMate"
+    ],
+    "fen": "6rk/6pp/8/4N3/8/8/8/5K2 w - - 0 1",
+    "lastMove": "g8e8",
+    "solution": [
+      "e5f7"
+    ],
+    "category": "tactics",
+    "explanation": "The black king is trapped in the corner by its own pieces. White plays Nf7 to deliver a classic smothered mate."
   }
 ]

@@ -5,17 +5,6 @@ import { useUserStore } from '../../../stores/userStore'
 const userStore = useUserStore()
 const showMasteryModal = ref(false)
 
-const rankSymbol = computed(() => {
-  const rank = userStore.currentRankBase
-  if (rank === 'pawn') return '♟'
-  if (rank === 'knight') return '♞'
-  if (rank === 'bishop') return '♝'
-  if (rank === 'rook') return '♜'
-  if (rank === 'queen') return '♛'
-  if (rank === 'king') return '♚'
-  return '👑'
-})
-
 const getNextUnlock = computed(() => {
   const lvl = userStore.currentLevel
   
@@ -40,7 +29,7 @@ const getNextUnlock = computed(() => {
 
 <template>
   <div class="level-progression-bar glass mb-6">
-    <div class="rank-icon-large">{{ rankSymbol }}</div>
+    <div class="rank-icon-large" :style="{ color: userStore.currentRankColor }">{{ userStore.currentRankSymbol }}</div>
     
     <div class="progression-main">
       <div class="level-info">

@@ -11,6 +11,7 @@ import { fetchPuzzleBatch } from '../api/puzzleApi'
 import type { Puzzle } from '../api/puzzleApi'
 import { logger } from '../utils/logger'
 import { Chess, type PieceSymbol } from 'chess.js'
+import type { ArrowDef } from '../components/board/ArrowLayer.vue'
 
 const showOutOfHearts = ref(false)
 
@@ -34,6 +35,50 @@ const currentPuzzleIndex = ref(0)
 const currentPuzzle = computed(() => puzzles.value[currentPuzzleIndex.value])
 const isExplanationMode = ref(true)
 const lessonComplete = ref(false)
+
+/**
+ * Computes visual recommendation arrows showing the correct continuation for the user.
+ * Under Duolingo's lesson framework:
+ * - suggestion arrows are generated during the guided practice phase (first 4 puzzles, indices 0 to 3)
+ * - suggestion arrows are disabled during the final evaluation phase (5th puzzle, index >= 4)
+ * - suggestion arrows are only shown when it is the user's turn to move (even indices in solution)
+ * 
+ * @returns ArrowDef[] - array containing a suggestion arrow if it is the player's turn to move and hints are enabled, else empty
+ */
+const hintArrows = computed<ArrowDef[]>(() => {
+  // Index 4 and above corresponds to the 5th and final puzzle of the lesson. 
+  // We disable hint assistance to verify independent mastery.
+  if (currentPuzzleIndex.value >= 4) {
+    return []
+  }
+
+  const p = currentPuzzle.value
+  if (!p || !p.solution || p.solution.length === 0) {
+    return []
+  }
+
+  // Solution moves alternate: index 0 (player), 1 (opponent), 2 (player), etc.
+  // Suggestion is only displayed when it is the player's turn to act.
+  if (store.drillIndex % 2 === 0) {
+    const nextMove = p.solution[store.drillIndex]
+    if (!nextMove) return []
+
+    // Strip out non-alphanumeric chars like captures ('x') or checks/mates ('+', '#')
+    // to isolate raw 4-character UCI coordinates (e.g., 'e2e4' or 'e7e8')
+    const moveStr = nextMove.replace('x', '').replace('+', '').replace('#', '')
+    const from = moveStr.slice(0, 2)
+    const to = moveStr.slice(2, 4)
+
+    return [{
+      from,
+      to,
+      type: 'suggestion' as const
+    }]
+  }
+
+  return []
+})
+
 const puzzlesSolvedInLesson = ref(0)
 
 const progress = computed(() => {
@@ -73,7 +118,7 @@ onMounted(async () => {
       puzzles.value = quest.value.puzzles
     } else if (quest.value) {
       // Fetch 5 puzzles matching the quest's theme/category
-      const batch = await fetchPuzzleBatch(quest.value.category.toLowerCase(), 5)
+      const batch = await fetchPuzzleBatch(quest.value.id, 5)
       puzzles.value = batch
     }
     
@@ -239,6 +284,7 @@ async function finishLesson() {
         <ChessBoard 
           :flipped="playerColor === 'b'" 
           :interactive="!isExplanationMode && store.drillIndex % 2 === 0" 
+          :hintArrows="hintArrows"
         />
       </div>
 
@@ -258,12 +304,27 @@ async function finishLesson() {
             <button class="btn btn-primary btn-lg" @click="startDrill">Start Exercise</button>
           </div>
           <div v-else class="drill-info">
-            <h3>Find the Best Move</h3>
-            <p class="text-secondary" style="margin-bottom: var(--space-6);">Step {{ currentPuzzleIndex + 1 }} of {{ puzzles.length }}</p>
-            
-            <div class="tip glass-xs">
-              <strong>Coach's Tip:</strong> {{ currentPuzzle?.explanation || 'Take your time. Identify the opponent\'s last move and search for forcing checks, captures, and threats.' }}
-            </div>
+            <!-- If we are on the 5th step (index 4), hide coach tips and visual suggestions (Evaluation Mode) -->
+            <template v-if="currentPuzzleIndex === 4">
+              <div class="eval-mode-header">
+                <span class="lock-icon" aria-hidden="true">🔒</span>
+                <h3>Final Evaluation</h3>
+              </div>
+              <p class="text-secondary" style="margin-bottom: var(--space-6);">Step {{ currentPuzzleIndex + 1 }} of {{ puzzles.length }}</p>
+              
+              <div class="tip evaluation-warning glass-xs">
+                <strong>Evaluation Mode:</strong> No hints or coach tips are available. Prove you have mastered the concept!
+              </div>
+            </template>
+            <!-- Otherwise (index 0, 1, 2, 3), render standard guided instruction with Coach's Tip -->
+            <template v-else>
+              <h3>Find the Best Move</h3>
+              <p class="text-secondary" style="margin-bottom: var(--space-6);">Step {{ currentPuzzleIndex + 1 }} of {{ puzzles.length }}</p>
+              
+              <div class="tip glass-xs">
+                <strong>Coach's Tip:</strong> {{ currentPuzzle?.explanation || 'Take your time. Identify the opponent\'s last move and search for forcing checks, captures, and threats.' }}
+              </div>
+            </template>
           </div>
         </Transition>
       </div>
@@ -383,6 +444,28 @@ async function finishLesson() {
   padding: var(--space-4);
   border-left: 3px solid var(--gold);
   font-size: 0.9rem;
+}
+
+.eval-mode-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lock-icon {
+  font-size: 1.25rem;
+  animation: pulse-lock 2s infinite ease-in-out;
+}
+
+.evaluation-warning {
+  border-left: 3px solid var(--rose) !important;
+  background: rgba(244, 63, 94, 0.04);
+}
+
+@keyframes pulse-lock {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
 }
 
 .completion-card {

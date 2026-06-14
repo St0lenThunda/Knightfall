@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { Storage, StorageKey } from '../utils/storage'
 
 export type BoardTheme = 'classic' | 'wood' | 'obsidian' | 'echoes' | 'magma' | 'abyss' | 'aether'
-export type PieceTheme = 'classic' | 'neo' | 'glass' | 'runic' | 'neon' | 'void'
+export type PieceTheme = 'classic' | 'neo' | 'glass' | 'runic' | 'neon' | 'void' | 'token'
 export type CoachPersonality = 'encouraging' | 'strict' | 'socratic'
 export type MoveAnimationEffect = 'none' | 'fire' | 'ice'
 export type MoveAnimationDensity = 'low' | 'medium' | 'high'

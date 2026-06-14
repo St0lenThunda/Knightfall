@@ -136,6 +136,7 @@ const pieceThemes: PieceThemeConfig[] = [
   { id: 'runic', label: 'Runic Stone', minLevel: 1, rank: 'Aspirant' },
   { id: 'neon', label: 'Cyber-Neon', minLevel: 1, rank: 'Aspirant' },
   { id: 'void', label: 'Void Phantoms', minLevel: 1, rank: 'Aspirant' },
+  { id: 'token', label: '3D Isometric Tokens', minLevel: 1, rank: 'Aspirant' },
 ]
 
 /**

@@ -72,17 +72,6 @@ function getSubjectStatus(realm: any) {
 // Total number of completed quests
 const totalCompleted = computed(() => curriculumStore.completedQuestIds.length)
 
-// Display rank of the scholar (removed manual logic, uses userStore.currentLevelName)
-
-const rankIcons: Record<string, string> = {
-  pawn: '♙',
-  knight: '♘',
-  bishop: '♗',
-  rook: '♖',
-  queen: '♕',
-  king: '♔'
-}
-
 // Dynamically compute the next recommended quest for the player to pursue
 const nextLesson = computed(() => {
   const nextQ = curriculumStore.quests.find(q => q.status === 'unlocked' && !curriculumStore.isQuestCompleted(q.id))
@@ -140,7 +129,7 @@ const weaknesses = computed(() => {
         <h1 class="text-gradient" style="display: flex; align-items: center; gap: var(--space-2);">
           <span>{{ routeMeta.icon }}</span>
           <span>{{ routeMeta.title }}</span>
-          <span class="rank-icon" :title="userStore.currentLevelName" style="font-size: inherit; margin-left: var(--space-2);">{{ rankIcons[userStore.currentRankBase] || '♙' }}</span>
+          <span class="rank-icon" :title="userStore.currentLevelName" :style="{ color: userStore.currentRankColor, fontSize: 'inherit', marginLeft: 'var(--space-2)' }">{{ userStore.currentRankSymbol }}</span>
         </h1>
         <p class="muted" style="margin-top: 4px;">Welcome back, Scholar {{ userStore.profile?.username }}. You've completed {{ totalCompleted }} quests this week.</p>
       </div>

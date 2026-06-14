@@ -106,7 +106,18 @@ async function handleUpdatePassword() {
       router.push('/')
     }, 2000)
   } catch (err: any) {
-    uiStore.addToast(err.message || 'Failed to update password.', 'error')
+    // If the browser fails to reach the Supabase host (e.g., DNS resolution fails because the project is paused)
+    // it throws a generic TypeError with the message "Failed to fetch". We intercept this to provide a clearer,
+    // more actionable message.
+    if (err instanceof Error && err.message === 'Failed to fetch') {
+      uiStore.addToast(
+        'Unable to reach the server. Your Supabase project may be paused due to inactivity. ' +
+        'Please restore the project in the Supabase Dashboard or check your connection.',
+        'error'
+      )
+    } else {
+      uiStore.addToast(err.message || 'Failed to update password.', 'error')
+    }
   } finally {
     isLoading.value = false
   }

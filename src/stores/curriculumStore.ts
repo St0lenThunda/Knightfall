@@ -467,8 +467,17 @@ export const useCurriculumStore = defineStore('curriculum', () => {
         chess.loadPgn(game.pgn)
         const moves = chess.history({ verbose: true })
         
-        // Iterate through evals and find significant mistakes
-        const evals = game.evals || []
+        // Normalize evaluations to support both internal { score, bestMove } and Lichess raw { eval, best } formats
+        const rawEvals = game.evals || []
+        const evals = rawEvals.map((e: any) => {
+          if (!e) return null
+          return {
+            score: e.score !== undefined ? e.score : (e.eval !== undefined ? e.eval : (e.mate !== undefined ? e.mate * 10000 : 0)),
+            isMate: e.isMate !== undefined ? e.isMate : e.mate !== undefined,
+            bestMove: e.bestMove || e.best || ''
+          }
+        })
+
         evals.forEach((ev, i) => {
           // We need the evaluation for the position BEFORE move i to find the engine's best move.
           // If we are at the very first move (i = 0), we default to a standard opening balance of 0.3.

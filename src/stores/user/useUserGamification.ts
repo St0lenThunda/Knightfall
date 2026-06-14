@@ -88,12 +88,51 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
 
   const currentRankBase = computed(() => {
     const lvl = currentLevel.value
+    // Level 60+ is the ultimate milestone: Legend / Grandmaster
+    if (lvl >= 60) return "legend"
+    // Level 50-59 represents the King rank
     if (lvl >= 50) return "king"
+    // Level 40-49 represents the Queen rank
     if (lvl >= 40) return "queen"
+    // Level 30-39 represents the Rook rank
     if (lvl >= 30) return "rook"
+    // Level 20-29 represents the Bishop rank
     if (lvl >= 20) return "bishop"
+    // Level 10-19 represents the Knight rank
     if (lvl >= 10) return "knight"
+    // Level 1-9 is the starting Pawn rank
     return "pawn"
+  })
+
+  /**
+   * The solid Unicode symbol representing the user's level progression rank.
+   * Unified to ensure matching icons across the dashboard, profile header, and progress bar.
+   */
+  const currentRankSymbol = computed(() => {
+    const rank = currentRankBase.value
+    if (rank === 'pawn') return '♟'
+    if (rank === 'knight') return '♞'
+    if (rank === 'bishop') return '♝'
+    if (rank === 'rook') return '♜'
+    if (rank === 'queen') return '♛'
+    if (rank === 'king') return '♚'
+    // Fallback for Legend/Grandmaster
+    return '👑'
+  })
+
+  /**
+   * The hex/rgba color code associated with the user's current progression rank.
+   * Matches the visual branding of the chess rank tiers (blue for Knight, gold for Rook, etc.).
+   */
+  const currentRankColor = computed(() => {
+    const rank = currentRankBase.value
+    if (rank === 'pawn') return 'rgba(255,255,255,0.4)'
+    if (rank === 'knight') return '#60a5fa'     // Soft Blue
+    if (rank === 'bishop') return '#34d399'     // Emerald Green
+    if (rank === 'rook') return '#f59e0b'       // Amber Gold
+    if (rank === 'queen') return '#a78bfa'      // Purple/Amethyst
+    if (rank === 'king') return '#f87171'       // Rose Red
+    return '#fde68a'                            // Grandmaster Gold
   })
 
   /**
@@ -318,6 +357,7 @@ export function useUserGamification(profile: Ref<UserProfile | null>) {
   return {
     hearts, xp, streak, maxHearts,
     currentLevel, xpForNextLevel, levelProgress, nextTitle, currentLevelName, currentRankBase,
+    currentRankSymbol, currentRankColor,
     completedQuests, badges,
     addXP, deductHeart, gainHeart, refillHearts, updateStreak, markQuestComplete,
     checkAndApplyHeartRegeneration

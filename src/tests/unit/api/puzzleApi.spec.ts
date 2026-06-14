@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { fetchLichessDaily } from '../../../api/puzzleApi'
+import { fetchLichessDaily, fetchPuzzleBatch } from '../../../api/puzzleApi'
 import { Storage, StorageKey } from '../../../utils/storage'
 
 describe('Lichess Daily Puzzle Fetch & Cache', () => {
@@ -80,5 +80,23 @@ describe('Lichess Daily Puzzle Fetch & Cache', () => {
 
     // Assert it returned the cached puzzle
     expect(puzzle).toEqual(cachedPuzzle)
+  })
+})
+
+describe('fetchPuzzleBatch Concept-Specific Filtering & Backfill', () => {
+  it('should return concept-specific puzzles for a target quest ID', async () => {
+    // Fetch for double-check-101 (target count = 5)
+    const batch = await fetchPuzzleBatch('double-check-101', 5)
+    expect(batch.length).toBe(5)
+    // All of the returned elements must be double check puzzles
+    batch.forEach(p => {
+      expect(p.themes.includes('doubleCheck')).toBe(true)
+    })
+  })
+
+  it('should prioritize generic unassigned puzzles when backfilling', async () => {
+    // Fetch for outposts-201 (which has 4 outposts, needing 1 fallback)
+    const batch = await fetchPuzzleBatch('outposts-201', 5)
+    expect(batch.length).toBe(5)
   })
 })

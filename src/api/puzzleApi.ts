@@ -90,31 +90,198 @@ export async function fetchDailyGauntlet(): Promise<Puzzle[]> {
 }
 
 /**
- * Fetches a batch of puzzles, prioritizing personal drills if requested.
- * Every puzzle is validated for legality before being returned.
+ * Maps specific curriculum quest/trial IDs to their corresponding tactical/strategic/endgame themes and categories.
+ * This ensures that when a user plays a specific lesson, they receive puzzles that directly reinforce
+ * that lesson's targeted tactic (e.g. windmills, desperados, underpromotions) instead of random category puzzles.
  */
-export async function fetchPuzzleBatch(category?: string, count: number = 3): Promise<Puzzle[]> {
-  if (category === 'Personal Mistake') {
+const QUEST_THEME_MAP: Record<string, { themes: string[], category: string }> = {
+  // --- Tactics ---
+  'forks-101': { themes: ['fork'], category: 'tactics' },
+  'pins-101': { themes: ['pin'], category: 'tactics' },
+  'skewers-101': { themes: ['skewer'], category: 'tactics' },
+  'zwischenzug-301': { themes: ['intermezzo'], category: 'tactics' },
+  'x-ray-101': { themes: ['xrayAttack'], category: 'tactics' },
+  'smothered-mate': { themes: ['smotheredMate'], category: 'tactics' },
+  'back-rank-mate': { themes: ['backRankMate'], category: 'tactics' },
+  'greek-gift': { themes: ['sacrifice'], category: 'tactics' },
+  'deflection-101': { themes: ['deflection'], category: 'tactics' },
+  'clearance-101': { themes: ['clearance'], category: 'tactics' },
+  'windmill-101': { themes: ['windmill'], category: 'tactics' },
+  'double-check-101': { themes: ['doubleCheck'], category: 'tactics' },
+  'desperado-101': { themes: ['desperado'], category: 'tactics' },
+  'stalemate-combo': { themes: ['stalemate'], category: 'tactics' },
+  'deflection-guards': { themes: ['deflection'], category: 'tactics' },
+  'overloaded-pieces': { themes: ['overload'], category: 'tactics' },
+  'king-hunt': { themes: ['kingHunt'], category: 'tactics' },
+
+  // --- Positional / Strategy ---
+  'outposts-201': { themes: ['outpost'], category: 'positional' },
+  'weak-pawns-101': { themes: ['weakPawns'], category: 'positional' },
+  'open-files-101': { themes: ['openFiles'], category: 'positional' },
+  'minor-pieces-101': { themes: ['minorPieces'], category: 'positional' },
+  'space-advantage-101': { themes: ['spaceAdvantage'], category: 'positional' },
+  'prophylaxis-101': { themes: ['prophylaxis'], category: 'positional' },
+  'pawn-chains-101': { themes: ['pawnChains'], category: 'positional' },
+  'hanging-pawns-101': { themes: ['hangingPawns'], category: 'positional' },
+  'isolani-101': { themes: ['isolani'], category: 'positional' },
+  'carlsbad-101': { themes: ['carlsbadStructure'], category: 'positional' },
+  'king-safety-mid': { themes: ['defense'], category: 'positional' },
+
+  // --- Endgame ---
+  'knight-endings': { themes: ['knightEndgame'], category: 'endgame' },
+  'rook-endings': { themes: ['rookEndgame', 'lucena', 'philidor'], category: 'endgame' },
+  'pawn-promotion': { themes: ['pawnPromotion', 'pawnEndgame'], category: 'endgame' },
+  'opposition-201': { themes: ['opposition'], category: 'endgame' },
+  'king-activity-101': { themes: ['kingActivity'], category: 'endgame' },
+  'zugzwang-101': { themes: ['zugzwang'], category: 'endgame' },
+  'triangulation-101': { themes: ['triangulation'], category: 'endgame' },
+  'opposite-bishops-101': { themes: ['oppositeBishops'], category: 'endgame' },
+  'lucena-position': { themes: ['lucenaPosition', 'lucena'], category: 'endgame' },
+  'philidor-position': { themes: ['philidorPosition', 'philidor'], category: 'endgame' },
+  'vancura-position': { themes: ['vancuraPosition'], category: 'endgame' },
+  'kp-vs-k': { themes: ['kpEndgame'], category: 'endgame' },
+  'queen-vs-pawn': { themes: ['queenVsPawn'], category: 'endgame' },
+  'knight-vs-bishop': { themes: ['minorPieces'], category: 'endgame' },
+
+  // --- Opening ---
+  'e4-opening': { themes: ['centerControl'], category: 'opening' },
+  'd4-opening': { themes: ['centerControl'], category: 'opening' },
+  'sicilian-defense': { themes: ['sicilian'], category: 'opening' },
+  'caro-kann': { themes: ['caroKann'], category: 'opening' },
+  'french-defense': { themes: ['frenchDefense'], category: 'opening' },
+  'ruy-lopez': { themes: ['ruyLopez'], category: 'opening' },
+  'queens-gambit': { themes: ['queensGambit'], category: 'opening' },
+  'kings-indian': { themes: ['kingsIndian'], category: 'opening' },
+  'flank-openings': { themes: ['flankOpening'], category: 'opening' },
+  'nimzo-indian': { themes: ['nimzoIndian'], category: 'opening' },
+  'grunfeld-defense': { themes: ['grunfeldSetup', 'grunfeld'], category: 'opening' },
+  'scandinavian': { themes: ['scandinavian'], category: 'opening' },
+  'italian-game': { themes: ['italianGame'], category: 'opening' },
+  'scotch-game': { themes: ['scotchGame'], category: 'opening' },
+  'kings-gambit-op': { themes: ['kingsGambit'], category: 'opening' },
+  'slav-defense': { themes: ['slavDefense'], category: 'opening' }
+}
+
+/**
+ * Fetches a batch of puzzles, prioritizing personal drills if requested.
+ * Supports filtering by a specific quest ID (which maps to specific themes)
+ * or falls back to filtering by category.
+ * 
+ * @param filterKey - The quest ID or general category to filter by (e.g. 'double-check-101', 'tactics')
+ * @param count - The maximum number of puzzles to retrieve in this batch (defaults to 3)
+ * @returns Promise<Puzzle[]> - A list of legal puzzles matching the specified filter criteria
+ */
+export async function fetchPuzzleBatch(filterKey?: string, count: number = 3): Promise<Puzzle[]> {
+  // Single Source of Truth: if the user wants their own mistake queue, delegate to fetchPersonalPuzzles
+  if (filterKey === 'Personal Mistake') {
     return fetchPersonalPuzzles(count)
   }
 
+  // Artificial delay to simulate network latency for a smoother, premium UI transition feel
+  // We use a random duration between 200ms and 500ms
   await new Promise(r => setTimeout(r, 200 + Math.random() * 300))
-  let pool = puzzles
-  if (category && category !== 'mixed') {
-    const targetCat = category.toLowerCase()
-    pool = puzzles.filter(p => p.category.toLowerCase() === targetCat)
-    if (pool.length === 0) pool = puzzles
+
+  let pool: Puzzle[] = []
+  let generalCategory: string | null = null
+
+  // 1. Theme-Specific Filtering
+  // Check if the filterKey matches a known quest ID in our mappings
+  if (filterKey && QUEST_THEME_MAP[filterKey]) {
+    const mapping = QUEST_THEME_MAP[filterKey]
+    generalCategory = mapping.category
+    
+    // Select puzzles that contain at least one of the specific target themes for this quest
+    pool = puzzles.filter(p => p.themes.some(t => mapping.themes.includes(t)))
+    logger.info(`[PuzzleAPI] Found ${pool.length} theme-specific puzzles for quest: ${filterKey}`)
   }
-  
+
+  // 2. Category-Wide Fallback
+  // If we didn't find a quest mapping, or if the quest mapping returned no puzzles,
+  // we fall back to filtering by category (or all puzzles if no category is specified)
+  if (pool.length === 0) {
+    let targetCat = filterKey ? filterKey.toLowerCase() : null
+    
+    // If the filterKey was a quest ID but had no specific puzzles, fall back to its general category
+    if (!targetCat && generalCategory) {
+      targetCat = generalCategory.toLowerCase()
+    }
+
+    if (targetCat && targetCat !== 'mixed') {
+      pool = puzzles.filter(p => p.category.toLowerCase() === targetCat)
+    }
+    
+    // If the category pool is still empty, fall back to the entire database pool
+    if (pool.length === 0) {
+      pool = puzzles
+    }
+  }
+
   const validPuzzles: Puzzle[] = []
+  
+  // Shuffle the selected pool randomly using a standard sorting comparator
+  // so the user does not get the same sequence of puzzles every time
   const shuffledPool = [...pool].sort(() => 0.5 - Math.random())
   
+  // 3. Legality Verification & Deduplication
+  // Iterate through the shuffled pool and check that each puzzle's move sequence is 100% legal.
   for (const p of shuffledPool) {
     if (validPuzzles.length >= count) break
+    
     if (isPuzzleLegal(p)) {
       validPuzzles.push(p)
     } else {
       logger.error(`[PuzzleAPI] Skipping corrupt puzzle ${p.id} (${p.title})`)
+    }
+  }
+
+  // 4. Backfill from Broader Category (Deduplicated with Concept Safeguard)
+  // If we couldn't find enough specific/theme-based puzzles to satisfy 'count',
+  // we query the general category to fill the remaining slots.
+  if (validPuzzles.length < count && generalCategory) {
+    const fallbackCategory = generalCategory.toLowerCase()
+    
+    // First, filter out any puzzles that have already been selected
+    const fallbackPool = puzzles.filter(p => 
+      p.category.toLowerCase() === fallbackCategory && 
+      !validPuzzles.some(vp => vp.id === p.id)
+    )
+
+    // Build a set of all themes mapped to other quests to protect them from generic bleed.
+    // This represents the "physics" of our safeguard: if a puzzle is assigned to a specific
+    // lesson (e.g. desperado, double check), we shouldn't show it as a generic fallback in
+    // a different lesson unless we absolutely have no other choices.
+    const otherMappedThemes = new Set<string>()
+    Object.entries(QUEST_THEME_MAP).forEach(([key, val]) => {
+      if (key !== filterKey) {
+        val.themes.forEach(t => otherMappedThemes.add(t))
+      }
+    })
+
+    // Separate the fallback pool into two tiers:
+    // Tier 1: Generic puzzles that do not belong to any other specific quest theme
+    // Tier 2: Specific puzzles that belong to other quest themes (only used as a last resort)
+    const genericFallback = fallbackPool.filter(p => 
+      !p.themes.some(t => otherMappedThemes.has(t))
+    )
+    const specificFallback = fallbackPool.filter(p => 
+      p.themes.some(t => otherMappedThemes.has(t))
+    )
+
+    // Shuffle both pools independently to maintain randomness
+    const shuffledGeneric = genericFallback.sort(() => 0.5 - Math.random())
+    const shuffledSpecific = specificFallback.sort(() => 0.5 - Math.random())
+
+    // Combine them, putting generic puzzles first to act as a shield against concept overlap
+    const finalFallbackPool = [...shuffledGeneric, ...shuffledSpecific]
+    
+    for (const p of finalFallbackPool) {
+      if (validPuzzles.length >= count) break
+      
+      if (isPuzzleLegal(p)) {
+        validPuzzles.push(p)
+      } else {
+        logger.error(`[PuzzleAPI] Skipping corrupt fallback puzzle ${p.id} (${p.title})`)
+      }
     }
   }
 
