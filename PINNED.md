@@ -8,6 +8,7 @@
 
 ## What's Next
 - [ ] **[P2] [Security] RLS Policy Integration Testing**: Write an automated test suite to assert that cross-user progress records in `user_skill_progress` are rejected by Supabase RLS.
+- [ ] **[P3] [Strategy] Monetization Options**: Review the [monetization brainstorm](file:///Users/thunda/.gemini/antigravity-ide/brain/65c6f4c7-ca63-4611-89a8-e4d47cd7e24c/monetization_brainstorm.md) options for the Knightfall platform (structured into active launch focus and long-term roadmap layers).
 
 ## 📜 Historical Archive
 - [x] **[v0.43.0] Stockfish Inactivity Auto-Throttling (P0)**, **Decomposed FoundationLessonView (P1)**, **Backdrop CSS Consolidation (P1)**, and **Decomposed GameDetailsModal (P1)**.
