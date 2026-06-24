@@ -18,13 +18,21 @@
         <div :key="activeTab" class="profile-tab-content" :class="{ 'with-sidebar': activeTab === 'vault' }">
           
           <!-- TAB 1: OVERVIEW -->
-          <WarRoomPanel 
-            v-if="activeTab === 'overview'" 
-            :joined-date="joinedDate"
-            @show-badge-modal="showBadgeModal = true"
-            @toggle-intel="toggleIntel"
-            @switch-tab="activeTab = $event"
-          />
+          <template v-if="activeTab === 'overview'">
+            <MobileProfileCarousel 
+              v-if="isMobile"
+              :joined-date="joinedDate"
+              @show-badge-modal="showBadgeModal = true"
+              @switch-tab="activeTab = $event"
+            />
+            <WarRoomPanel 
+              v-else
+              :joined-date="joinedDate"
+              @show-badge-modal="showBadgeModal = true"
+              @toggle-intel="toggleIntel"
+              @switch-tab="activeTab = $event"
+            />
+          </template>
 
           <!-- TAB 2: VAULT (Game Archive) -->
           <ProfileVaultTab 
@@ -92,6 +100,7 @@ import { useLibraryStore } from '../stores/libraryStore'
 
 // Pillar Components (Tabs)
 import WarRoomPanel from '../components/profile/WarRoomPanel.vue'
+import MobileProfileCarousel from '../components/profile/MobileProfileCarousel.vue'
 import ProfileVaultTab from '../components/profile/tabs/ProfileVaultTab.vue'
 // import ProfileConstellationTab from '../components/profile/tabs/ProfileConstellationTab.vue'
 import ProfileDnaTab from '../components/profile/tabs/ProfileDnaTab.vue'
@@ -105,6 +114,7 @@ import BadgeShowcaseModal from '../components/profile/modals/BadgeShowcaseModal.
 import { useProfileNavigation } from '../composables/profile/useProfileNavigation'
 import { useProfileActions } from '../composables/profile/useProfileActions'
 import { useCurriculumStore } from '../stores/curriculumStore'
+import { useMobileDetect } from '../composables/useMobileDetect'
 
 // Styles
 import '../assets/profile.css'
@@ -118,6 +128,7 @@ const { activeTab, tabs } = useProfileNavigation()
 const { 
   isInitialSync, showLabModal, showBadgeModal, finishInitialSync 
 } = useProfileActions()
+const { isMobile } = useMobileDetect()
 
 // Computed metadata
 const joinedDate = computed(() => userStore.profile?.created_at ? new Date(userStore.profile.created_at).toLocaleDateString() : 'N/A')
@@ -157,6 +168,27 @@ function toggleIntel() {
 .profile-nav-tabs { display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-full); margin-bottom: var(--space-8); width: fit-content; }
 .profile-tab { padding: var(--space-3) var(--space-6); border-radius: var(--radius-full); border: none; background: transparent; color: var(--text-secondary); font-weight: 700; cursor: pointer; transition: all 0.2s; }
 .profile-tab.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+
+@media (max-width: 768px) {
+  .profile-nav-tabs {
+    width: 100% !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    border-radius: var(--radius-md) !important;
+    justify-content: flex-start;
+    padding: var(--space-2) !important;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .profile-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .profile-tab {
+    padding: var(--space-2) var(--space-4) !important;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+}
 
 .tele-item .label, .sum-item .label { font-size: 0.5rem; font-weight: 900; opacity: 0.5; letter-spacing: 0.1em; }
 .tele-item .val, .sum-item .val { font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; }

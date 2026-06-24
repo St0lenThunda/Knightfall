@@ -6,6 +6,17 @@ import { logger } from '../utils/logger'
 import { useMortalLogic } from './engine/useMortalLogic'
 import type { Bot } from './game/useBotEngine'
 
+/**
+ * Detect mobile at the store level using raw matchMedia.
+ * We can't use the `useMobileDetect` composable here because Pinia stores
+ * are created outside of Vue component lifecycle (no onMounted/onUnmounted).
+ * This one-time check is sufficient since device type doesn't change mid-session.
+ */
+const IS_MOBILE_ENGINE =
+  typeof window !== 'undefined' &&
+  (window.matchMedia('(max-width: 768px)').matches ||
+   window.matchMedia('(pointer: coarse)').matches)
+
 export interface MultiPV {
   id: number
   score: string
@@ -69,10 +80,10 @@ export const useEngineStore = defineStore('engine', () => {
   // ---------------------------------------------------------------------
   /**
    * The duration of inactivity (in milliseconds) before the engine is throttled.
-   * Set to 3 minutes (180,000 ms) to balance user analysis reading time with
-   * saving CPU and battery when the user has stepped away.
+   * On desktop: 3 minutes (180,000 ms) balances user reading time vs CPU.
+   * On mobile: 60 seconds (60,000 ms) to conserve battery aggressively.
    */
-  const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000
+  const INACTIVITY_TIMEOUT_MS = IS_MOBILE_ENGINE ? 60 * 1000 : 3 * 60 * 1000
 
   /**
    * The interval (in milliseconds) within which user activity resets are ignored.
@@ -260,8 +271,23 @@ export const useEngineStore = defineStore('engine', () => {
         
         // Apply initial configuration
         const settings = useSettingsStore()
-        sendCommand(`setoption name MultiPV value ${settings.engineMultiPv}`)
-        sendCommand('setoption name Hash value 8')
+
+        /**
+         * Mobile Eco-Mode:
+         * - Hash 4 MB (instead of 8) to reduce memory footprint and prevent
+         *   mobile browser tab kills due to memory pressure.
+         * - MultiPV 1 (instead of user setting) to halve CPU work.
+         *   On desktop, the user's preferred MultiPV setting is used.
+         */
+        const hash = IS_MOBILE_ENGINE ? 4 : 8
+        const multiPv = IS_MOBILE_ENGINE ? 1 : settings.engineMultiPv
+
+        if (IS_MOBILE_ENGINE) {
+          logger.info('[Engine] Mobile Eco-Mode active: Hash=4, MultiPV=1, shorter inactivity timeout')
+        }
+
+        sendCommand(`setoption name MultiPV value ${multiPv}`)
+        sendCommand(`setoption name Hash value ${hash}`)
         sendCommand('setoption name Threads value 1')
         
         // Signal that initialization is complete
@@ -601,7 +627,14 @@ export const useEngineStore = defineStore('engine', () => {
     sendCommand('isready') 
     sendCommand(`position fen ${fen}`)
     
-    const safeDepth = Math.min(depth, 24)
+    /**
+     * Mobile Eco-Mode depth cap:
+     * On mobile devices, we cap the analysis depth to 12 (instead of up to 24)
+     * to prevent excessive CPU usage that causes thermal throttling and battery drain.
+     * Depth 12 still provides solid tactical evaluations for casual play and puzzles.
+     */
+    const maxDepth = IS_MOBILE_ENGINE ? 12 : 24
+    const safeDepth = Math.min(depth, maxDepth)
     sendCommand(`go depth ${safeDepth}`)
   }
 

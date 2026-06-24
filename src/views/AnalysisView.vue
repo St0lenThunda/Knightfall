@@ -37,8 +37,8 @@
         </div>
       </Transition>
 
-      <!-- Main Analysis Sidebar -->
-      <Transition name="sidebar-entry" appear>
+      <!-- Desktop Sidebar -->
+      <Transition name="sidebar-entry" appear v-if="!isMobile">
         <AnalysisSidebar 
           v-if="hasGame"
           v-model:isCollapsed="isSidebarCollapsed"
@@ -122,9 +122,150 @@
             </div>
           </Transition>
         </template>
-      </AnalysisSidebar>
-      <div v-else class="sidebar-placeholder"></div>
+        </AnalysisSidebar>
+        <div v-else class="sidebar-placeholder"></div>
       </Transition>
+
+      <!-- Mobile Bottom Sheet -->
+      <BottomSheet v-else-if="hasGame" title="Analysis" :peekHeight="80" defaultPosition="peek">
+        <template #peek>
+          <div class="mobile-peek-bar">
+            <!-- Mobile Playback navigation buttons in peek bar -->
+            <div class="mobile-playback-controls">
+              <button class="btn btn-ghost btn-xs" @click.stop="store.goToMove(-1)">⏮</button>
+              <button class="btn btn-ghost btn-xs" @click.stop="store.stepBack()">⏪</button>
+              <button class="btn btn-ghost btn-xs" @click.stop="togglePlayback()">
+                {{ isPlaying ? '⏸' : '▶' }}
+              </button>
+              <button class="btn btn-ghost btn-xs" @click.stop="store.stepForward()">⏩</button>
+              <button class="btn btn-ghost btn-xs" @click.stop="goToEnd()">⏭</button>
+            </div>
+            <span class="eval-badge" :class="evalNum > 0 ? 'positive' : 'negative'">
+              {{ evalNum > 0 ? '+' : '' }}{{ evalNum.toFixed(1) }}
+            </span>
+          </div>
+        </template>
+
+        <div class="mobile-analysis-sheet-content">
+          <!-- Mobile Tabs Navigation -->
+          <nav class="mobile-tabs">
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeMobileTab === 'insights' }" 
+              @click="activeMobileTab = 'insights'"
+            >
+              🧠 Insights
+            </button>
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeMobileTab === 'review' }" 
+              @click="activeMobileTab = 'review'"
+            >
+              📊 Review
+            </button>
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeMobileTab === 'mortal' }" 
+              @click="activeMobileTab = 'mortal'"
+            >
+              👤 Mortal
+            </button>
+          </nav>
+
+          <div class="mobile-tab-pane mt-4">
+            <!-- TAB 1: INSIGHTS -->
+            <div v-if="activeMobileTab === 'insights'" class="tab-pane-content">
+              <AnalysisControls 
+                :currentDepth="engineStore.currentDepth"
+                :isCloudScanning="isCloudScanning"
+                :hasCloudData="hasCloudData"
+                :isPlaying="isPlaying"
+                :pauseReason="pauseReason"
+                :selectedMoveLabel="selectedMoveLabel"
+                :suggestedMove="engineStore.suggestedMove"
+                :evalNum="evalNum"
+                :multiPvs="engineStore.multiPvs"
+                @deepScan="deepCloudScan"
+                @togglePlayback="togglePlayback"
+                @firstMove="store.goToMove(-1)"
+                @prevMove="store.stepBack()"
+                @nextMove="store.stepForward()"
+                @lastMove="goToEnd()"
+              />
+
+              <div class="sticky-coach-wrap glass-sm mt-3">
+                <CoachPanel @update:tag="handleTagUpdate" />
+              </div>
+
+              <div class="analysis-details-wrap p-2 mt-3">
+                <CriticalLines :multiPvs="engineStore.multiPvs" />
+              </div>
+              
+              <div class="analysis-details-wrap p-2 mt-3">
+                <div class="history-integration">
+                  <div class="label mb-2">GAME HISTORY</div>
+                  <MoveHistory hideHeader />
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: REVIEW -->
+            <div v-else-if="activeMobileTab === 'review'" class="tab-pane-content">
+              <GameAnalysisTable 
+                :moves="store.moveHistory"
+                :whitePlayer="resolvedPlayers.white"
+                :blackPlayer="resolvedPlayers.black"
+              />
+              <div class="review-tips mt-4 glass-xs p-4">
+                <h4 class="text-accent mb-2">💡 Oracle's Tip</h4>
+                <p class="muted" style="font-size: 0.85rem;">
+                  Focus on eliminating your <span class="text-rose font-bold">Blunders</span> first.
+                </p>
+              </div>
+            </div>
+
+            <!-- TAB 3: MORTAL -->
+            <div v-else-if="activeMobileTab === 'mortal'" class="tab-pane-content">
+              <MortalGraph :topMoves="engineStore.multiPvs" />
+              <div class="mortal-explanation mt-4 glass-xs p-4 border-t border-glass">
+                <h4 class="text-xs font-bold mb-2 opacity-50">HOW TO READ</h4>
+                <p class="muted text-xs leading-relaxed">
+                  Higher bars indicate moves that are <span class="text-accent">Psychologically Natural</span> for that archetype.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Positional Health Footer inside bottom sheet -->
+          <footer class="mobile-sheet-footer glass-sm mt-6">
+            <div class="footer-header" @click="showHealthLegend = true">
+              <span class="title">POSITIONAL HEALTH</span>
+              <span class="info-icon">ⓘ</span>
+            </div>
+            
+            <div class="health-bars">
+              <div class="health-item" :title="diagnosis.material">
+                <div class="label">MAT</div>
+                <div class="bar-track">
+                  <div class="bar-fill" :style="{ width: metrics.material + '%', background: 'var(--accent-bright)' }"></div>
+                </div>
+              </div>
+              <div class="health-item" :title="diagnosis.activity">
+                <div class="label">ACT</div>
+                <div class="bar-track">
+                  <div class="bar-fill" :style="{ width: metrics.activity + '%', background: 'var(--teal)' }"></div>
+                </div>
+              </div>
+              <div class="health-item" :title="diagnosis.safety">
+                <div class="label">KGS</div>
+                <div class="bar-track">
+                  <div class="bar-fill" :style="{ width: metrics.safety + '%', background: 'var(--rose)' }"></div>
+                </div>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </BottomSheet>
     </div>
 
     <!-- Health Legend Modal -->
@@ -163,6 +304,8 @@ import { useGameStore } from '../stores/gameStore'
 import { useEngineStore } from '../stores/engineStore'
 import { useUserStore } from '../stores/userStore'
 import { usePositionalHealth } from '../composables/usePositionalHealth'
+import { useMobileDetect } from '../composables/useMobileDetect'
+import BottomSheet from '../components/common/BottomSheet.vue'
 import { useAnalysisSession } from '../composables/useAnalysisSession'
 import { useAnalysisPlayers } from '../composables/useAnalysisPlayers'
 import type { TaggedMistake } from '../services/taggingService'
@@ -204,6 +347,9 @@ const showImportModal = ref(false)
 const isSidebarCollapsed = ref(false)
 const showTagPopup = ref(false)
 const currentTag = ref<TaggedMistake | null>(null)
+
+const { isMobile } = useMobileDetect()
+const activeMobileTab = ref('insights')
 
 // Initialize Pillar Logic
 const { engineArrows } = useAnalysisArrows()
@@ -312,4 +458,126 @@ onUnmounted(() => {
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }
 .fade-slide-enter-from { opacity: 0; transform: translateX(10px); }
 .fade-slide-leave-to { opacity: 0; transform: translateX(-10px); }
+
+@media (max-width: 768px) {
+  .analysis-layout {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+    padding: var(--space-2);
+    padding-bottom: 90px;
+    gap: var(--space-4);
+  }
+
+  .board-container {
+    max-width: 100vw;
+  }
+}
+
+/* ─── MOBILE ANALYSIS SHEET TABS ─── */
+.mobile-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  margin-bottom: var(--space-4);
+}
+
+.mobile-tabs .tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: var(--space-2) 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s var(--ease);
+}
+
+.mobile-tabs .tab-btn.active {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--accent-bright);
+  text-shadow: var(--shadow-glow);
+}
+
+.mobile-playback-controls {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.mobile-playback-controls .btn {
+  min-width: unset;
+  min-height: unset;
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.9rem;
+}
+
+.eval-badge {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.eval-badge.positive {
+  color: var(--accent-bright);
+}
+
+.eval-badge.negative {
+  color: var(--text-muted);
+}
+
+.mobile-sheet-footer {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+.mobile-sheet-footer .footer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+
+.mobile-sheet-footer .health-bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mobile-sheet-footer .health-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mobile-sheet-footer .health-item .label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  width: 28px;
+}
+
+.mobile-sheet-footer .bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.mobile-sheet-footer .bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.5s var(--ease);
+}
 </style>

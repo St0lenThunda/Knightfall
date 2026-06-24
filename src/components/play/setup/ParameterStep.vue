@@ -146,6 +146,24 @@ defineEmits(['updateColor', 'updateTc'])
 }
 
 @media (max-width: 768px) {
-  .tc-grid { grid-template-columns: repeat(2, 1fr); }
+  .param-group {
+    margin-bottom: var(--space-4);
+  }
+  .section-label {
+    margin-bottom: var(--space-3);
+  }
+  .color-btn {
+    padding: var(--space-3);
+    gap: var(--space-1);
+  }
+  .c-icon {
+    font-size: 1.8rem;
+  }
+  .c-label {
+    font-size: 0.75rem;
+  }
+  .tc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

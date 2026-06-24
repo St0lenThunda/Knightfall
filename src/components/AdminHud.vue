@@ -124,6 +124,17 @@ onUnmounted(() => { clearInterval(timer); clearInterval(poll); })
   height: 50vh;
 }
 
+@media (max-width: 768px) {
+  .admin-hud-wrapper {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    right: var(--space-3);
+  }
+  .admin-hud-wrapper.expanded {
+    width: calc(100vw - var(--space-6));
+    height: 50vh;
+  }
+}
+
 .hud-toggle {
   background: rgba(10, 10, 12, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);

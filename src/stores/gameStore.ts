@@ -500,8 +500,11 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // --- AUTO-ARCHIVE WATCHER ---
+  // --- AUTO-ARCHIVE WATCHER ───
   watch(isGameOver, (isOver) => {
+    if (isOver) {
+      Storage.remove(StorageKey.ACTIVE_GAME_SNAPSHOT)
+    }
     // We only auto-archive matches that have actually started and progressed
     if (isOver && gameStarted.value && boardLogic.moveHistory.value.length > 0) {
       if (mode.value === 'vs-computer' || mode.value === 'local') {
@@ -511,11 +514,72 @@ export const useGameStore = defineStore('game', () => {
     }
   })
 
-  // --- PERSISTENCE WATCHER ---
+  // --- PERSISTENCE WATCHER ───
   watch(() => boardLogic.boardTrigger.value, () => {
     if (mode.value === 'analysis' && boardLogic.fen.value) {
       Storage.set(StorageKey.LAST_ANALYSIS_PGN, boardLogic.chess.value.pgn())
+    } else if (gameStarted.value && !isGameOver.value && (mode.value === 'vs-computer' || mode.value === 'local')) {
+      Storage.set(StorageKey.ACTIVE_GAME_SNAPSHOT, {
+        fen: boardLogic.fen.value,
+        pgn: boardLogic.chess.value.pgn(),
+        mode: mode.value,
+        playerColor: boardLogic.playerColor.value,
+        activeBotName: bots.activeBot.value?.name || null,
+        timeControl: clock.timeControl.value,
+        whiteTime: clock.whiteTime.value,
+        blackTime: clock.blackTime.value,
+        forceGameOver: forceGameOver.value,
+        resignationWinner: resignationWinner.value,
+        gameStarted: gameStarted.value
+      })
     }
+  })
+
+  /**
+   * Resumes the game state from a saved local storage snapshot.
+   * Useful on mobile device reloads or app restarts.
+   */
+  function resumeActiveGame(): boolean {
+    const snapshot = Storage.get<any>(StorageKey.ACTIVE_GAME_SNAPSHOT, null)
+    if (!snapshot) return false
+
+    logger.info('[GameStore] Resuming active game from snapshot', snapshot)
+    mode.value = snapshot.mode
+    boardLogic.playerColor.value = snapshot.playerColor
+
+    if (snapshot.mode === 'vs-computer' && snapshot.activeBotName) {
+      const foundBot = BOTS.find(b => b.name === snapshot.activeBotName)
+      if (foundBot) {
+        bots.activeBot.value = foundBot
+      }
+    }
+
+    const success = boardLogic.loadPgn(snapshot.pgn, snapshot.mode as any, undefined)
+    if (success) {
+      gameStarted.value = true
+      forceGameOver.value = snapshot.forceGameOver || false
+      resignationWinner.value = snapshot.resignationWinner || null
+      boardLogic.viewIndex.value = -1
+
+      if (snapshot.timeControl) {
+        clock.setTimeControl(snapshot.timeControl)
+        clock.whiteTime.value = snapshot.whiteTime
+        clock.blackTime.value = snapshot.blackTime
+      }
+
+      if (gameActive.value) {
+        startClock()
+        if (isBotTurn.value) {
+          triggerBotMove()
+        }
+      }
+      return true
+    }
+    return false
+  }
+
+  const hasActiveGameSnapshot = computed(() => {
+    return !!Storage.get<any>(StorageKey.ACTIVE_GAME_SNAPSHOT, null)
   })
 
   return {
@@ -558,6 +622,8 @@ export const useGameStore = defineStore('game', () => {
     resign,
     isGameOver,
     saveGame,
+    resumeActiveGame,
+    hasActiveGameSnapshot,
     loadPgn(pgn: string, newMode: GameMode = 'live', id?: string, extra?: { evals?: MoveEvaluation[], tags?: string[], moveTags?: string[] }) {
       logger.info(`[GameStore] Loading PGN. Mode: ${newMode}, ID: ${id}`)
       mode.value = newMode

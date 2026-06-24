@@ -23,9 +23,26 @@
       <span v-else class="badge badge-accent">{{ movesToSolve }} Move{{ movesToSolve !== 1 ? 's' : '' }}</span>
     </div>
 
-    <!-- Real puzzle board -->
     <div class="puzzle-board-wrapper">
       <slot name="board"></slot>
+
+      <!-- Floating HUD overlay for mobile viewports -->
+      <div v-if="isMobile" class="puzzle-mobile-hud">
+        <!-- Top-left: Hearts & Streak -->
+        <div class="hud-pill top-left glass-sm">
+          <span class="hud-item">❤️ {{ userStore.profile?.hearts ?? 5 }}</span>
+          <span class="hud-item">🔥 {{ userStore.currentStreak ?? 0 }}</span>
+        </div>
+
+        <!-- Top-right: Hint Button -->
+        <div 
+          class="hud-pill top-right glass-sm" 
+          :class="{ 'disabled': solved }"
+          @click.stop="!solved && $emit('hint')"
+        >
+          <span>💡 {{ hintLabel }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Controls -->
@@ -76,6 +93,12 @@ defineProps<{
 }>()
 
 defineEmits(['hint', 'solve', 'next', 'discard'])
+
+import { useUserStore } from '../../stores/userStore'
+import { useMobileDetect } from '../../composables/useMobileDetect'
+
+const userStore = useUserStore()
+const { isMobile } = useMobileDetect()
 </script>
 
 <style scoped>
@@ -103,9 +126,11 @@ defineEmits(['hint', 'solve', 'next', 'discard'])
 .puzzle-turn-indicator.black { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); }
 
 .puzzle-board-wrapper {
+  position: relative;
   display: flex;
   justify-content: center;
   margin: var(--space-4) 0;
+  width: 100%;
 }
 
 .puzzle-feedback {
@@ -120,4 +145,40 @@ defineEmits(['hint', 'solve', 'next', 'discard'])
 .feedback-msg { font-size: 0.85rem; color: var(--text-secondary); }
 
 .puzzle-controls { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Floating mobile HUD */
+.puzzle-mobile-hud {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  pointer-events: none;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+}
+
+.hud-pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.hud-pill.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 </style>

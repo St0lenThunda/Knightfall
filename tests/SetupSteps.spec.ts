@@ -16,13 +16,38 @@ describe('OpponentStep.vue', () => {
     contempt: 0
   }
 
-  it('renders bot details correctly', () => {
+  it('renders bot details and toggleable drawer correctly', async () => {
     const wrapper = mount(OpponentStep, {
       props: { activeBot }
     })
+    
+    // Check main details
     expect(wrapper.find('h3').text()).toBe('Maya')
     expect(wrapper.find('.classification').text()).toContain('THE MORTAL')
     expect(wrapper.find('.bot-lore').text()).toBe('A friendly bot.')
+    
+    // Check renamed labels
+    expect(wrapper.find('.mini-stats').text()).toContain('FORESIGHT')
+    expect(wrapper.find('.mini-stats').text()).toContain('5 / 16 moves')
+    expect(wrapper.find('.mini-stats').text()).not.toContain('plies')
+    expect(wrapper.find('.mini-stats').text()).not.toContain('DEPTH')
+
+    // Check inline descriptions
+    expect(wrapper.find('.mini-stats').text()).toContain('The number of moves the adversary looks ahead')
+    expect(wrapper.find('.mini-stats').text()).toContain('Determines how much the bot avoids draws')
+
+    // Check drawer container structure
+    const drawer = wrapper.find('.details-drawer')
+    expect(drawer.exists()).toBe(true)
+    expect(drawer.classes()).not.toContain('open')
+    
+    // Check toggle behavior
+    const toggleBtn = wrapper.find('.intel-toggle-btn')
+    expect(toggleBtn.text()).toContain('VIEW INTEL')
+    
+    await toggleBtn.trigger('click')
+    expect(drawer.classes()).toContain('open')
+    expect(toggleBtn.text()).toContain('COLLAPSE INTEL')
   })
 
   it('emits prev/next events', async () => {

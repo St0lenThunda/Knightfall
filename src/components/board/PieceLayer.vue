@@ -23,11 +23,14 @@ interface Props {
   isThinking: boolean
   theme?: string
   hintSquares?: string[]
+  /** When true, prevents HTML drag (for touch devices using tap-to-move) */
+  disableDrag?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   theme: 'classic',
-  hintSquares: () => []
+  hintSquares: () => [],
+  disableDrag: false
 })
 const emit = defineEmits(['dragstart', 'square-click', 'piece-drop'])
 const store = useGameStore()
@@ -78,7 +81,7 @@ function onDragStart(sq: string, event: DragEvent) {
           'no-interact': !isInteractive || isThinking,
           'is-hinted': hintSquares.includes(p.sq)
         }"
-        :draggable="isInteractive && !isThinking && (mode === 'analysis' || p.color === turn) && (mode !== 'vs-computer' || p.color === playerColor)"
+        :draggable="!disableDrag && isInteractive && !isThinking && (mode === 'analysis' || p.color === turn) && (mode !== 'vs-computer' || p.color === playerColor)"
         :data-square="p.sq"
         @dragstart="onDragStart(p.sq, $event)"
         @dragover.prevent

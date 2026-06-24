@@ -11,6 +11,14 @@
         <div class="toast-indicator"></div>
         <span class="toast-icon">{{ getIcon(toast.variant) }}</span>
         <span class="toast-message">{{ toast.message }}</span>
+        <!-- Counter badge pops/animates on increment using key to trigger visual micro-animations -->
+        <span 
+          v-if="toast.count && toast.count > 1" 
+          :key="toast.count" 
+          class="toast-badge"
+        >
+          {{ toast.count }}
+        </span>
         <button class="toast-close" @click="uiStore.removeToast(toast.id)">✕</button>
       </div>
     </TransitionGroup>
@@ -85,6 +93,30 @@ function getIcon(variant: ToastVariant) {
   padding: var(--space-2); transition: all 0.2s ease;
 }
 .toast-close:hover { opacity: 1; transform: scale(1.2); }
+
+.toast-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  min-width: 20px;
+  height: 20px;
+  animation: pop-badge 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes pop-badge {
+  0% { transform: scale(0.6); opacity: 0; }
+  75% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* Variant Energy Glows */
 .toast-success { box-shadow: 0 0 20px rgba(45, 212, 191, 0.1); }

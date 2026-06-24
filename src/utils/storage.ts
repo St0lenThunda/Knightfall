@@ -56,6 +56,7 @@ export const StorageKey = {
   LICHESS_DAILY_PUZZLE: 'kf_lichess_daily_puzzle',
   LICHESS_DAILY_FETCH_DATE: 'kf_lichess_daily_fetch_date',
   SANCTUM_FANFARE_SHOWN: 'kf_sanctum_fanfare_shown',
+  ACTIVE_GAME_SNAPSHOT: 'kf_active_game_snapshot',
 } as const;
 
 export type StorageKeyType = typeof StorageKey[keyof typeof StorageKey];

@@ -1,10 +1,10 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-05-24T11:19:31Z",
+  "timestamp": "2026-06-23T23:48:55Z",
   "status": "VALIDATED",
-  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: 608bf10 - fix(puzzles): support parsing personal puzzle IDs with non-UUID game fingerprints (Antonio Moses)\n15e2f30 - refactor(stores): enforce strict TypeScript typing and clean up pinned context (Antonio Moses)\n50f7d28 - feat(router): centralize page titles and icons in route metadata as SSOT (Antonio Moses)\na2e25b7 - docs: update README screenshots and automated capture script - Fully automated Playwright script to capture README visuals dynamically from the live database. - Fixed auth routing intercept to correctly capture the authenticated Strategic Briefing (Cathedral) view. - Removed mocks to ensure screenshots display accurate Lichess/Chesscom DNA arrays. - Updated README.md \"Guided Tour\" section with the real, live data screenshots. (Antonio Moses)\n6fd1d55 - feat(user): implement dynamic max hearts tied to rank progression milestones (Antonio Moses)",
+  "briefing": "Warden's Manual Briefing: System hardened. CI Gates validated. Registry persistence active. Recent activity: abaee1a - feat: add monetization strategy review task to PINNED.md roadmap (Antonio Moses)\n56423e6 - feat(curriculum): implement concept-specific drills, hint assistance, and 3D token styling (Antonio Moses)\n8bba509 - feat(board): add move trails, aesthetic customizer, and curriculum completion fanfare (Antonio Moses)\n608bf10 - fix(puzzles): support parsing personal puzzle IDs with non-UUID game fingerprints (Antonio Moses)\n15e2f30 - refactor(stores): enforce strict TypeScript typing and clean up pinned context (Antonio Moses)",
   "metrics": {
-    "files_scanned":      423,
+    "files_scanned":      427,
     "integrity_score": 98
   }
 }

@@ -58,14 +58,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Redirect guest users with no DNA profile to the onboarding gauntlet
-  if (to.path === '/' && !session) {
-    const pendingDna = localStorage.getItem('knightfall_pending_dna')
-    if (!pendingDna) {
-      logger.info('[Router] Guest user has no cached DNA. Intercepting to /assessment.')
-      return { path: '/assessment' }
-    }
-  }
+
 
   if (to.meta.requiresAuth && !session) {
     return { path: '/' }

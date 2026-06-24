@@ -139,7 +139,7 @@
   --piece-outline: none !important;
 }
 
-html { font-size: 16px; scroll-behavior: smooth; }
+html { font-size: 16px; scroll-behavior: smooth; touch-action: manipulation; }
 body {
   font-family: var(--font-sans);
   background: var(--bg-base);
@@ -162,16 +162,22 @@ body {
   transition: margin-left var(--duration) var(--ease);
 }
 
-@media (max-width: 900px) {
-  .main-content { margin-left: 0; }
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    /* Add bottom padding to prevent content from hiding behind the bottom tab bar */
+    padding-bottom: 72px;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
   
   .mobile-nav-toggle {
     position: fixed;
     top: var(--space-4);
     left: var(--space-4);
     z-index: 1000;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: flex !important;
     align-items: center;
     justify-content: center;
@@ -185,8 +191,60 @@ body {
   }
 }
 
-@media (min-width: 901px) {
+@media (min-width: 769px) {
   .mobile-nav-toggle { display: none !important; }
+}
+
+/* ─── MOBILE BOTTOM TAB BAR ─── */
+/* A minimal 5-tab navigation bar for mobile. Uses glassmorphism to stay
+   visually consistent with the gothic theme while remaining lightweight. */
+.mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2500; /* Above everything including modals */
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 60px;
+  /* Safe area inset for iPhones with home indicator bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgba(10, 10, 15, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.mobile-tab-bar .tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: var(--space-1) 0;
+  transition: all 0.2s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-tab-bar .tab-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.mobile-tab-bar .tab-item.active {
+  color: var(--accent-bright);
+}
+
+.mobile-tab-bar .tab-item.active .tab-icon {
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.5));
 }
 
 /* ─── GLASS CARD ─── */
@@ -670,4 +728,40 @@ h4 { font-size: 1rem; font-weight: 600; }
   color: var(--accent-bright);
   background: rgba(139, 92, 246, 0.15);
   transform: scale(1.1);
+}
+
+/* ─── MOBILE-FIRST GLOBAL OVERRIDES ─── */
+/* Target devices: iPhone SE (375px), Galaxy S25 (412px), iPhone 15 Pro Max (430px) */
+@media (max-width: 768px) {
+  /* Tighter page gutters to maximize board space */
+  .page {
+    padding: var(--space-3) var(--space-3);
+  }
+
+  /* Scale down stat cards for narrow viewports */
+  .stat-card .stat-value {
+    font-size: 1.4rem;
+  }
+
+  /* Reduce glass card weight on small screens */
+  .glass {
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Ensure all buttons meet the 44×44px minimum touch target (Apple HIG) */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent modals from overflowing the viewport */
+  .modal-overlay > * {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Compact headings */
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.2rem; }
 }

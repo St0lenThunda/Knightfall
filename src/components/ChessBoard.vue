@@ -2,12 +2,22 @@
   <div class="board-wrapper">
     <div class="main-board-area">
       <div class="board-row-wrap">
-        <div class="rank-labels">
+        <!-- External rank labels (hidden on mobile — inner labels used instead) -->
+        <div class="rank-labels" v-if="!isMobile">
           <span v-for="r in displayRanks" :key="r">{{ r }}</span>
         </div>
 
         <div class="board-container">
-          <div class="chess-board">
+          <!-- 
+            Gesture Lock: Prevent page scrolling while touching the board.
+            `{ passive: false }` is required so we can call preventDefault() on touchmove.
+          -->
+          <div 
+            class="chess-board"
+            @touchstart.passive="onBoardTouchStart"
+            @touchmove="onBoardTouchMove"
+            @touchend.passive="onBoardTouchEnd"
+          >
             <!-- Grid Layer (Squares & Highlights) -->
             <div v-for="(row, rowIdx) in displayBoard" :key="'row-'+rowIdx" class="board-row">
               <div
@@ -24,6 +34,22 @@
                 <div v-if="isLastMove(rowIdx, colIdx)" class="sq-highlight sq-last"></div>
                 <div v-if="isKingInCheck(rowIdx, colIdx)" class="sq-highlight sq-check"></div>
                 <div v-if="isLegalMove(rowIdx, colIdx)" class="legal-dot"></div>
+
+                <!-- 
+                  Lichess-style inner coordinate labels:
+                  Rank label on the first column (a-file), file label on the last row (rank 1).
+                  Shown on mobile to save space; desktop uses external labels.
+                -->
+                <span 
+                  v-if="isMobile && colIdx === 0" 
+                  class="inner-coord inner-rank"
+                  :class="(rowIdx + colIdx) % 2 === 0 ? 'on-light' : 'on-dark'"
+                >{{ displayRanks[rowIdx] }}</span>
+                <span 
+                  v-if="isMobile && rowIdx === 7" 
+                  class="inner-coord inner-file"
+                  :class="(rowIdx + colIdx) % 2 === 0 ? 'on-light' : 'on-dark'"
+                >{{ displayFiles[colIdx] }}</span>
               </div>
             </div>
 
@@ -44,6 +70,7 @@
               :isInteractive="isInteractive"
               :isThinking="isThinking"
               :hintSquares="hintSquares"
+              :disableDrag="isTouch"
               @dragstart="({ sq, event }) => handleDragStartPiece(sq, event)"
               @square-click="(sq) => store.selectSquare(sq)"
               @piece-drop="({ sq, event }) => handleDropOnPiece(sq, event)"
@@ -76,7 +103,8 @@
         </div>
       </div>
       
-      <div class="file-labels-row">
+      <!-- External file labels (hidden on mobile — inner labels used instead) -->
+      <div class="file-labels-row" v-if="!isMobile">
         <span v-for="f in displayFiles" :key="f">{{ f }}</span>
       </div>
     </div>
@@ -88,6 +116,7 @@ import { computed, toRefs, ref, watch } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUiStore } from '../stores/uiStore'
+import { useMobileDetect } from '../composables/useMobileDetect'
 import { logger } from '../utils/logger'
 import type { Square } from 'chess.js'
 import type { MoveQuality } from '../utils/analysisUtils'
@@ -104,6 +133,35 @@ const store = useGameStore()
 const settings = useSettingsStore()
 const { selectedSquare, legalMoveSquares, lastMove, isCheck, turn, isThinking } = toRefs(store)
 const { pieceTheme } = toRefs(settings)
+
+// Mobile detection for tap-to-move and inner coordinates
+const { isMobile, isTouch } = useMobileDetect()
+
+/**
+ * Tracks whether a touch is actively happening on the board.
+ * Used to prevent page scrolling via gesture lock.
+ */
+let isTouchingBoard = false
+
+/** Prevents page scrolling while finger is on the chess board. */
+function onBoardTouchStart() {
+  isTouchingBoard = true
+}
+
+/**
+ * During an active board touch, prevent the default scroll behavior.
+ * This stops the page from sliding up/down when the user drags their
+ * finger across the board squares.
+ */
+function onBoardTouchMove(e: TouchEvent) {
+  if (isTouchingBoard) {
+    e.preventDefault()
+  }
+}
+
+function onBoardTouchEnd() {
+  isTouchingBoard = false
+}
 
 const props = withDefaults(defineProps<{
   flipped?: boolean;
@@ -364,13 +422,17 @@ function isKingInCheck(rowIdx: number, colIdx: number) {
   flex-direction: column;
   align-items: center;
   user-select: none;
+  /* Prevent any pull-to-refresh or overscroll while interacting with the board */
+  touch-action: none;
 }
 
 .main-board-area {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: min(800px, 72vh); /* Optimized for all-onscreen layout */
+  /* Responsive max: caps at 800px on desktop, 72vh for tall screens, 
+     and (100vw - 16px) on narrow phones so it never overflows */
+  max-width: min(800px, 72vh, calc(100vw - 16px));
   margin: 0 auto;
 }
 
@@ -449,6 +511,40 @@ function isKingInCheck(rowIdx: number, colIdx: number) {
   font-weight: 800;
   color: var(--text-muted);
   font-family: var(--font-mono);
+}
+
+/* ─── LICHESS-STYLE INNER COORDINATES ─── */
+/* Rendered inside the board squares on mobile to avoid wasting space with
+   external rank/file label columns. */
+.inner-coord {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.55rem;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.7;
+}
+
+/* Rank labels sit in the top-left corner of the a-file squares */
+.inner-rank {
+  top: 2px;
+  left: 3px;
+}
+
+/* File labels sit in the bottom-right corner of the 1st-rank squares */
+.inner-file {
+  bottom: 2px;
+  right: 3px;
+}
+
+/* Color contrast: use the opposite square color so labels are readable */
+.inner-coord.on-light {
+  color: var(--sq-dark);
+}
+.inner-coord.on-dark {
+  color: var(--sq-light);
 }
 
 .sq-light { background: var(--sq-light, #ecd9b9); }

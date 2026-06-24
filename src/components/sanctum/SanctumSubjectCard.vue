@@ -198,6 +198,51 @@ defineEmits(['openQuest'])
 @media (max-width: 768px) {
   .subject-header { flex-direction: column; text-align: center; }
   .subject-progress { align-items: center; width: 100%; }
-  .lessons-grid { grid-template-columns: 1fr; }
+  
+  .lessons-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .lesson-item {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-full);
+    gap: var(--space-2);
+    width: auto;
+  }
+
+  .lesson-number {
+    font-size: 0.8rem;
+    width: auto;
+    text-align: left;
+  }
+
+  .lesson-details {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .lesson-name {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+  }
+
+  .lesson-status {
+    display: none;
+  }
+
+  .lesson-action {
+    padding: 0;
+    margin: 0;
+    min-height: auto;
+    min-width: auto;
+    font-size: 0.8rem;
+    background: none;
+    border: none;
+  }
 }
 </style>

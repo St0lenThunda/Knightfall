@@ -397,5 +397,46 @@ const weaknesses = computed(() => {
   .banner-actions {
     margin-top: var(--space-2);
   }
+
+  .scholar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .quick-stats {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .mini-stat {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+  }
+
+  .mini-stat .val {
+    font-size: 1rem !important;
+  }
+
+  .next-lesson-cta {
+    padding: var(--space-4) !important;
+  }
+
+  .cta-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3) !important;
+  }
+
+  .cta-content .btn {
+    width: 100%;
+    min-height: 48px;
+  }
 }
 </style>

@@ -291,6 +291,27 @@ function finalize() {
 .step-slide-leave-to { opacity: 0; transform: translateX(-30px); }
 
 @media (max-width: 768px) {
-  .step-modal { padding: var(--space-6); }
+  .step-modal {
+    padding: var(--space-4);
+    width: 95%;
+  }
+  .step-container {
+    min-height: 280px;
+  }
+  .modal-header {
+    margin-bottom: var(--space-4);
+  }
+  .modal-header h2 {
+    font-size: 1.15rem;
+  }
+  .modal-footer {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+  }
+  .action-btn {
+    padding: var(--space-3) var(--space-4);
+    min-width: 120px;
+    font-size: 0.9rem;
+  }
 }
 </style>

@@ -7,3 +7,5 @@
 - [Library Infrastructure Stabilization](./walkthrough-library-stabilization.md) (2026-04-30)
 - [The Mortal Curriculum Paradigm Shift](./mortal-curriculum-paradigm-shift.md) (2026-05-21)
 - [Foundational Lessons & Terminology Unification](./walkthrough-foundational-lessons.md) (2026-05-22)
+- [Mobile-First Redesign & UX Polish](./mobile-first-redesign.md) (2026-06-24)
+

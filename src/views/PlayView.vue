@@ -1,6 +1,6 @@
 <template>
   <div class="page play-page">
-    <div class="play-header">
+    <div class="play-header" v-if="!isMobile">
       <div>
         <h2 style="display: flex; align-items: center; gap: var(--space-2);">
           <span>{{ routeMeta.icon }}</span>
@@ -54,9 +54,14 @@
             <div class="setup-cta">
               <h1 class="text-glow mb-2">READY FOR BATTLE?</h1>
               <p class="muted mb-8">Select your adversary and prepare for tactical engagement.</p>
-              <button class="btn btn-primary btn-lg px-12" @click="showNewGameModal = true">
-                ⚔️ START NEW GAME
-              </button>
+              <div class="setup-actions" style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-lg px-8" @click="showNewGameModal = true">
+                  ⚔️ START NEW GAME
+                </button>
+                <button v-if="store.hasActiveGameSnapshot" class="btn btn-secondary btn-lg px-8" @click="handleResumeGame">
+                  🔄 RESUME ACTIVE GAME
+                </button>
+              </div>
             </div>
           </div>
 
@@ -109,8 +114,8 @@
         />
       </div>
 
-      <!-- Right Side Panel -->
-      <Transition name="slide-left">
+      <!-- Desktop Right Side Panel -->
+      <Transition name="slide-left" v-if="!isMobile">
         <div class="side-panel glass" v-if="showHistory">
           <!-- Eval bar -->
           <div class="eval-section" v-if="store.mode === 'vs-computer'">
@@ -133,6 +138,39 @@
           <MoveHistory />
         </div>
       </Transition>
+
+      <!-- Mobile Bottom Sheet Panel -->
+      <BottomSheet v-else-if="!showSetup" title="Game Intel" :peekHeight="80" defaultPosition="peek">
+        <template #peek>
+          <div class="mobile-peek-bar">
+            <span class="sheet-title">Intel Panel</span>
+            <div class="mobile-peek-actions">
+              <button class="btn btn-ghost btn-xs" @click.stop="store.undoMove()" :disabled="store.moveHistory.length === 0">↩ Undo</button>
+              <button class="btn btn-ghost btn-xs" @click.stop="flipped = !flipped">⇄ Flip</button>
+              <button class="btn btn-danger btn-xs" @click.stop="resign">✕ Resign</button>
+            </div>
+          </div>
+        </template>
+        
+        <div class="mobile-sheet-inner">
+          <!-- Compact Eval bar on mobile bottom sheet -->
+          <div class="eval-section mobile-eval" v-if="store.mode === 'vs-computer'">
+            <div class="eval-bar-horizontal">
+              <div class="eval-white-fill" :style="{ width: evalPercent + '%' }"></div>
+            </div>
+            <div class="eval-info-horizontal">
+              <span class="label">EVAL:</span>
+              <span class="eval-score" :class="evalNumber > 0 ? 'positive' : 'negative'">
+                {{ evalNumber > 0 ? '+' : '' }}{{ evalNumber.toFixed(1) }}
+              </span>
+            </div>
+          </div>
+
+          <TacticalPulse />
+          <div class="divider"></div>
+          <MoveHistory />
+        </div>
+      </BottomSheet>
     </div>
 
     <!-- New Game Modal -->
@@ -165,6 +203,7 @@ import PlayGameOverOverlay from '../components/play/PlayGameOverOverlay.vue'
 import PlayCheatBustedOverlay from '../components/play/PlayCheatBustedOverlay.vue'
 import PlayThinkingIndicator from '../components/play/PlayThinkingIndicator.vue'
 import NewGameModal from '../components/play/NewGameModal.vue'
+import BottomSheet from '../components/common/BottomSheet.vue'
 
 // Pillar Composables
 import { usePlaySetup } from '../composables/play/usePlaySetup'
@@ -176,6 +215,9 @@ import { usePlayAntiCheat } from '../composables/play/usePlayAntiCheat'
 const store = useGameStore()
 const engineStore = useEngineStore()
 engineStore.init()
+
+import { useMobileDetect } from '../composables/useMobileDetect'
+const { isMobile } = useMobileDetect()
 
 // Base UI State
 const flipped = ref(false)
@@ -208,6 +250,16 @@ function handleStartGame(params: any) {
   store.activeBot = params.bot
   
   startGame(params.mode, params.color, params.tc)
+}
+
+/**
+ * Handle game resume from saved snapshot.
+ */
+function handleResumeGame() {
+  const success = store.resumeActiveGame()
+  if (success) {
+    showSetup.value = false
+  }
 }
 
 /**
@@ -302,7 +354,7 @@ onUnmounted(() => {
   transition: all var(--duration) var(--ease);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .setup-overlay {
     left: 0;
     width: 100vw;
@@ -418,4 +470,66 @@ onUnmounted(() => {
 
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.25s ease; }
 .fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(6px); }
+
+/* ─── MOBILE BOTTOM SHEET STYLES ─── */
+.mobile-peek-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--space-2);
+}
+
+.mobile-peek-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.mobile-peek-actions .btn {
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-3);
+  min-height: 28px;
+  min-width: unset;
+}
+
+.mobile-sheet-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mobile-eval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.eval-bar-horizontal {
+  width: 100%;
+  height: 8px;
+  background: #2a2a2a;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.eval-bar-horizontal .eval-white-fill {
+  height: 100%;
+  transition: width 0.6s var(--ease);
+}
+
+.eval-info-horizontal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .setup-cta h1 {
+    font-size: 2rem !important;
+  }
+}
 </style>

@@ -1,23 +1,17 @@
-## 🏁 Current Status: v0.45.0 ("Move Trail Canvas, Aesthetic Customizer & Curriculum Fanfare") — STABLE
-**Date**: May 24, 2026
+## 🏁 Current Status: v0.46.0 ("Mobile-First Redesign & UX Polish") — STABLE
+**Date**: June 24, 2026
 **Overall Health**: 🟢 Green (Stable)
-**Test Coverage**: 100% Pass Rate (113/113 Unit & Playwright E2E Suites)
+**Test Coverage**: 100% Pass Rate (119/119 Unit & E2E Suites)
 
 ### 🚀 Recent Milestones
-*   **Move Trail Canvas Particle Engine (v0.45.0)**:
-    *   Created `MoveTrailCanvas.vue` running a lightweight `<canvas>` overlay between chess squares and pieces.
-    *   Implemented six premium theme-tied capture trail effects: Chrono Echoes (`chrono`), Blazing Flame (`fire`), Frozen Crystal (`ice`), Cyber-Neon (`cyber`), Autumn Leaves (`leaves`), and Lightning Arc (`lightning`).
-    *   Integrated dynamic piece DOM-coordinate tracking to keep particle generation perfectly synchronized with CSS-sliding movements.
-*   **Aesthetic Customizer Modal (v0.45.0)**:
-    *   Created `BoardCustomizerModal.vue` with interactive move staging, piece outline contrast selectors, and a board position reset trigger.
-    *   Designed a zero-scroll, compact two-column carousel selector to adjust trail density and length.
-*   **Curriculum Expansion & Fanfare Celebration (v0.45.0)**:
-    *   Expanded standard curriculum quests list to **70 quests** and **5,000 XP** total, mapping milestone badges up to level peaks.
-    *   Built `SanctumFanfareOverlay.vue` containing full-screen glassmorphism animations celebrating the final quest completion.
-*   **Technical Debt & Type Safety Fixes (v0.45.0)**:
-    *   Removed the dead `"stockfish"` dependency from `package.json` to prevent package/bundle bloating.
-    *   Fixed TS compilation errors across `ChessBoard.vue`, `MoveTrailCanvas.vue`, `BoardCustomizerModal.vue`, and `SettingsBoardTab.vue` to achieve a 100% clean production build.
-    *   Fixed Chess.com daily puzzle coordinate solution parsing.
+*   **Mobile-First Redesign & UX Polish (v0.46.0)**:
+    *   Designed responsive bottom navigation tab bar that adaptively shows destinations (Home, Play, Puzzles, Sanctum, Profile, Settings) and authentication actions (Log In/Log Out) based on the player's credentials.
+    *   Built `BottomSheet.vue` — a reusable, touch-draggable bottom drawer with 3 snap points (peek, half-expanded, fully-expanded) utilizing glassmorphism styling.
+    *   Replaced desktop grid panels with the bottom drawer in `PlayView` and `AnalysisView` to house move history, coach evaluations, and controls.
+    *   Restructured `PuzzlesView` with a compact top stats strip, scrollable category pills, and floating gothic HUD indicators (Hearts, Streak, Hints) layered on the board.
+    *   Implemented `MobileProfileCarousel.vue` with swipeable tarot card viewports (Sigil, Combat Log, and Reliquary).
+    *   Cleaned up mobile touch interactions (tap-to-move, gesture scrolls, touch targets) and resolved a flexbox page-stretching bug in `.main-content`.
+    *   **Adversary Selection Drawer & Renamings**: Added a toggleable details drawer (Intel Drawer) in the bot selection carousel (`OpponentStep.vue`) containing the bot's backstory and attributes. Renamed the "DEPTH" label to "FORESIGHT" and "plies" to "moves" for player clarity. Stacked layout vertically on mobile to prevent overflow, replaced absolute tooltips with responsive inline help text descriptions arranged in a vertical stack (Title -> Value -> Progressbar -> Explanation) underneath the bars to prevent overflow and clipping, added visual progress indicators including a bi-directional progress bar for Contempt (ranging from -100 to 100), and made the drawer expanded/collapsed state persistent across adversary selections (until collapsed by the player). Added associated unit tests to verify the interactive drawer states.
 
 ### 🛠️ Key Technical Changes
 *   **MoveTrailCanvas.vue / ChessBoard.vue**: Connected particle emitting, curve interpolation, and coordinate syncing logic.

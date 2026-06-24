@@ -30,11 +30,13 @@ const authMode = ref<'login' | 'signup'>('login')
 function handleLogin() {
   authMode.value = 'login'
   showAuthModal.value = true
+  emit('close')
 }
 
 function handleSignup() {
   authMode.value = 'signup'
   showAuthModal.value = true
+  emit('close')
 }
 
 async function handleLogout() {
@@ -162,14 +164,18 @@ const isDev = import.meta.env.DEV
   overflow: visible;
 }
 
-/* Mobile logic */
-@media (max-width: 1024px) {
+/* Mobile logic: slide out the sidebar when below the mobile breakpoint */
+@media (max-width: 768px) {
   .sidenav {
     transform: translateX(-100%);
     box-shadow: 20px 0 50px rgba(0,0,0,0.5);
   }
   .sidenav.open {
     transform: translateX(0);
+  }
+  /* Hide the circular collapse toggle on mobile — hamburger in App.vue handles it */
+  .collapse-btn {
+    display: none;
   }
 }
 

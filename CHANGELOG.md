@@ -2,6 +2,20 @@
 
 All notable changes to the Knightfall project will be documented in this file.
 
+## [v0.46.0] - 2026-06-24
+
+### Added
+*   **Dynamic Bottom Tab Navigation**: Replaced the desktop sidebar with a mobile bottom navigation bar that dynamically adjusts options based on whether the player is authenticated or a guest.
+*   **Gothic Bottom Sheet Component**: Built `BottomSheet.vue` — a reusable, touch-draggable glassmorphism drawer with three snapping heights (peek, half-expanded, full-expanded).
+*   **Tarot Profile Carousel**: Added a mobile-optimized vertical scroll-snapping card carousel displaying player stats, DNA, and badges as tarot-themed scholar cards.
+*   **Compact Game Setup**: Redesigned adversary selection and color/time controls to fit mobile viewport heights cleanly without scrolling.
+*   **Floating Chess HUD**: Added corner overlays for hearts, streaks, and hint actions on the active puzzle board.
+
+### Changed
+- **Touch Gesture Locks**: Konditionally disabled drag-and-drop on touch devices to prevent scrolling conflict, utilizing tap-to-move instead.
+- **Diagnostics Positioning**: Shifted the diagnostic terminal button upwards to clear the sticky mobile bottom tab navigation.
+- **Main Layout Constraints**: Enforced `max-width: 100vw; overflow-x: hidden;` on `.main-content` to prevent page stretching.
+
 ## [v0.45.0] - 2026-05-24
 
 ### Added

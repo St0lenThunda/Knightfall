@@ -64,6 +64,24 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(analysisShowCriticalLines, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_CRITICAL_LINES, newVal))
   watch(analysisShowEvalBar, (newVal) => Storage.set(StorageKey.ANALYSIS_SHOW_EVAL_BAR, newVal))
 
+  /**
+   * Mobile Eco-Mode: Auto-disable canvas particle move trails on mobile.
+   * The MoveTrailCanvas component runs a requestAnimationFrame loop that
+   * is unnecessarily expensive on battery-constrained phones.
+   * Users can re-enable it manually in Settings if they want the effect.
+   */
+  if (
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(max-width: 768px)').matches ||
+     window.matchMedia('(pointer: coarse)').matches)
+  ) {
+    // Only override if the user hasn't explicitly set a preference before
+    const storedEffect = Storage.get<string | null>(StorageKey.MOVE_ANIMATION_EFFECT, null)
+    if (!storedEffect || storedEffect === 'none') {
+      moveAnimationEffect.value = 'none'
+    }
+  }
+
   return { 
     boardTheme, pieceTheme, soundEnabled, 
     engineMultiPv, analysisDepth, 

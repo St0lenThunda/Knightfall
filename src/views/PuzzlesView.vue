@@ -8,6 +8,22 @@
     <div class="puzzles-layout">
       <!-- Puzzle board -->
       <div class="puzzle-board-area">
+        <!-- Mobile Stats Strip (Level, XP, Solved Today) -->
+        <div v-if="isMobile" class="mobile-stats-strip glass-sm">
+          <div class="strip-item">
+            <span class="strip-label">Level</span>
+            <span class="strip-val">{{ userStore.currentLevel }}</span>
+          </div>
+          <div class="strip-item">
+            <span class="strip-label">XP</span>
+            <span class="strip-val text-accent">{{ userStore.xp }}</span>
+          </div>
+          <div class="strip-item">
+            <span class="strip-label">Today</span>
+            <span class="strip-val text-gold">{{ solvedToday }}</span>
+          </div>
+        </div>
+
         <!-- Category pills -->
         <div class="category-pills">
           <button 
@@ -103,6 +119,7 @@
 
       <!-- Right: Sidebar -->
       <PuzzleSidebar
+        v-if="!isMobile"
         :solvedToday="solvedToday"
         :xp="userStore.xp"
         :xpForNextLevel="userStore.xpForNextLevel"
@@ -121,6 +138,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePuzzleLogic } from '../composables/usePuzzleLogic'
+import { useMobileDetect } from '../composables/useMobileDetect'
 
 // Components
 import ChessBoard from '../components/ChessBoard.vue'
@@ -133,6 +151,7 @@ import PuzzleCard from '../components/puzzles/PuzzleCard.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { isMobile } = useMobileDetect()
 
 const {
   store, userStore, 
@@ -194,4 +213,73 @@ const categories = [
 
 .sources-header { font-weight: 800; font-size: 0.7rem; letter-spacing: 0.1em; }
 .sources-actions { display: flex; gap: var(--space-2); }
+
+/* Mobile stats strip */
+.mobile-stats-strip {
+  display: flex;
+  justify-content: space-around;
+  padding: var(--space-3) var(--space-2);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+.strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.strip-label {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.strip-val {
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.text-gold {
+  color: var(--gold);
+}
+
+@media (max-width: 768px) {
+  .puzzles-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+  
+  .category-pills {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    -webkit-overflow-scrolling: touch;
+    /* Hide scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .category-pills::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .category-pills .pill {
+    flex-shrink: 0;
+  }
+
+  .external-sources {
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .sources-actions {
+    justify-content: center;
+  }
+}
 </style>

@@ -1,0 +1,9 @@
+{
+  "name": "Knightfall — Chess Reimagined",
+  "short_name": "Knightfall",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "description": "Gothic chess interface with AI coaching, pattern recognition, and cinematic analysis."
+}
